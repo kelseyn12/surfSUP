@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "expo_tutorial",
-    "slug": "expo_tutorial",
+    "name": "surfSUP",
+    "slug": "surfSUP",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kelseyn12.expo-tutorial"
+      "bundleIdentifier": "com.kelseyn12.surfSUP"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +18,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.kelseyn12.expo_tutorial"
+      "package": "com.kelseyn12.surfSUP"
     },
     "web": {
       "bundler": "metro",
