@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-               BuildableName = "expotutorial.app"
-               BlueprintName = "expotutorial"
-               ReferencedContainer = "container:expotutorial.xcodeproj">
+               BuildableName = "surfSUP.app"
+               BlueprintName = "surfSUP"
+               ReferencedContainer = "container:surfSUP.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "00E356ED1AD99517003FC87E"
-               BuildableName = "expotutorialTests.xctest"
-               BlueprintName = "expotutorialTests"
-               ReferencedContainer = "container:expotutorial.xcodeproj">
+               BuildableName = "surfSUPTests.xctest"
+               BlueprintName = "surfSUPTests"
+               ReferencedContainer = "container:surfSUP.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -55,9 +55,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "expotutorial.app"
-            BlueprintName = "expotutorial"
-            ReferencedContainer = "container:expotutorial.xcodeproj">
+            BuildableName = "surfSUP.app"
+            BlueprintName = "surfSUP"
+            ReferencedContainer = "container:surfSUP.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,9 +72,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "expotutorial.app"
-            BlueprintName = "expotutorial"
-            ReferencedContainer = "container:expotutorial.xcodeproj">
+            BuildableName = "surfSUP.app"
+            BlueprintName = "surfSUP"
+            ReferencedContainer = "container:surfSUP.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

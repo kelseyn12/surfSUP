@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.kelseyn12.expo_tutorial'
+    namespace 'com.surfsup.app'
     defaultConfig {
-        applicationId 'com.kelseyn12.expo_tutorial'
+        applicationId 'com.surfsup.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

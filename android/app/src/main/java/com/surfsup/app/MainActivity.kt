@@ -1,4 +1,4 @@
-package com.kelseyn12.expo_tutorial
+package com.surfsup.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

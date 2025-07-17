@@ -1,4 +1,4 @@
-package com.kelseyn12.expo_tutorial
+package com.surfsup.app
 
 import android.app.Application
 import android.content.res.Configuration
