@@ -1,26 +1,36 @@
+// auth.ts
+
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api } from './api';
+import { firebaseAuth } from '../config/firebase';
+import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { User } from '../types';
 
 // Constants
 const MAX_LOGIN_ATTEMPTS = 5;
-const LOGIN_ATTEMPT_WINDOW = 15 * 60 * 1000; // 15 minutes
-const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours
-const TOKEN_REFRESH_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours
+const LOGIN_ATTEMPT_WINDOW = 15 * 60 * 1000;
+const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
+const TOKEN_REFRESH_INTERVAL = 12 * 60 * 60 * 1000;
 const PASSWORD_MIN_LENGTH = 8;
 const STORAGE_KEY = 'auth-storage';
 
-// Password validation
 const validatePasswordStrength = (password: string): boolean => {
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
   const hasNumbers = /\d/.test(password);
   const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-  return password.length >= PASSWORD_MIN_LENGTH && 
-         hasUpperCase && hasLowerCase && 
-         hasNumbers && hasSpecialChar;
+  return password.length >= PASSWORD_MIN_LENGTH && hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar;
+};
+
+const convertFirebaseUser = (firebaseUser: FirebaseAuthTypes.User): User => {
+  return {
+    id: firebaseUser.uid,
+    email: firebaseUser.email || '',
+    name: firebaseUser.displayName || '',
+    profileImageUrl: firebaseUser.photoURL || '',
+    createdAt: firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime).toISOString() : new Date().toISOString(),
+  };
 };
 
 const initialState = {
@@ -45,6 +55,7 @@ export interface AuthState {
   lastActivity: number;
   loginAttempts: number;
   lastLoginAttempt: number;
+  initializeAuth: () => () => void;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -54,204 +65,130 @@ export interface AuthState {
   updateUserProfile: (updates: Partial<User>) => Promise<void>;
 }
 
-// Create the auth store with persistence
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       ...initialState,
 
-      login: async (email: string, password: string) => {
-        try {
-          const { loginAttempts, lastLoginAttempt } = get();
-          const now = Date.now();
+      initializeAuth: () => {
+        console.log('Initializing Firebase auth listener...');
 
-          // Check rate limiting
-          if (loginAttempts >= MAX_LOGIN_ATTEMPTS && 
-              now - lastLoginAttempt < LOGIN_ATTEMPT_WINDOW) {
-            throw new Error('Too many login attempts. Please try again later.');
+        const unsubscribe = firebaseAuth.onAuthStateChanged(async (firebaseUser) => {
+          if (firebaseUser) {
+            const idToken = await firebaseUser.getIdToken();
+            const user = convertFirebaseUser(firebaseUser);
+            set({
+              user,
+              token: idToken,
+              isAuthenticated: true,
+              lastActivity: Date.now(),
+            });
+          } else {
+            set(initialState);
           }
+        });
 
+        return unsubscribe;
+      },
+
+      login: async (email, password) => {
+        try {
           set({ isLoading: true, error: null });
-          
-          // For development, simulate a successful login
-          const mockUser: User = {
-            id: 'user-' + Date.now(),
-            email,
-            name: email.split('@')[0],
-            username: email.split('@')[0].toLowerCase(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            preferences: {
-              favoriteSpots: [],
-              units: 'imperial',
-              notifications: true,
-              privacyMode: 'friends'
-            },
-            stats: {
-              totalSessions: 0,
-              averageSessionLength: 0,
-              startDate: new Date().toISOString()
-            }
-          };
+          const userCredential = await firebaseAuth.signInWithEmailAndPassword(email, password);
+          const user = convertFirebaseUser(userCredential.user);
+          const idToken = await userCredential.user.getIdToken();
 
           set({
-            user: mockUser,
-            token: 'mock-token-' + Date.now(),
-            refreshToken: 'mock-refresh-token-' + Date.now(),
+            user,
+            token: idToken,
             isAuthenticated: true,
             isLoading: false,
-            lastActivity: now,
+            lastActivity: Date.now(),
             loginAttempts: 0,
-            lastLoginAttempt: now,
-            error: null
           });
-
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Login failed';
-          set((state) => ({
-            ...state,
-            error: errorMessage,
+        } catch (error: any) {
+          set({
             isLoading: false,
-            loginAttempts: state.loginAttempts + 1,
+            error: error.message || 'Login failed',
+            loginAttempts: get().loginAttempts + 1,
             lastLoginAttempt: Date.now(),
-          }));
+          });
         }
       },
 
-      register: async (email: string, password: string, name: string) => {
+      register: async (email, password, name) => {
         try {
+          set({ isLoading: true, error: null });
+
           if (!validatePasswordStrength(password)) {
-            throw new Error(
-              'Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters'
-            );
+            throw new Error('Password does not meet security requirements');
           }
 
-          set({ isLoading: true, error: null });
-          
-          // Simulate registration
-          const mockUser: User = {
-            id: 'user-' + Date.now(),
-            email,
-            name,
-            username: email.split('@')[0].toLowerCase(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            preferences: {
-              favoriteSpots: [],
-              units: 'imperial',
-              notifications: true,
-              privacyMode: 'friends'
-            },
-            stats: {
-              totalSessions: 0,
-              averageSessionLength: 0,
-              startDate: new Date().toISOString()
-            }
-          };
-          
+          const userCredential = await firebaseAuth.createUserWithEmailAndPassword(email, password);
+          await userCredential.user.updateProfile({ displayName: name });
+
+          const user = convertFirebaseUser(userCredential.user);
+          const idToken = await userCredential.user.getIdToken();
+
           set({
-            user: mockUser,
-            token: 'mock-token-' + Date.now(),
-            refreshToken: 'mock-refresh-token-' + Date.now(),
+            user,
+            token: idToken,
             isAuthenticated: true,
             isLoading: false,
             lastActivity: Date.now(),
           });
-        } catch (error) {
-          let errorMessage = 'Registration failed';
-          if (error instanceof Error) {
-            if (error.message.includes('409')) {
-              errorMessage = 'Email already registered';
-            } else if (error.message.includes('400')) {
-              errorMessage = 'Invalid registration data';
-            } else if (error.message.includes('network')) {
-              errorMessage = 'Network error. Please check your connection';
-            }
-          }
+        } catch (error: any) {
           set({
-            error: errorMessage,
             isLoading: false,
-            isAuthenticated: false,
-            user: null,
-            token: null,
-            refreshToken: null,
+            error: error.message || 'Registration failed',
           });
         }
       },
 
-      updateUserProfile: async (updates: Partial<User>) => {
+      updateUserProfile: async (updates) => {
         try {
-          set({ isLoading: true, error: null });
-          
-          // For development, update the user directly without API call
-          set((state) => {
-            if (!state.user) return state;
-            
-            const currentStats = state.user.stats || {
-              totalSessions: 0,
-              averageSessionLength: 0,
-              startDate: new Date().toISOString()
-            };
-            
-            return {
-              ...state,
-              user: {
-                ...state.user,
-                ...updates,
-                stats: {
-                  ...currentStats,
-                  ...(updates.stats || {}),
-                  // Ensure required fields have default values
-                  totalSessions: updates.stats?.totalSessions ?? currentStats.totalSessions,
-                  averageSessionLength: updates.stats?.averageSessionLength ?? currentStats.averageSessionLength,
-                  startDate: updates.stats?.startDate || currentStats.startDate
-                }
-              },
-              isLoading: false,
-            };
-          });
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to update profile',
-            isLoading: false,
-          });
+          const currentUser = firebaseAuth.currentUser;
+          if (!currentUser) throw new Error('No authenticated user');
+
+          const profileUpdates: any = {};
+          if (updates.name) profileUpdates.displayName = updates.name;
+          if (updates.profileImageUrl) profileUpdates.photoURL = updates.profileImageUrl;
+
+          await currentUser.updateProfile(profileUpdates);
+          const updatedUser = convertFirebaseUser(currentUser);
+          set({ user: updatedUser });
+        } catch (error: any) {
+          set({ error: error.message || 'Profile update failed' });
         }
       },
 
       logout: async () => {
         try {
-          set({ isLoading: true, error: null });
-          
-          // Reset to initial state
+          await firebaseAuth.signOut();
           set(initialState);
-          
-        } catch (error) {
-          // Even if there's an error, ensure we reset the state
-          set(initialState);
+        } catch (error: any) {
+          set({ error: error.message || 'Logout failed' });
         }
       },
 
       refreshAuthToken: async () => {
-        // No-op in mock mode
-        set({ lastActivity: Date.now() });
+        try {
+          const currentUser = firebaseAuth.currentUser;
+          if (currentUser) {
+            const idToken = await currentUser.getIdToken(true);
+            set({ token: idToken, lastActivity: Date.now() });
+          }
+        } catch (error: any) {
+          set({ error: error.message || 'Token refresh failed' });
+        }
       },
 
       clearError: () => set({ error: null }),
-
-      updateLastActivity: () => {
-        const { lastActivity } = get();
-        const now = Date.now();
-        
-        if (now - lastActivity > SESSION_TIMEOUT) {
-          get().logout();
-        } else {
-          set({ lastActivity: now });
-        }
-      },
+      updateLastActivity: () => set({ lastActivity: Date.now() }),
     }),
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => AsyncStorage as any),
     }
   )
-); 
+);

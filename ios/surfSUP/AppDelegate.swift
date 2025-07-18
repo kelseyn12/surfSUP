@@ -1,5 +1,6 @@
 import Expo
 import React
+import FirebaseCore // ✅ Import FirebaseCore
 import ReactAppDependencyProvider
 
 @UIApplicationMain
@@ -29,6 +30,9 @@ public class AppDelegate: ExpoAppDelegate {
       launchOptions: launchOptions)
 #endif
 
+    // ✅ Native Firebase SDK init
+    FirebaseApp.configure()
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -53,10 +57,7 @@ public class AppDelegate: ExpoAppDelegate {
 }
 
 class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
-  // Extension point for config-plugins
-
   override func sourceURL(for bridge: RCTBridge) -> URL? {
-    // needed to return the correct URL for expo-dev-client.
     bridge.bundleURL ?? bundleURL()
   }
 

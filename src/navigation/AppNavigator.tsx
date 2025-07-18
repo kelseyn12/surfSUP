@@ -85,7 +85,7 @@ const MainTabNavigator = () => {
 // Main stack navigator
 const AppNavigator = () => {
   const navigationRef = useNavigationContainerRef();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, initializeAuth } = useAuthStore();
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -96,10 +96,19 @@ const AppNavigator = () => {
     checkOnboardingStatus();
   }, []);
 
+  // Initialize Firebase auth state listener
+  useEffect(() => {
+    const unsubscribe = initializeAuth();
+    return unsubscribe;
+  }, [initializeAuth]);
+
   // Show loading state while checking onboarding status
   if (hasCompletedOnboarding === null) {
     return null;
   }
+
+  // Create a key that changes when auth state changes to force re-render
+  const navigatorKey = `${hasCompletedOnboarding}-${isAuthenticated}`;
   
   return (
     <NavigationContainer 
@@ -107,6 +116,7 @@ const AppNavigator = () => {
       ref={navigationRef}
     >
       <Stack.Navigator 
+        key={navigatorKey}
         initialRouteName={hasCompletedOnboarding ? (isAuthenticated ? 'Main' : 'AuthScreen') : 'OnBoarding'}
         screenOptions={{
           headerShown: false,
@@ -122,9 +132,7 @@ const AppNavigator = () => {
             options={{ headerShown: false }}
           />
         )}
-        {hasCompletedOnboarding && !isAuthenticated && (
-          <Stack.Screen name="AuthScreen" component={AuthScreen} />
-        )}
+        <Stack.Screen name="AuthScreen" component={AuthScreen} />
         {hasCompletedOnboarding && isAuthenticated && (
           <Stack.Screen name="Main" component={MainTabNavigator} />
         )}
