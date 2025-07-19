@@ -155,7 +155,19 @@ export const useAuthStore = create<AuthState>()(
           if (updates.profileImageUrl) profileUpdates.photoURL = updates.profileImageUrl;
 
           await currentUser.updateProfile(profileUpdates);
-          const updatedUser = convertFirebaseUser(currentUser);
+          
+          // Get the current user state to preserve existing data
+          const currentState = get();
+          if (!currentState.user) throw new Error('No user data available');
+          
+          const updatedUser: User = {
+            ...currentState.user,
+            ...updates,
+            // Update Firebase-specific fields
+            name: updates.name || currentState.user.name,
+            profileImageUrl: updates.profileImageUrl || currentState.user.profileImageUrl,
+          };
+          
           set({ user: updatedUser });
         } catch (error: any) {
           set({ error: error.message || 'Profile update failed' });

@@ -13,6 +13,7 @@ export type RootStackParamList = {
   LogSession: { spotId: string; spot?: SurfSpot };
   SessionDetails: { sessionId: string };
   Settings: undefined;
+  EditProfile: undefined;
   OnBoarding: undefined;
   Debug: undefined;
   ForgotPassword: undefined;

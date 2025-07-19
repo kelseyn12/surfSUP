@@ -16,7 +16,7 @@ This document maintains a running list of tasks, enhancements, bug fixes, and te
 - [X] Set up utility functions
 - [X] Create mock data for development
 - [X] Set up project documentation in guidelines folder
-- [ ] Install and configure necessary dependencies
+- [X] Install and configure necessary dependencies
 - [X] Set up linting and code formatting
 
 ## Core Features
@@ -144,6 +144,34 @@ This document maintains a running list of tasks, enhancements, bug fixes, and te
 - [H] Integrate with real backend WebSocket server
   - Deferred until after Firebase authentication and user flows are complete. Will revisit real-time backend after core auth is in place.
 
+## Recently Completed (Firebase Auth Implementation)
+- [X] Set up Firebase project and configuration
+- [X] Implement Firebase authentication with React Native Firebase
+- [X] Create proper user type conversion between Firebase and app User types
+- [X] Set up Zustand auth store with persistence
+- [X] Configure iOS and Android Firebase setup
+- [X] Fix native module linking issues
+- [X] Clean up duplicate files and project structure
+- [X] Test authentication flow (login/register/logout)
+
+## Recently Completed (User Profile Implementation)
+- [X] Create comprehensive EditProfileScreen with form validation
+- [X] Add profile editing functionality (name, username, profile image, preferences)
+- [X] Implement surfing preferences (board type, units, home spot)
+- [X] Enhance ProfileScreen with edit button and preferences display
+- [X] Add navigation integration for profile editing
+- [X] Update SettingsScreen to link to EditProfileScreen
+
+## Next Priority Tasks
+- [ ] Implement password reset functionality
+- [ ] Add social media login (Google, Apple)
+- [X] Create user profile screen and editing
+- [ ] Implement session history and statistics
+- [ ] Add favorites functionality for surf spots
+- [ ] Implement search and filtering for spots
+- [ ] Create tide chart component
+- [ ] Add photo upload capability for session logs
+
 To-Do List: Building SurfSUP
 Phase 1: Planning
 Goal: Establish the foundation for development.
@@ -211,9 +239,9 @@ Frontend Screens
   X Check-in & Log Screens - Implement session logging.
 
 Authentication & User Management
-  □ Build authentication screens.
-  □ Implement local user profiles.
-  □ Add user preferences.
+  X Build authentication screens.
+  X Implement Firebase authentication with proper user management.
+  X Add user preferences and profile management.
 
 Phase 3: Testing
 Goal: Ensure functionality, performance, and usability.
@@ -241,5 +269,5 @@ Goal: Iterate and scale beyond Lake Superior.
 □ Add premium features.
 □ Expand to more locations.
 
-- [ ] jsEngine was set back to Hermes in app.json after switching to mock authentication. Revisit this if real Firebase Auth is reintroduced or if native module compatibility issues arise.
-- [ ] Hermes was disabled in app.json (set jsEngine to 'jsc') to allow Firebase Auth to work in Expo Go. If you need Hermes or native Firebase features in the future, revisit this decision and consider migrating to a custom dev client or bare workflow. 
+- [X] jsEngine was set back to Hermes in app.json after switching to mock authentication. Revisit this if real Firebase Auth is reintroduced or if native module compatibility issues arise.
+- [X] Hermes was disabled in app.json (set jsEngine to 'jsc') to allow Firebase Auth to work in Expo Go. If you need Hermes or native Firebase features in the future, revisit this decision and consider migrating to a custom dev client or bare workflow. 

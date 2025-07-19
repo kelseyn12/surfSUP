@@ -73,12 +73,23 @@ const ProfileScreen: React.FC = () => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.profileHeader}>
-        <Image 
-          source={{ uri: user?.profileImageUrl || 'https://via.placeholder.com/150' }} 
-          style={styles.profileImage} 
-        />
+        <View style={styles.profileImageContainer}>
+          <Image 
+            source={{ uri: user?.profileImageUrl || 'https://via.placeholder.com/150' }} 
+            style={styles.profileImage} 
+          />
+          <TouchableOpacity 
+            style={styles.editProfileButton}
+            onPress={() => navigation.navigate('EditProfile')}
+          >
+            <Ionicons name="create-outline" size={20} color={COLORS.white} />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.profileName}>{user?.name || 'Surfer'}</Text>
         <Text style={styles.profileUsername}>@{user?.username || ''}</Text>
+        {user?.preferences?.homeSpot && (
+          <Text style={styles.homeSpot}>🏠 {user.preferences.homeSpot}</Text>
+        )}
       </View>
 
       <View style={styles.statsContainer}>
@@ -99,6 +110,27 @@ const ProfileScreen: React.FC = () => {
             {user?.stats?.longestSession ? formatDuration(user.stats.longestSession) : '0h 0m'}
           </Text>
           <Text style={styles.statLabel}>Longest</Text>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Surfing Preferences</Text>
+        <View style={styles.preferencesContainer}>
+          <View style={styles.preferenceItem}>
+            <Text style={styles.preferenceLabel}>Preferred Board</Text>
+            <Text style={styles.preferenceValue}>
+              {user?.preferences?.preferredBoard ? 
+                user.preferences.preferredBoard.charAt(0).toUpperCase() + user.preferences.preferredBoard.slice(1) : 
+                'Not set'
+              }
+            </Text>
+          </View>
+          <View style={styles.preferenceItem}>
+            <Text style={styles.preferenceLabel}>Units</Text>
+            <Text style={styles.preferenceValue}>
+              {user?.preferences?.units === 'metric' ? 'Metric (m, km/h)' : 'Imperial (ft, mph)'}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -202,11 +234,27 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.lightGray,
   },
+  profileImageContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
   profileImage: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    marginBottom: 12,
+  },
+  editProfileButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: COLORS.white,
   },
   profileName: {
     fontSize: 22,
@@ -215,6 +263,11 @@ const styles = StyleSheet.create({
   },
   profileUsername: {
     fontSize: 16,
+    color: COLORS.text.secondary,
+    marginTop: 4,
+  },
+  homeSpot: {
+    fontSize: 14,
     color: COLORS.text.secondary,
     marginTop: 4,
   },
@@ -248,6 +301,28 @@ const styles = StyleSheet.create({
   section: {
     padding: 16,
     marginBottom: 16,
+  },
+  preferencesContainer: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+  },
+  preferenceItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightGray,
+  },
+  preferenceLabel: {
+    fontSize: 16,
+    color: COLORS.text.secondary,
+  },
+  preferenceValue: {
+    fontSize: 16,
+    color: COLORS.text.primary,
+    fontWeight: '500',
   },
   sectionTitle: {
     fontSize: 18,

@@ -16,6 +16,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import SessionDetailsScreen from '../screens/SessionDetailsScreen';
 import AuthScreen from '../screens/AuthScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 import { RootStackParamList, MainTabParamList } from './types';
 import OnBoardingScreen from '../screens/OnBoardingScreen';
 import { isOnboardingComplete } from '../services/storage';
@@ -139,6 +140,7 @@ const AppNavigator = () => {
         <Stack.Screen name="SpotDetails" component={SpotDetailsScreen} />
         <Stack.Screen name="LogSession" component={LogSessionScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="SessionDetails" component={SessionDetailsScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       </Stack.Navigator>
