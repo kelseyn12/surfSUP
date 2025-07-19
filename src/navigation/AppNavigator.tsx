@@ -16,6 +16,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import SessionDetailsScreen from '../screens/SessionDetailsScreen';
 import AuthScreen from '../screens/AuthScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import PasswordResetSuccessScreen from '../screens/PasswordResetSuccessScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import { RootStackParamList, MainTabParamList } from './types';
 import OnBoardingScreen from '../screens/OnBoardingScreen';
@@ -92,10 +93,13 @@ const AppNavigator = () => {
   useEffect(() => {
     const checkOnboardingStatus = async () => {
       const completed = await isOnboardingComplete();
-      setHasCompletedOnboarding(completed);
+      // For now, assume onboarding is complete if user is authenticated
+      // This prevents the onboarding screen from showing for existing users
+      const shouldShowOnboarding = !completed && !isAuthenticated;
+      setHasCompletedOnboarding(!shouldShowOnboarding);
     };
     checkOnboardingStatus();
-  }, []);
+  }, [isAuthenticated]);
 
   // Initialize Firebase auth state listener
   useEffect(() => {
@@ -103,21 +107,30 @@ const AppNavigator = () => {
     return unsubscribe;
   }, [initializeAuth]);
 
+  // Handle navigation when auth state changes
+  useEffect(() => {
+    if (hasCompletedOnboarding !== null && navigationRef.current) {
+      if (isAuthenticated) {
+        navigationRef.current.navigate('Main');
+      } else {
+        navigationRef.current.navigate('AuthScreen');
+      }
+    }
+  }, [isAuthenticated, hasCompletedOnboarding]);
+
+
+
   // Show loading state while checking onboarding status
   if (hasCompletedOnboarding === null) {
     return null;
   }
 
-  // Create a key that changes when auth state changes to force re-render
-  const navigatorKey = `${hasCompletedOnboarding}-${isAuthenticated}`;
-  
   return (
     <NavigationContainer 
       theme={AppTheme}
       ref={navigationRef}
     >
       <Stack.Navigator 
-        key={navigatorKey}
         initialRouteName={hasCompletedOnboarding ? (isAuthenticated ? 'Main' : 'AuthScreen') : 'OnBoarding'}
         screenOptions={{
           headerShown: false,
@@ -143,6 +156,7 @@ const AppNavigator = () => {
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="SessionDetails" component={SessionDetailsScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="PasswordResetSuccess" component={PasswordResetSuccessScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

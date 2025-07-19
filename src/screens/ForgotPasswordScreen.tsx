@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { RootStackScreenProps } from '../navigation/types';
 import { COLORS } from '../constants';
 import { HeaderBar } from '../components';
+import { firebaseAuth } from '../config/firebase';
 
 const ForgotPasswordScreen: React.FC = () => {
   const navigation = useNavigation<RootStackScreenProps<'ForgotPassword'>['navigation']>();
@@ -23,8 +24,15 @@ const ForgotPasswordScreen: React.FC = () => {
   const [error, setError] = useState('');
 
   const handleResetPassword = async () => {
-    if (!email) {
+    if (!email.trim()) {
       setError('Please enter your email address');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError('Please enter a valid email address');
       return;
     }
 
@@ -32,21 +40,27 @@ const ForgotPasswordScreen: React.FC = () => {
       setIsLoading(true);
       setError('');
       
-      // Mock password reset
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Send password reset email using Firebase
+      await firebaseAuth.sendPasswordResetEmail(email.trim());
       
-      Alert.alert(
-        'Password Reset Email Sent',
-        'Please check your email for instructions to reset your password.',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('AuthScreen')
-          }
-        ]
-      );
-    } catch (err) {
-      setError('Failed to send reset email. Please try again.');
+      navigation.navigate('PasswordResetSuccess');
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      
+      // Handle specific Firebase errors
+      let errorMessage = 'Failed to send reset email. Please try again.';
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'No account found with this email address.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Please enter a valid email address.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many attempts. Please try again later.';
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

@@ -26,14 +26,9 @@ const AuthScreen: React.FC = () => {
   const [name, setName] = useState('');
   const [localError, setLocalError] = useState('');
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigation.navigate('Main', { screen: 'Home' });
-    }
-  }, [isAuthenticated]);
+
 
   const handleSubmit = async () => {
-    console.log('Sign Up/Sign In button pressed', { isLogin, email, password, name });
     setLocalError('');
     clearError();
     
@@ -47,10 +42,14 @@ const AuthScreen: React.FC = () => {
       return;
     }
 
-    if (isLogin) {
-      await login(email, password);
-    } else {
-      await register(email, password, name);
+    try {
+      if (isLogin) {
+        await login(email, password);
+      } else {
+        await register(email, password, name);
+      }
+    } catch (error) {
+      setLocalError('Authentication failed. Please try again.');
     }
   };
 

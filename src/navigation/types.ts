@@ -17,6 +17,7 @@ export type RootStackParamList = {
   OnBoarding: undefined;
   Debug: undefined;
   ForgotPassword: undefined;
+  PasswordResetSuccess: undefined;
 };
 
 // Bottom tab navigator params
