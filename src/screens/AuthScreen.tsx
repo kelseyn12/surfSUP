@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 const AuthScreen: React.FC = () => {
   const navigation = useNavigation<RootStackScreenProps<'AuthScreen'>['navigation']>();
-  const { login, register, isLoading, error, clearError, isAuthenticated } = useAuthStore();
+  const { login, register, isLoading, error, clearError, isAuthenticated, signInWithApple, signInWithGoogle } = useAuthStore();
   
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -57,9 +57,18 @@ const AuthScreen: React.FC = () => {
     navigation.navigate('ForgotPassword');
   };
 
-  const handleSocialLogin = (provider: string) => {
-    // TODO: Implement social login
-    console.log(`${provider} login pressed`);
+  const handleSocialLogin = async (provider: string) => {
+    try {
+      if (provider === 'Apple') {
+        await signInWithApple();
+      } else if (provider === 'Google') {
+        await signInWithGoogle();
+      } else {
+        console.log(`${provider} login not implemented yet`);
+      }
+    } catch (error) {
+      console.error(`${provider} login error:`, error);
+    }
   };
 
   return (

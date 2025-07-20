@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "415230028538",
+    "project_id": "surfsup-8e5ae",
+    "storage_bucket": "surfsup-8e5ae.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:415230028538:android:0012ef8f5106c11d00b743",
+        "android_client_info": {
+          "package_name": "com.khdev.surfSUP"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "415230028538-vscjqo5vacn1jol11joj2sii93tj5v47.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC7r-fq2R7bJUiXJ0bYLnEb8V1yID385sM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "415230028538-vscjqo5vacn1jol11joj2sii93tj5v47.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "415230028538-1it1ucj7lgdha2sdrk674tkt7a53ttnf.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.kelseyn12.surfsupnative"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

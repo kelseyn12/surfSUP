@@ -110,9 +110,9 @@ const AppNavigator = () => {
   // Handle navigation when auth state changes
   useEffect(() => {
     if (hasCompletedOnboarding !== null && navigationRef.current) {
-      if (isAuthenticated) {
+      if (isAuthenticated && hasCompletedOnboarding) {
         navigationRef.current.navigate('Main');
-      } else {
+      } else if (!isAuthenticated) {
         navigationRef.current.navigate('AuthScreen');
       }
     }
@@ -147,9 +147,7 @@ const AppNavigator = () => {
           />
         )}
         <Stack.Screen name="AuthScreen" component={AuthScreen} />
-        {hasCompletedOnboarding && isAuthenticated && (
-          <Stack.Screen name="Main" component={MainTabNavigator} />
-        )}
+        <Stack.Screen name="Main" component={MainTabNavigator} />
         <Stack.Screen name="SpotDetails" component={SpotDetailsScreen} />
         <Stack.Screen name="LogSession" component={LogSessionScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />

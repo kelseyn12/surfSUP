@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "surfSUP",
+    "scheme": "com.surfSUP.com",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
@@ -17,7 +17,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kelseyn12.surfsup"
+      "bundleIdentifier": "com.surfSUP.com"
     },
     "android": {
       "adaptiveIcon": {

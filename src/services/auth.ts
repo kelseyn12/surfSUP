@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { firebaseAuth } from '../config/firebase';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { User } from '../types';
+import { SocialAuthService } from './socialAuth';
 
 // Constants
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -28,6 +29,7 @@ const convertFirebaseUser = (firebaseUser: FirebaseAuthTypes.User): User => {
     id: firebaseUser.uid,
     email: firebaseUser.email || '',
     name: firebaseUser.displayName || '',
+    username: firebaseUser.displayName ? firebaseUser.displayName.toLowerCase().replace(/\s+/g, '') : '',
     profileImageUrl: firebaseUser.photoURL || '',
     createdAt: firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime).toISOString() : new Date().toISOString(),
   };
@@ -63,6 +65,8 @@ export interface AuthState {
   clearError: () => void;
   updateLastActivity: () => void;
   updateUserProfile: (updates: Partial<User>) => Promise<void>;
+  signInWithApple: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -197,6 +201,66 @@ export const useAuthStore = create<AuthState>()(
 
       clearError: () => set({ error: null }),
       updateLastActivity: () => set({ lastActivity: Date.now() }),
+
+      signInWithApple: async () => {
+        try {
+          set({ isLoading: true, error: null });
+          const result = await SocialAuthService.signInWithApple();
+          
+          if (result.success && result.user) {
+            // Force refresh the user data to get the updated profile
+            await result.user.reload();
+            
+            let user = convertFirebaseUser(result.user);
+            
+            // If we got additional user data from Apple (like name), use it
+            if (result.userData?.name) {
+              user = {
+                ...user,
+                name: result.userData.name,
+                // Use the name as username if no username exists
+                username: user.username || result.userData.name.toLowerCase().replace(/\s+/g, ''),
+              };
+            }
+            
+            const idToken = await result.user.getIdToken();
+            set({
+              user,
+              token: idToken,
+              isAuthenticated: true,
+              lastActivity: Date.now(),
+              isLoading: false,
+            });
+          } else {
+            set({ error: result.error || 'Apple sign-in failed', isLoading: false });
+          }
+        } catch (error: any) {
+          set({ error: error.message, isLoading: false });
+        }
+      },
+
+      signInWithGoogle: async () => {
+        try {
+          set({ isLoading: true, error: null });
+          const result = await SocialAuthService.signInWithGoogle();
+          
+          if (result.success && result.user) {
+            const user = convertFirebaseUser(result.user);
+            const idToken = await result.user.getIdToken();
+            set({
+              user,
+              token: idToken,
+              isAuthenticated: true,
+              lastActivity: Date.now(),
+              isLoading: false,
+            });
+          } else {
+            set({ error: result.error || 'Google sign-in failed', isLoading: false });
+          }
+        } catch (error: any) {
+          set({ error: error.message, isLoading: false });
+        }
+      },
     }),
     {
       name: STORAGE_KEY,
