@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../constants';
 import { getUserSessions, storeUserSessions } from '../services/storage';
 import { SurfSession } from '../types';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons , MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const StatsDashboardScreen: React.FC = () => {
   const navigation = useNavigation();
-  const [sessions, setSessions] = useState<SurfSession[]>([]); // Remove if not used
+  const [sessions, setSessions] = useState<SurfSession[]>([]);
   const [stats, setStats] = useState({
     totalSessions: 0,
     totalHours: 0,
@@ -72,50 +73,54 @@ const StatsDashboardScreen: React.FC = () => {
     uniqueSpots: 0,
   });
 
-  // Helper: Convert ISO week string (YYYY-Www) to date range string (e.g., 'Jul 7 – Jul 13, 2025')
-  function getWeekDateRange(isoWeek: string): string {
-    const [yearStr, weekStr] = isoWeek.split('-W');
-    const year = parseInt(yearStr);
-    const week = parseInt(weekStr);
-    // Find the first day of the week (Monday)
-    const simple = new Date(year, 0, 1 + (week - 1) * 7);
-    const dow = simple.getDay();
-    const monday = new Date(simple);
-    if (dow <= 4) {
-      monday.setDate(simple.getDate() - simple.getDay() + 1);
-    } else {
-      monday.setDate(simple.getDate() + 8 - simple.getDay());
-    }
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    const format = (d: Date) => `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
-    return `${format(monday)} – ${format(sunday)}, ${year}`;
-  }
+  useEffect(() => {
+    const fetchSessions = async () => {
+      let data = await getUserSessions();
+      if (!data.length) {
+        const now = new Date();
+        const sample: SurfSession[] = [
+          {
+            id: '1',
+            spotId: 'stonyPoint',
+            startTime: new Date(now.getFullYear(), 6, 21, 7, 0).toISOString(), // July
+            endTime: new Date(now.getFullYear(), 6, 21, 9, 0).toISOString(),
+            board: { type: 'shortboard' },
+            conditions: {},
+          } as SurfSession,
+          {
+            id: '2',
+            spotId: 'parkPoint',
+            startTime: new Date(now.getFullYear(), 5, 10, 8, 0).toISOString(), // June
+            endTime: new Date(now.getFullYear(), 5, 10, 10, 0).toISOString(),
+            board: { type: 'longboard' },
+            conditions: {},
+          } as SurfSession,
+          {
+            id: '3',
+            spotId: 'lesterRiver',
+            startTime: new Date(now.getFullYear(), 4, 5, 6, 0).toISOString(), // May
+            endTime: new Date(now.getFullYear(), 4, 5, 7, 30).toISOString(),
+            board: { type: 'fish' },
+            conditions: {},
+          } as SurfSession,
+        ];
+        await storeUserSessions(sample);
+        data = sample;
+      }
+      setSessions(data);
+      calculateStats(data);
+      groupSessionsByMonth(data);
+      calculateTrends(data);
+      calculatePersonalBests(data);
+      calculateSpotAnalytics(data);
+      calculateStreaks(data);
+      calculateQualityStats(data);
+      calculateFunFacts(data);
+    };
+    fetchSessions();
+  }, []);
 
-  function getMonthKey(date: Date) {
-    return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-  }
-
-  // Helper to robustly format a date string as 'Jul 8, 2025'
-  function formatDateString(dateStr: string | undefined) {
-    if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    if (!(d instanceof Date) || isNaN(d.getTime())) return '-';
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  }
-
-  // Helper to format time (e.g., 09:30) to 12-hour format (e.g., 9:30 AM)
-  function formatTime12h(timeStr: string | undefined) {
-    if (!timeStr) return '-';
-    const [hours, minutes] = timeStr.split(':');
-    const hour = parseInt(hours);
-    const minute = parseInt(minutes);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12; // Convert 0 to 12 for 12-hour format
-    return `${displayHour}:${String(minute).padStart(2, '0')} ${ampm}`;
-  }
-
-  const calculateStats = React.useCallback((data: SurfSession[]) => {
+  const calculateStats = (data: SurfSession[]) => {
     if (!data.length) return;
     const totalSessions = data.length;
     let totalMinutes = 0;
@@ -179,7 +184,7 @@ const StatsDashboardScreen: React.FC = () => {
       longestStreak: maxStreak,
       mostActiveWeekRange,
     });
-  }, []);
+  };
 
   function getWeekNumber(date: Date) {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -200,7 +205,7 @@ const StatsDashboardScreen: React.FC = () => {
     setSessionsByMonth(grouped);
   };
 
-  const calculateTrends = React.useCallback((data: SurfSession[]) => {
+  function calculateTrends(data: SurfSession[]) {
     if (!data.length) return;
     const now = new Date();
     const thisMonthKey = getMonthKey(now);
@@ -237,9 +242,9 @@ const StatsDashboardScreen: React.FC = () => {
       thisMonthAvg: Math.round(thisMonthAvg),
       lastMonthAvg: Math.round(lastMonthAvg),
     });
-  }, []);
+  }
 
-  const calculatePersonalBests = React.useCallback((data: SurfSession[]) => {
+  function calculatePersonalBests(data: SurfSession[]) {
     if (!data.length) return;
     // Longest session
     let longest = { duration: 0, date: '', spot: '', isNew: false };
@@ -297,7 +302,7 @@ const StatsDashboardScreen: React.FC = () => {
       mostSessionsWeek: mostWeek,
       mostSessionsMonth: mostMonth,
     });
-  }, []);
+  }
 
   function calculateSpotAnalytics(data: SurfSession[]) {
     if (!data.length) return setSpotAnalytics([]);
@@ -406,7 +411,7 @@ const StatsDashboardScreen: React.FC = () => {
     });
   }
 
-  const calculateFunFacts = React.useCallback((data: SurfSession[]) => {
+  function calculateFunFacts(data: SurfSession[]) {
     if (!data.length) return setFunFacts({
       totalHours: 0, firstSession: '', mostSessionsDay: 0, mostSessionsDayDate: '', earliestTime: '', latestTime: '',
       popularDay: '', favoriteBoard: '', mostSessionsMonth: 0, mostSessionsMonthLabel: '', earliestMonth: '', latestMonth: '',
@@ -515,54 +520,55 @@ const StatsDashboardScreen: React.FC = () => {
       commonCondition,
       uniqueSpots: spotSet.size,
     });
-  }, []);
+  }
 
-  useEffect(() => {
-    const fetchSessions = async () => {
-      let data = await getUserSessions();
-      if (!data.length) {
-        const now = new Date();
-        const sample: SurfSession[] = [
-          {
-            id: '1',
-            spotId: 'stonyPoint',
-            startTime: new Date(now.getFullYear(), 6, 21, 7, 0).toISOString(), // July
-            endTime: new Date(now.getFullYear(), 6, 21, 9, 0).toISOString(),
-            board: { type: 'shortboard' },
-            conditions: {},
-          } as SurfSession,
-          {
-            id: '2',
-            spotId: 'parkPoint',
-            startTime: new Date(now.getFullYear(), 5, 10, 8, 0).toISOString(), // June
-            endTime: new Date(now.getFullYear(), 5, 10, 10, 0).toISOString(),
-            board: { type: 'longboard' },
-            conditions: {},
-          } as SurfSession,
-          {
-            id: '3',
-            spotId: 'lesterRiver',
-            startTime: new Date(now.getFullYear(), 4, 5, 6, 0).toISOString(), // May
-            endTime: new Date(now.getFullYear(), 4, 5, 7, 30).toISOString(),
-            board: { type: 'fish' },
-            conditions: {},
-          } as SurfSession,
-        ];
-        await storeUserSessions(sample);
-        data = sample;
-      }
-      setSessions(data);
-      calculateStats(data);
-      groupSessionsByMonth(data);
-      calculateTrends(data);
-      calculatePersonalBests(data);
-      calculateSpotAnalytics(data);
-      calculateStreaks(data);
-      calculateQualityStats(data);
-      calculateFunFacts(data);
-    };
-    fetchSessions();
-  }, [calculateFunFacts, calculatePersonalBests, calculateStats, calculateTrends]);
+  // Helper: Convert ISO week string (YYYY-Www) to date range string (e.g., 'Jul 7 – Jul 13, 2025')
+  function getWeekDateRange(isoWeek: string): string {
+    const [yearStr, weekStr] = isoWeek.split('-W');
+    const year = parseInt(yearStr);
+    const week = parseInt(weekStr);
+    // Find the first day of the week (Monday)
+    const simple = new Date(year, 0, 1 + (week - 1) * 7);
+    const dow = simple.getDay();
+    const monday = new Date(simple);
+    if (dow <= 4) {
+      monday.setDate(simple.getDate() - simple.getDay() + 1);
+    } else {
+      monday.setDate(simple.getDate() + 8 - simple.getDay());
+    }
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const format = (d: Date) => `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+    return `${format(monday)} – ${format(sunday)}, ${year}`;
+  }
+
+  function getMonthKey(date: Date) {
+    return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+  }
+
+  // Helper to get the date label for 13 days ago
+  function getStreakStartDateLabel() {
+    const d = new Date();
+    d.setDate(d.getDate() - 13);
+    return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+  }
+
+  // Helper to format time in 12-hour format
+  function formatTime12h(time: string) {
+    if (!time) return '';
+    const [h, m] = time.split(':').map(Number);
+    const date = new Date();
+    date.setHours(h, m);
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+  }
+
+  // Helper to robustly format a date string as 'Jul 8, 2025'
+  function formatDateString(dateStr: string | undefined) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (!(d instanceof Date) || isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
