@@ -3,11 +3,9 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  TouchableOpacity, 
   Platform, 
   StatusBar 
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import BackButton from './BackButton';
 import { useWebSocketStatus } from '../services/WebSocketStatusContext';
@@ -28,7 +26,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   onBackPress, 
   rightComponent 
 }) => {
-  const { connected, error, reconnectAttempt, reconnectDelay, reconnectCountdown } = useWebSocketStatus();
+  const { connected, error, reconnectAttempt, reconnectCountdown } = useWebSocketStatus();
   let statusColor = COLORS.success;
   if (error) statusColor = COLORS.error;
   else if (!connected) statusColor = COLORS.warning;

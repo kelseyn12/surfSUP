@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 const AuthScreen: React.FC = () => {
   const navigation = useNavigation<RootStackScreenProps<'AuthScreen'>['navigation']>();
-  const { login, register, isLoading, error, clearError, isAuthenticated, signInWithApple, signInWithGoogle } = useAuthStore();
+  const { login, register, isLoading, clearError, signInWithApple, signInWithGoogle } = useAuthStore();
   
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -43,10 +43,10 @@ const AuthScreen: React.FC = () => {
     }
 
     try {
-      if (isLogin) {
-        await login(email, password);
-      } else {
-        await register(email, password, name);
+    if (isLogin) {
+      await login(email, password);
+    } else {
+      await register(email, password, name);
       }
     } catch (error) {
       setLocalError('Authentication failed. Please try again.');
@@ -109,8 +109,8 @@ const AuthScreen: React.FC = () => {
               secureTextEntry
             />
             
-            {(localError || error) && (
-              <Text style={styles.errorText}>{localError || error}</Text>
+            {localError && (
+              <Text style={styles.errorText}>{localError}</Text>
             )}
             
             <TouchableOpacity 

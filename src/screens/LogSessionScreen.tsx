@@ -16,13 +16,11 @@ import {
   BackHandler
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { RootStackScreenProps } from '../navigation/types';
 import { COLORS } from '../constants';
 import { SurfSession, SurfSpot } from '../types';
 import { fetchNearbySurfSpots } from '../services/api';
 import { addSession } from '../services/sessions';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { HeaderBar, Button, CancelButton } from '../components';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../services/auth';
 import { formatShortDate, formatTime } from '../utils/dateTime';
@@ -62,6 +60,24 @@ const LogSessionScreen: React.FC<any> = (props) => {
 
   // Load spot details when component mounts
   useEffect(() => {
+    const loadSpotDetails = async () => {
+      setIsLoading(true);
+      try {
+        // Using hard-coded coordinates for Lake Superior for demo
+        const spots = await fetchNearbySurfSpots(46.7825, -92.0856);
+        if (spots) {
+          const foundSpot = spots.find(s => s.id === spotId);
+          if (foundSpot) {
+            setSpot(foundSpot);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading spot details:', error);
+        Alert.alert('Error', 'Failed to load spot details. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
     if (spotId) {
       loadSpotDetails();
     }
@@ -84,33 +100,14 @@ const LogSessionScreen: React.FC<any> = (props) => {
     loadSpots();
   }, []);
 
-  const loadSpotDetails = async () => {
-    setIsLoading(true);
-    try {
-      // Using hard-coded coordinates for Lake Superior for demo
-      const spots = await fetchNearbySurfSpots(46.7825, -92.0856);
-      if (spots) {
-        const foundSpot = spots.find(s => s.id === spotId);
-        if (foundSpot) {
-          setSpot(foundSpot);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading spot details:', error);
-      Alert.alert('Error', 'Failed to load spot details. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleStartDateChange = (event, selectedDate) => {
+  const handleStartDateChange = (event: any, selectedDate: Date | undefined) => {
     setShowStartPicker(Platform.OS === 'ios');
     if (selectedDate) {
       setStartTime(selectedDate);
     }
   };
 
-  const handleEndDateChange = (event, selectedDate) => {
+  const handleEndDateChange = (event: any, selectedDate: Date | undefined) => {
     setShowEndPicker(Platform.OS === 'ios');
     if (selectedDate) {
       setEndTime(selectedDate);
@@ -503,16 +500,19 @@ const LogSessionScreen: React.FC<any> = (props) => {
           </View>
 
           <View style={styles.buttonContainer}>
-            <CancelButton navigation={navigation} />
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={navigation.goBack}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
             
-            <Button
-              title="Save Session"
+            <TouchableOpacity 
+              style={styles.saveButton}
               onPress={handleSaveSession}
-              variant="primary"
-              size="large"
-              loading={isSaving}
-              style={styles.buttonSpacing}
-            />
+            >
+              <Text style={styles.saveButtonText}>Save Session</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </View>
@@ -713,9 +713,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
   },
-  buttonSpacing: {
+  cancelButton: {
     flex: 1,
     marginHorizontal: 6,
+    backgroundColor: COLORS.lightGray,
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    color: COLORS.text.primary,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  saveButton: {
+    flex: 1,
+    marginHorizontal: 6,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   modalContainer: {
     flex: 1,

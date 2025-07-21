@@ -9,6 +9,8 @@
  * @param unitOrShowUnit Unit string or boolean to show/hide unit
  * @returns Formatted wave height string
  */
+import { SurfConditions } from '../types';
+
 export const formatWaveHeight = (
   height: number,
   maxOrUnit?: number | 'ft' | 'm',
@@ -240,8 +242,6 @@ export const formatDuration = (minutes: number): string => {
     }
   }
 };
-
-import { SurfConditions } from '../types';
 
 /**
  * Format rating as stars (e.g., "★★★☆☆")

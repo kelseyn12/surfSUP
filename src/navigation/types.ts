@@ -18,6 +18,7 @@ export type RootStackParamList = {
   Debug: undefined;
   ForgotPassword: undefined;
   PasswordResetSuccess: undefined;
+  StatsDashboard: undefined;
 };
 
 // Bottom tab navigator params

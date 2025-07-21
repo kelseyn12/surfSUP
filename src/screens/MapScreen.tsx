@@ -25,10 +25,33 @@ const MapScreen: React.FC = () => {
     longitudeDelta: 0.5,
   });
 
+  // Function to load surf spots
+  const loadSurfSpots = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const spots = await fetchNearbySurfSpots(region.latitude, region.longitude);
+      if (spots) {
+        
+        // Make sure each spot shows the latest surfer count
+        const updatedSpots = [...spots];
+        for (let i = 0; i < updatedSpots.length; i++) {
+          const latestCount = await getSurferCount(updatedSpots[i].id);
+          updatedSpots[i].currentSurferCount = latestCount;
+        }
+        
+        setSurfSpots(updatedSpots);
+      }
+    } catch {
+
+    } finally {
+      setIsLoading(false);
+    }
+  }, [region.latitude, region.longitude]);
+
   // Initial load
   useEffect(() => {
     loadSurfSpots();
-  }, []);
+  }, [loadSurfSpots]);
 
   // Set up event listener for surfer count updates
   useEffect(() => {
@@ -59,30 +82,8 @@ const MapScreen: React.FC = () => {
     React.useCallback(() => {
       loadSurfSpots();
       return () => {};
-    }, [])
+    }, [loadSurfSpots])
   );
-
-  const loadSurfSpots = async () => {
-    setIsLoading(true);
-    try {
-      const spots = await fetchNearbySurfSpots(region.latitude, region.longitude);
-      if (spots) {
-        
-        // Make sure each spot shows the latest surfer count
-        const updatedSpots = [...spots];
-        for (let i = 0; i < updatedSpots.length; i++) {
-          const latestCount = await getSurferCount(updatedSpots[i].id);
-          updatedSpots[i].currentSurferCount = latestCount;
-        }
-        
-        setSurfSpots(updatedSpots);
-      }
-    } catch (error) {
-
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Placeholder function for finding user's location
   const findMyLocation = () => {

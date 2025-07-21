@@ -35,7 +35,7 @@ const PasswordResetSuccessScreen: React.FC = () => {
         <Text style={styles.title}>Check Your Email</Text>
         
         <Text style={styles.message}>
-          We've sent you a password reset link. Please check your email and follow the instructions to reset your password.
+          We&apos;ve sent you a password reset link. Please check your email and follow the instructions to reset your password.
         </Text>
         
         <View style={styles.tipsContainer}>
@@ -56,7 +56,7 @@ const PasswordResetSuccessScreen: React.FC = () => {
           style={styles.resendButton}
           onPress={() => navigation.navigate('ForgotPassword')}
         >
-          <Text style={styles.resendButtonText}>Didn't receive the email? Try again</Text>
+          <Text style={styles.resendButtonText}>Didn&apos;t receive the email? Try again</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

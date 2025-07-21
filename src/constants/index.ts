@@ -21,12 +21,6 @@ export const COLORS = {
     secondary: '#6C757D', // Medium Gray
     light: '#F8F9FA', // Light Gray
   },
-  surfConditions: {
-    surfPoor: '#DC3545', // Red
-    surfFair: '#FFC107', // Yellow
-    surfGood: '#28A745', // Green
-    surfExcellent: '#17A2B8', // Teal
-  },
   transparent: 'transparent',
 };
 
@@ -177,29 +171,29 @@ export const APP_CONFIG = {
 // Wave height categorization
 export const WAVE_HEIGHT = {
   FLAT: { min: 0, max: 0.5, label: 'Flat', color: COLORS.lightGray },
-  SMALL: { min: 0.5, max: 2, label: 'Small', color: COLORS.surfFair },
-  MEDIUM: { min: 2, max: 4, label: 'Medium', color: COLORS.surfGood },
-  LARGE: { min: 4, max: 6, label: 'Large', color: COLORS.surfFair },
-  EPIC: { min: 6, max: 10, label: 'Epic', color: COLORS.surfGood },
-  HUGE: { min: 10, max: 100, label: 'Huge', color: COLORS.surfPoor },
+  SMALL: { min: 0.5, max: 2, label: 'Small', color: COLORS.surfConditions.fair },
+  MEDIUM: { min: 2, max: 4, label: 'Medium', color: COLORS.surfConditions.good },
+  LARGE: { min: 4, max: 6, label: 'Large', color: COLORS.surfConditions.fair },
+  EPIC: { min: 6, max: 10, label: 'Epic', color: COLORS.surfConditions.good },
+  HUGE: { min: 10, max: 100, label: 'Huge', color: COLORS.surfConditions.poor },
 };
 
 // Wind quality thresholds in mph
 export const WIND = {
-  OFFSHORE: { direction: 'offshore', label: 'Offshore', color: COLORS.surfGood },
-  ONSHORE: { direction: 'onshore', label: 'Onshore', color: COLORS.surfPoor },
-  CROSS_SHORE: { direction: 'cross', label: 'Cross Shore', color: COLORS.surfFair },
-  LIGHT: { max: 7, label: 'Light', color: COLORS.surfGood },
-  MODERATE: { min: 7, max: 15, label: 'Moderate', color: COLORS.surfFair },
-  STRONG: { min: 15, label: 'Strong', color: COLORS.surfPoor },
+  OFFSHORE: { direction: 'offshore', label: 'Offshore', color: COLORS.surfConditions.good },
+  ONSHORE: { direction: 'onshore', label: 'Onshore', color: COLORS.surfConditions.poor },
+  CROSS_SHORE: { direction: 'cross', label: 'Cross Shore', color: COLORS.surfConditions.fair },
+  LIGHT: { max: 7, label: 'Light', color: COLORS.surfConditions.good },
+  MODERATE: { min: 7, max: 15, label: 'Moderate', color: COLORS.surfConditions.fair },
+  STRONG: { min: 15, label: 'Strong', color: COLORS.surfConditions.poor },
 };
 
 // Tidal states
 export const TIDE = {
-  HIGH: { label: 'High Tide', color: COLORS.surfFair },
-  LOW: { label: 'Low Tide', color: COLORS.surfFair },
-  RISING: { label: 'Rising Tide', color: COLORS.surfGood },
-  FALLING: { label: 'Falling Tide', color: COLORS.surfGood },
+  HIGH: { label: 'High Tide', color: COLORS.surfConditions.fair },
+  LOW: { label: 'Low Tide', color: COLORS.surfConditions.fair },
+  RISING: { label: 'Rising Tide', color: COLORS.surfConditions.good },
+  FALLING: { label: 'Falling Tide', color: COLORS.surfConditions.good },
 };
 
 // API Configuration

@@ -1,7 +1,8 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING } from '../constants';
+import { COLORS } from '../constants/colors';
+import { SPACING } from '../constants';
 
 export type ConditionQuality = 'poor' | 'fair' | 'good' | 'excellent';
 

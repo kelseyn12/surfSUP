@@ -289,33 +289,4 @@ export const initializeStorage = async (): Promise<void> => {
     console.error('Error initializing storage:', error);
     throw error;
   }
-};
-
-// Export functions but don't auto-initialize
-export { 
-  storeUserProfile,
-  getUserProfile,
-  storeAuthToken,
-  getAuthToken,
-  removeAuthToken,
-  storeFavoriteSpots,
-  getFavoriteSpots,
-  addFavoriteSpot,
-  removeFavoriteSpot,
-  storeRecentSpots,
-  getRecentSpots,
-  addRecentSpot,
-  storeUserSessions,
-  getUserSessions,
-  addUserSession,
-  updateUserSession,
-  deleteUserSession,
-  storeUserSettings,
-  getUserSettings,
-  updateUserSettings,
-  setOnboardingComplete,
-  isOnboardingComplete,
-  clearAllData,
-  clearAllStorage,
-  initializeStorage
 }; 

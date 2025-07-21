@@ -133,7 +133,7 @@ export const useAuthStore = create<AuthState>()(
 
           const user = convertFirebaseUser(userCredential.user);
           const idToken = await userCredential.user.getIdToken();
-
+          
           set({
             user,
             token: idToken,
@@ -254,7 +254,7 @@ export const useAuthStore = create<AuthState>()(
               lastActivity: Date.now(),
               isLoading: false,
             });
-          } else {
+        } else {
             set({ error: result.error || 'Google sign-in failed', isLoading: false });
           }
         } catch (error: any) {
@@ -267,4 +267,4 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => AsyncStorage as any),
     }
   )
-);
+); 

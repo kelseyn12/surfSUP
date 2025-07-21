@@ -1,6 +1,5 @@
-import { API, TIMEOUTS } from '../constants';
-import { SurfConditions, SurfSpot, WindyApiResponse, NoaaApiResponse, NdbcBuoyResponse, CheckIn } from '../types';
-import { SurfSession } from '../types';
+import { API, TIMEOUTS , API_BASE_URL } from '../constants';
+import { SurfConditions, SurfSpot, WindyApiResponse, NoaaApiResponse, NdbcBuoyResponse, CheckIn , SurfSession } from '../types';
 import { emitSurferCountUpdated, emitCheckInStatusChanged } from './events';
 import { 
   globalSurferCounts, 
@@ -13,7 +12,6 @@ import webSocketService, {
   CheckInStatusMessage
 } from './websocket';
 import axios from 'axios';
-import { API_BASE_URL } from '../constants';
 import { addUserSession } from './storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

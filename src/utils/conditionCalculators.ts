@@ -111,7 +111,7 @@ export const calculateWindScore = (speed: number, direction: string): number => 
  * @returns A score from 1-10
  */
 export const calculateSwellScore = (
-  swells: Array<{ height: number; period: number; direction: string }>
+  swells: { height: number; period: number; direction: string }[]
 ): number => {
   if (swells.length === 0) return 5;
   

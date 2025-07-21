@@ -101,7 +101,7 @@ const SettingsScreen: React.FC = () => {
         <View style={styles.settingRow}>
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Enable Notifications</Text>
-            <Text style={styles.settingDescription}>Receive alerts about wave conditions and friends' check-ins</Text>
+            <Text style={styles.settingDescription}>Receive alerts about wave conditions and friends&apos; check-ins</Text>
           </View>
           <Switch
             value={notificationsEnabled}

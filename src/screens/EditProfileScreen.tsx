@@ -11,7 +11,6 @@ import {
   Platform,
   BackHandler
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { HeaderBar } from '../components';
 import { COLORS } from '../constants';
 import { useAuthStore } from '../services/auth';

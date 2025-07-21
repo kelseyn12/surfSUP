@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -6,11 +6,10 @@ import {
   ScrollView, 
   TouchableOpacity,
   Alert,
-  Button
 } from 'react-native';
 import { COLORS } from '../constants';
-import { globalSurferCounts, userCheckIns, updateGlobalSurferCount } from '../services/globalState';
-import { getSurferCount, checkInToSpot, checkOutFromSpot } from '../services/api';
+import { globalSurferCounts, updateGlobalSurferCount } from '../services/globalState';
+import { getSurferCount, checkInToSpot } from '../services/api';
 
 const DebugScreen: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);

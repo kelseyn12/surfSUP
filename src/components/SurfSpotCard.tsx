@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View, Text, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { SurfSpot, SurfConditions } from '../types';
-import { COLORS, SPACING } from '../constants';
+import { COLORS } from '../constants/colors';
+import { SPACING } from '../constants';
 import { formatWaveHeight, formatWind, formatTemperature } from '../utils/formatters';
-import { fetchSurfConditions, getSurferCount } from '../services/api';
+import { fetchSurfConditions } from '../services/api';
 import { getGlobalSurferCount } from '../services/globalState';
 import webSocketService, { WebSocketMessageType, WebSocketMessage } from '../services/websocket';
 
@@ -51,9 +52,10 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
     const unsubscribe = webSocketService.subscribe(
       WebSocketMessageType.SURFER_COUNT_UPDATE,
       (message: WebSocketMessage) => {
-        if (message.payload.spotId === spot.id) {
-          console.log(`[WebSocket] Received surfer count update for ${spot.name}: ${message.payload.count}`);
-          setCurrentSurferCount(message.payload.count);
+        if (typeof message.payload === 'object' && message.payload && 'spotId' in message.payload && (message.payload as any).spotId === spot.id) {
+          const payload = message.payload as { spotId: string; count: number };
+          console.log(`[WebSocket] Received surfer count update for ${spot.name}: ${payload.count}`);
+          setCurrentSurferCount(payload.count);
         }
       }
     );
@@ -67,15 +69,9 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
     return () => {
       unsubscribe();
     };
-  }, [spot.id]);
+  }, [spot.id, spot.name, surferCount]);
 
-  useEffect(() => {
-    if (showConditions) {
-      loadConditions();
-    }
-  }, [spot.id, showConditions]);
-
-  const loadConditions = async () => {
+  const loadConditions = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -87,7 +83,13 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [spot.id]);
+
+  useEffect(() => {
+    if (showConditions) {
+      loadConditions();
+    }
+  }, [spot.id, showConditions, loadConditions]);
 
   const handlePress = () => {
     // Get latest surfer count from global state

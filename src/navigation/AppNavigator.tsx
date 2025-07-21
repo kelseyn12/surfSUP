@@ -21,6 +21,7 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import { RootStackParamList, MainTabParamList } from './types';
 import OnBoardingScreen from '../screens/OnBoardingScreen';
 import { isOnboardingComplete } from '../services/storage';
+import StatsDashboardScreen from '../screens/StatsDashboardScreen';
 
 // Enable screens for better performance
 enableScreens(true);
@@ -116,7 +117,7 @@ const AppNavigator = () => {
         navigationRef.current.navigate('AuthScreen');
       }
     }
-  }, [isAuthenticated, hasCompletedOnboarding]);
+  }, [isAuthenticated, hasCompletedOnboarding, navigationRef]);
 
 
 
@@ -155,6 +156,7 @@ const AppNavigator = () => {
         <Stack.Screen name="SessionDetails" component={SessionDetailsScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="PasswordResetSuccess" component={PasswordResetSuccessScreen} />
+        <Stack.Screen name="StatsDashboard" component={StatsDashboardScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -238,7 +238,7 @@ export const getDirectionBetweenPoints = (
  * @returns Map region with proper zoom level
  */
 export const getRegionForCoordinates = (
-  coordinates: Array<{ latitude: number; longitude: number }>,
+  coordinates: { latitude: number; longitude: number }[],
   padding = 0.2
 ) => {
   if (coordinates.length === 0) {

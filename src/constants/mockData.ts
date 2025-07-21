@@ -139,7 +139,6 @@ export const generateMockConditions = (spotId: string, date: Date = new Date()):
   const waveHeightMax = waveHeightMin + 0.5 + (Math.random() * 1);
   
   const windDirections = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-  const windDirection = windDirections[Math.floor(Math.random() * windDirections.length)];
   
   // Morning is typically less windy
   const isOffshore = hour < 10 || hour > 18;
@@ -222,7 +221,6 @@ const getNextTides = (date: Date, tideHour: number) => {
   
   // Simplified tide calculation (real implementation would use tide tables)
   const hourMs = 60 * 60 * 1000;
-  const tideCycle = 12.4 * hourMs;
   
   // Time to next high tide
   const hoursToNextHigh = (12.4 - (tideHour % 12.4)) / 2;

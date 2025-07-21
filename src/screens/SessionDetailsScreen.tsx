@@ -26,9 +26,9 @@ const SessionDetailsScreen: React.FC = () => {
 
   useEffect(() => {
     loadSessionDetails();
-  }, [sessionId]);
+  }, [loadSessionDetails]);
 
-  const loadSessionDetails = async () => {
+  const loadSessionDetails = React.useCallback(async () => {
     try {
       setIsLoading(true);
       const sessionData = await getSessionById(sessionId);
@@ -45,7 +45,7 @@ const SessionDetailsScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const handleDeleteSession = async () => {
     Alert.alert(

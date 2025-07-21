@@ -139,7 +139,7 @@ const SessionLogScreen: React.FC = () => {
       const minutes = durationMinutes % 60;
       
       return `${hours}h ${minutes}m`;
-    } catch (e) {
+    } catch {
       return 'Invalid time';
     }
   };

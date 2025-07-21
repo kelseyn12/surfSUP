@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { MainTabScreenProps } from '../navigation/types';
-import { COLORS } from '../constants';
+import { COLORS } from '../constants/colors';
 import { SurfSpotCard } from '../components';
 import { SurfSpot } from '../types';
-import { fetchNearbySurfSpots, getSurferCount, resetAllCheckInsAndCounts } from '../services/api';
+import { fetchNearbySurfSpots, resetAllCheckInsAndCounts } from '../services/api';
 import { getGlobalSurferCount } from '../services/globalState';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -15,26 +15,8 @@ const HomeScreen: React.FC = () => {
   const [nearbySpots, setNearbySpots] = useState<SurfSpot[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Refresh spots and surfer counts when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      loadNearbySpots();
-      
-      // Also set up a refresh interval while this screen is focused
-      const intervalId = setInterval(() => {
-        // Just re-fetch surfer counts without loading all spots
-        refreshSurferCounts();
-      }, 5000); // Check every 5 seconds
-      
-      return () => {
-        // Clear interval when screen loses focus
-        clearInterval(intervalId);
-      };
-    }, [])
-  );
-
   // Function to refresh only the surfer counts without reloading the spots
-  const refreshSurferCounts = () => {
+  const refreshSurferCounts = useCallback(() => {
     if (nearbySpots.length === 0) return;
     
     // Create a new array with updated counts
@@ -48,9 +30,9 @@ const HomeScreen: React.FC = () => {
     
     // Update the state
     setNearbySpots(updatedSpots);
-  };
+  }, [nearbySpots]);
 
-  const loadNearbySpots = async () => {
+  const loadNearbySpots = useCallback(async () => {
     try {
       setLoading(true);
       // Using a fixed location for Lake Superior near Duluth
@@ -70,7 +52,7 @@ const HomeScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // On manual refresh
   const onRefresh = React.useCallback(() => {
@@ -78,7 +60,23 @@ const HomeScreen: React.FC = () => {
     loadNearbySpots().then(() => {
       setRefreshing(false);
     });
-  }, []);
+  }, [loadNearbySpots]);
+
+  // Place useFocusEffect after function declarations to avoid linter errors
+  useFocusEffect(
+    React.useCallback(() => {
+      loadNearbySpots();
+      // Also set up a refresh interval while this screen is focused
+      const intervalId = setInterval(() => {
+        // Just re-fetch surfer counts without loading all spots
+        refreshSurferCounts();
+      }, 5000); // Check every 5 seconds
+      return () => {
+        // Clear interval when screen loses focus
+        clearInterval(intervalId);
+      };
+    }, [loadNearbySpots, refreshSurferCounts])
+  );
 
   const handleSearch = () => {
     // Implement search functionality

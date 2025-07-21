@@ -7,13 +7,10 @@ import {
   TouchableOpacity, 
   Image,
   Alert,
-  ActivityIndicator,
-  BackHandler,
-  Platform
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { RootStackScreenProps } from '../navigation/types';
-import { COLORS } from '../constants';
+import { COLORS } from '../constants/colors';
 import { SurfConditions } from '../types';
 import { 
   fetchSurfConditions, 
@@ -25,7 +22,6 @@ import {
   getActiveCheckInForUserAnywhere, 
   fetchNearbySurfSpots 
 } from '../services/api';
-import { eventEmitter, AppEvents } from '../services/events';
 import { isUserCheckedInAt, getGlobalSurferCount } from '../services/globalState';
 import webSocketService, { WebSocketMessageType } from '../services/websocket';
 import { HeaderBar } from '../components';
@@ -45,65 +41,8 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [checkInId, setCheckInId] = useState<string | null>(null);
 
-  // Initial setup when spot changes
-  useEffect(() => {
-   
-    
-    // Reset check-in status and load data
-    setIsCheckedIn(isUserCheckedInAt(spotId));
-    setSurferCount(getGlobalSurferCount(spotId));
-    loadData();
-    checkExistingCheckIn();
-  }, [spotId]);
-  
-  // Listen for WebSocket updates about surfer counts
-  useEffect(() => {
-    // Subscribe to WebSocket updates for this spot
-    const unsubscribe = webSocketService.subscribe(
-      WebSocketMessageType.SURFER_COUNT_UPDATE,
-      (message) => {
-        if (message.payload.spotId === spotId) {
-          console.log(`[WebSocket] Received surfer count update for current spot: ${message.payload.count}`);
-          setSurferCount(message.payload.count);
-        }
-      }
-    );
-    
-    // Initial connection if needed
-    if (!webSocketService.isConnected) {
-      webSocketService.connect();
-    }
-    
-    return () => {
-      unsubscribe();
-    };
-  }, [spotId]);
-
-  // Listen for WebSocket updates about check-in status
-  useEffect(() => {
-    // Subscribe to check-in status changes
-    const unsubscribe = webSocketService.subscribe(
-      WebSocketMessageType.CHECK_IN_STATUS_CHANGE,
-      (message) => {
-        // We only care about our own user's check-ins
-        if (message.payload.userId === 'test-user-id' && message.payload.spotId === spotId) {
-          console.log(`[WebSocket] Received check-in status update for current spot: ${message.payload.isCheckedIn}`);
-          setIsCheckedIn(message.payload.isCheckedIn);
-          
-          // If checked out, also clear the check-in ID
-          if (!message.payload.isCheckedIn) {
-            setCheckInId(null);
-          }
-        }
-      }
-    );
-    
-    return () => {
-      unsubscribe();
-    };
-  }, [spotId]);
-
-  const loadData = async () => {
+  // Function to load spot data
+  const loadData = React.useCallback(async () => {
     setIsLoading(true);
     try {
       // Fetch current conditions
@@ -124,20 +63,16 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [spotId]);
 
-  // Check if the user is already checked in at this spot
-  const checkExistingCheckIn = async () => {
+  // Function to check if the user is already checked in at this spot
+  const checkExistingCheckIn = React.useCallback(async () => {
     try {
       // In a real app, you would get the actual userId from auth state
       const userId = 'test-user-id';
       
       // Only check for check-ins at THIS spot
       const activeCheckIn = await getActiveCheckInForUser(userId, spotId);
-      
-      
-      // Also check if checked in anywhere (for debugging)
-      const anywhereCheckIn = await getActiveCheckInForUserAnywhere(userId);
       
       
       if (activeCheckIn) {
@@ -154,7 +89,63 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     } catch (error) {
       
     }
-  };
+  }, [spotId]);
+
+  // Initial setup when spot changes
+  useEffect(() => {
+    // Reset check-in status and load data
+    setIsCheckedIn(isUserCheckedInAt(spotId));
+    setSurferCount(getGlobalSurferCount(spotId));
+    loadData();
+    checkExistingCheckIn();
+  }, [spotId, loadData, checkExistingCheckIn]);
+  
+  // Listen for WebSocket updates about surfer counts
+  useEffect(() => {
+    // Subscribe to WebSocket updates for this spot
+    const unsubscribe = webSocketService.subscribe(
+      WebSocketMessageType.SURFER_COUNT_UPDATE,
+      (message) => {
+        if (typeof message.payload === 'object' && message.payload && 'spotId' in message.payload && (message.payload as any).spotId === spotId) {
+          const payload = message.payload as { spotId: string; count: number };
+          console.log(`[WebSocket] Received surfer count update for current spot: ${payload.count}`);
+          setSurferCount(payload.count);
+        }
+      }
+    );
+    
+    // Initial connection if needed
+    if (!webSocketService.isConnected) {
+      webSocketService.connect();
+    }
+    
+    return () => {
+      unsubscribe();
+    };
+  }, [spotId]);
+
+  // Listen for WebSocket updates about check-in status
+  useEffect(() => {
+    // Subscribe to check-in status changes
+    const unsubscribe = webSocketService.subscribe(
+      WebSocketMessageType.CHECK_IN_STATUS_CHANGE,
+      (message) => {
+        if (typeof message.payload === 'object' && message.payload && 'userId' in message.payload && 'spotId' in message.payload && (message.payload as any).userId === 'test-user-id' && (message.payload as any).spotId === spotId) {
+          const payload = message.payload as { userId: string; spotId: string; isCheckedIn: boolean };
+          console.log(`[WebSocket] Received check-in status update for current spot: ${payload.isCheckedIn}`);
+          setIsCheckedIn(payload.isCheckedIn);
+          // If checked out, also clear the check-in ID
+          if (!payload.isCheckedIn) {
+            setCheckInId(null);
+          }
+        }
+      }
+    );
+    
+    return () => {
+      unsubscribe();
+    };
+  }, [spotId]);
 
   // Toggle favorite status
   const toggleFavorite = () => {
