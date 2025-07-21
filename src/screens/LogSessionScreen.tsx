@@ -180,7 +180,6 @@ const LogSessionScreen: React.FC<any> = (props) => {
     }
 
     if (!user?.id) {
-      console.log('[DEBUG] No user ID found:', user);
       Alert.alert('Error', 'You must be logged in to save a session');
       return;
     }
@@ -215,7 +214,6 @@ const LogSessionScreen: React.FC<any> = (props) => {
 
       // Use the new sessions service to add the session
       const savedSession = await addSession(sessionData);
-      console.log('[DEBUG] Session saved:', savedSession);
 
       // Navigate back to the previous screen
       navigation.goBack();

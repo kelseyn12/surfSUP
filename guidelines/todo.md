@@ -52,7 +52,8 @@ This document maintains a running list of tasks, enhancements, bug fixes, and te
 
 - [X] Create surf spot list component
 - [X] Implement surf spot detail screen
-- [X] Add map view of surf spots
+- [X] Add map view of surf spots (mock only)
+- [ ] Implement interactive MapView for surf spots (replace mock with real map component showing surf spots)
 - [ ] Implement search and filtering for spots
 - [ ] Add favorites functionality
 - [X] Create check-in feature for spots

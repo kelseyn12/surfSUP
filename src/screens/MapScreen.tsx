@@ -57,7 +57,6 @@ const MapScreen: React.FC = () => {
   // Always refresh when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      console.log('[DEBUG] MapScreen focused, refreshing data');
       loadSurfSpots();
       return () => {};
     }, [])
@@ -68,20 +67,18 @@ const MapScreen: React.FC = () => {
     try {
       const spots = await fetchNearbySurfSpots(region.latitude, region.longitude);
       if (spots) {
-        console.log('[DEBUG] MapScreen loaded spots:', spots.length);
         
         // Make sure each spot shows the latest surfer count
         const updatedSpots = [...spots];
         for (let i = 0; i < updatedSpots.length; i++) {
           const latestCount = await getSurferCount(updatedSpots[i].id);
-          console.log(`[DEBUG] Getting latest count for ${updatedSpots[i].name}: ${latestCount}`);
           updatedSpots[i].currentSurferCount = latestCount;
         }
         
         setSurfSpots(updatedSpots);
       }
     } catch (error) {
-      console.error('Error loading surf spots:', error);
+
     } finally {
       setIsLoading(false);
     }

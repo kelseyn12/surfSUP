@@ -47,7 +47,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
 
   // Initial setup when spot changes
   useEffect(() => {
-    console.log(`[DEBUG] SpotDetailsScreen loading for spot: ${spotId}`);
+   
     
     // Reset check-in status and load data
     setIsCheckedIn(isUserCheckedInAt(spotId));
@@ -134,25 +134,25 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
       
       // Only check for check-ins at THIS spot
       const activeCheckIn = await getActiveCheckInForUser(userId, spotId);
-      console.log(`[DEBUG] Checking for check-in at spot ${spotId}:`, activeCheckIn);
+      
       
       // Also check if checked in anywhere (for debugging)
       const anywhereCheckIn = await getActiveCheckInForUserAnywhere(userId);
-      console.log(`[DEBUG] Checking for check-in anywhere:`, anywhereCheckIn);
+      
       
       if (activeCheckIn) {
         // User is checked in at this spot
-        console.log(`[DEBUG] User is checked in at THIS spot`);
+       
         setIsCheckedIn(true);
         setCheckInId(activeCheckIn.id);
       } else {
         // User is not checked in at this spot
-        console.log(`[DEBUG] User is NOT checked in at THIS spot`);
+        
         setIsCheckedIn(false);
         setCheckInId(null);
       }
     } catch (error) {
-      console.error('Error checking existing check-in:', error);
+      
     }
   };
 
@@ -218,7 +218,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
         // Recheck if user is already checked in somewhere else
         const existingCheckIn = await getActiveCheckInForUserAnywhere(userId);
         
-        console.log(`[DEBUG] Existing check-in when trying to check in at ${spotId}:`, existingCheckIn);
+        
         
         if (existingCheckIn && existingCheckIn.spotId !== spotId) {
           // User is already checked in elsewhere

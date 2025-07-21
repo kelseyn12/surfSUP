@@ -37,7 +37,6 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
     const updateSurferCount = () => {
       // Always get from global state
       const count = getGlobalSurferCount(spot.id);
-      console.log(`[SurfSpotCard] Getting count for ${spot.name}: ${count}`);
       setCurrentSurferCount(count);
     };
     

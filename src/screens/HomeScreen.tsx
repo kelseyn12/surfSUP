@@ -18,7 +18,6 @@ const HomeScreen: React.FC = () => {
   // Refresh spots and surfer counts when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      console.log('[DEBUG] HomeScreen focused, refreshing data');
       loadNearbySpots();
       
       // Also set up a refresh interval while this screen is focused
@@ -37,8 +36,6 @@ const HomeScreen: React.FC = () => {
   // Function to refresh only the surfer counts without reloading the spots
   const refreshSurferCounts = () => {
     if (nearbySpots.length === 0) return;
-    
-    console.log('[DEBUG] Refreshing just the surfer counts');
     
     // Create a new array with updated counts
     const updatedSpots = nearbySpots.map(spot => {
@@ -59,7 +56,6 @@ const HomeScreen: React.FC = () => {
       // Using a fixed location for Lake Superior near Duluth
       const spots = await fetchNearbySurfSpots(46.7825, -92.0856);
       if (spots) {
-        console.log('[DEBUG] HomeScreen loaded spots:', spots.length);
         
         // Make sure each spot shows the latest surfer count by reading from global state
         const updatedSpots = spots.map(spot => ({

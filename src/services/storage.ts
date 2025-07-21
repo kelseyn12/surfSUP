@@ -147,12 +147,9 @@ export const addRecentSpot = async (spot: SurfSpot): Promise<SurfSpot[]> => {
 // User sessions storage functions
 export const storeUserSessions = async (sessions: SurfSession[]): Promise<void> => {
   try {
-    console.log('[DEBUG] Storing sessions:', sessions);
     await AsyncStorage.setItem(STORAGE_KEYS.USER_SESSIONS, JSON.stringify(sessions));
     const verifyStorage = await AsyncStorage.getItem(STORAGE_KEYS.USER_SESSIONS);
-    console.log('[DEBUG] Verified stored sessions:', verifyStorage);
   } catch (error) {
-    console.error('Error storing user sessions:', error);
     throw error;
   }
 };
@@ -160,7 +157,6 @@ export const storeUserSessions = async (sessions: SurfSession[]): Promise<void> 
 export const getUserSessions = async (): Promise<SurfSession[]> => {
   try {
     const sessionsJson = await AsyncStorage.getItem(STORAGE_KEYS.USER_SESSIONS);
-    console.log('[DEBUG] Retrieved sessions from storage:', sessionsJson);
     return sessionsJson ? JSON.parse(sessionsJson) : [];
   } catch (error) {
     console.error('Error getting user sessions:', error);
@@ -170,9 +166,7 @@ export const getUserSessions = async (): Promise<SurfSession[]> => {
 
 export const addUserSession = async (session: SurfSession): Promise<SurfSession[]> => {
   try {
-    console.log('[DEBUG] Adding new session:', session);
     const sessions = await getUserSessions();
-    console.log('[DEBUG] Current sessions:', sessions);
     sessions.unshift(session);
     await storeUserSessions(sessions);
     return sessions;

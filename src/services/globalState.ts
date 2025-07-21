@@ -23,13 +23,12 @@ export const userCheckIns: Record<string, boolean> = {
 
 // Call this function to update the global surfer count
 export const updateGlobalSurferCount = (spotId: string, count: number): void => {
-  console.log(`[GLOBAL STATE] Setting surfer count for ${spotId} to ${count}`);
   globalSurferCounts[spotId] = count;
 };
 
 // Call this function to update check-in status
 export const updateUserCheckedInStatus = (spotId: string, isCheckedIn: boolean): void => {
-  console.log(`[GLOBAL STATE] Setting check-in status for ${spotId} to ${isCheckedIn}`);
+  
   
   // If checking in to a spot, make sure user is checked out everywhere else
   if (isCheckedIn) {

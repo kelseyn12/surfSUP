@@ -214,8 +214,6 @@ let activeCheckIns: Record<string, CheckIn[]> = {
 
 // Clear all active check-ins and reset surfer counts
 export const resetAllCheckInsAndCounts = () => {
-  console.log("[DEBUG] Resetting all check-ins and surfer counts");
-  
   // Reset all surfer counts to 0
   Object.keys(activeSurferCounts).forEach(spotId => {
     activeSurferCounts[spotId] = 0;
@@ -239,7 +237,6 @@ export const resetAllCheckInsAndCounts = () => {
     });
   });
   
-  console.log("[DEBUG] Reset complete");
 };
 
 // Initialize the global state with our initial data
@@ -259,7 +256,6 @@ const updateSurferCount = (spotId: string, count: number) => {
   updateGlobalSurferCount(spotId, count);
   
   // Emit the event
-  console.log(`[DEBUG] Broadcasting surfer count update for ${spotId}: ${count}`);
   emitSurferCountUpdated(spotId, count);
 };
 
@@ -399,9 +395,7 @@ export const fetchNearbySurfSpots = async (
   try {
     // Simulate API latency
     await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Force refresh the latest counts before returning spots
-    console.log('[DEBUG] Current active surfer counts before returning spots:', globalSurferCounts);
+
     
     // Mock data for Lake Superior spots
     const lakeSuperiorSpots: SurfSpot[] = [
@@ -487,8 +481,8 @@ export const fetchNearbySurfSpots = async (
       },
     ];
     
-    console.log('[DEBUG] Returning spots with counts:', 
-      lakeSuperiorSpots.map(spot => `${spot.name}: ${spot.currentSurferCount}`).join(', '));
+   
+      lakeSuperiorSpots.map(spot => `${spot.name}: ${spot.currentSurferCount}`).join(', ');
     
     return lakeSuperiorSpots;
   } catch (error) {
@@ -509,7 +503,6 @@ export const getSurferCount = async (spotId: string): Promise<number> => {
     // Make sure we're returning the most current count from global state
     const currentCount = globalSurferCounts[spotId] || 0;
     
-    console.log(`[DEBUG] Getting surfer count for ${spotId}: ${currentCount}`);
     
     // Also update the local state to ensure it's in sync
     activeSurferCounts[spotId] = currentCount;
@@ -568,8 +561,7 @@ export const checkInToSpot = async (
     // Update the global user check-in status
     updateUserCheckedInStatus(spotId, true);
     
-    console.log(`[DEBUG] User ${userId} checked in at ${spotId}. Current check-ins:`, activeCheckIns);
-    console.log(`[DEBUG] Updated surfer counts:`, activeSurferCounts);
+
     
     // Create WebSocket messages
     const surferCountMsg: SurferCountUpdateMessage = {
@@ -616,8 +608,7 @@ export const checkOutFromSpot = async (checkInId: string): Promise<boolean> => {
     // Simulate API latency
     await new Promise(resolve => setTimeout(resolve, 800));
     
-    console.log(`[DEBUG] Checking out with ID: ${checkInId}`);
-    console.log(`[DEBUG] Current check-ins before checkout:`, activeCheckIns);
+ 
     
     // Find the check-in
     let foundSpotId: string | null = null;
@@ -643,8 +634,7 @@ export const checkOutFromSpot = async (checkInId: string): Promise<boolean> => {
         activeSurferCounts[foundSpotId]--;
       }
       
-      console.log(`[DEBUG] Successfully checked out from ${foundSpotId}. Updated check-ins:`, activeCheckIns);
-      console.log(`[DEBUG] Updated surfer counts:`, activeSurferCounts);
+   
       
       const now = new Date();
       
@@ -680,7 +670,6 @@ export const checkOutFromSpot = async (checkInId: string): Promise<boolean> => {
       return true;
     }
     
-    console.log(`[DEBUG] Check-in not found for ID: ${checkInId}`);
     return false;
   } catch (error) {
     console.error('Error checking out from spot:', error);
