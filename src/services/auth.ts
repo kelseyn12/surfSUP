@@ -7,7 +7,7 @@ import { firebaseAuth } from '../config/firebase';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { User } from '../types';
 import { SocialAuthService } from './socialAuth';
-import { reload, getIdToken, updateProfile } from '@react-native-firebase/auth';
+import { reload, getIdToken, updateProfile, onAuthStateChanged } from '@react-native-firebase/auth';
 
 // Constants
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -78,7 +78,7 @@ export const useAuthStore = create<AuthState>()(
       initializeAuth: () => {
         console.log('Initializing Firebase auth listener...');
 
-        const unsubscribe = firebaseAuth.onAuthStateChanged(async (firebaseUser) => {
+        const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
           if (firebaseUser) {
             const idToken = await getIdToken(firebaseUser);
             const user = convertFirebaseUser(firebaseUser);

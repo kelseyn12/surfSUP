@@ -7,11 +7,14 @@ import { SurfSession } from '../types';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useAuthStore } from '../services/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const StatsDashboardScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { user } = useAuthStore();
   const [sessions, setSessions] = useState<SurfSession[]>([]);
   const [stats, setStats] = useState({
     totalSessions: 0,
@@ -75,38 +78,9 @@ const StatsDashboardScreen: React.FC = () => {
 
   useEffect(() => {
     const fetchSessions = async () => {
-      let data = await getUserSessions();
-      if (!data.length) {
-        const now = new Date();
-        const sample: SurfSession[] = [
-          {
-            id: '1',
-            spotId: 'stonyPoint',
-            startTime: new Date(now.getFullYear(), 6, 21, 7, 0).toISOString(), // July
-            endTime: new Date(now.getFullYear(), 6, 21, 9, 0).toISOString(),
-            board: { type: 'shortboard' },
-            conditions: {},
-          } as SurfSession,
-          {
-            id: '2',
-            spotId: 'parkPoint',
-            startTime: new Date(now.getFullYear(), 5, 10, 8, 0).toISOString(), // June
-            endTime: new Date(now.getFullYear(), 5, 10, 10, 0).toISOString(),
-            board: { type: 'longboard' },
-            conditions: {},
-          } as SurfSession,
-          {
-            id: '3',
-            spotId: 'lesterRiver',
-            startTime: new Date(now.getFullYear(), 4, 5, 6, 0).toISOString(), // May
-            endTime: new Date(now.getFullYear(), 4, 5, 7, 30).toISOString(),
-            board: { type: 'fish' },
-            conditions: {},
-          } as SurfSession,
-        ];
-        await storeUserSessions(sample);
-        data = sample;
-      }
+      if (!user?.id) return;
+      let data = await getUserSessions(user.id);
+      // Remove sample session logic: do not insert sample data if empty
       setSessions(data);
       calculateStats(data);
       groupSessionsByMonth(data);
@@ -118,7 +92,7 @@ const StatsDashboardScreen: React.FC = () => {
       calculateFunFacts(data);
     };
     fetchSessions();
-  }, []);
+  }, [user?.id]);
 
   const calculateStats = (data: SurfSession[]) => {
     if (!data.length) return;
@@ -591,191 +565,197 @@ const StatsDashboardScreen: React.FC = () => {
         </TouchableOpacity>
         <Text style={styles.title}>Surf Session Dashboard</Text>
       </View>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{stats.totalSessions}</Text>
-            <Text style={styles.statLabel}>Sessions</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{stats.totalHours}</Text>
-            <Text style={styles.statLabel}>Total Hours</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{stats.averageSessionLength}</Text>
-            <Text style={styles.statLabel}>Avg. Minutes</Text>
-          </View>
+      {sessions.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 80 }}>
+          <Text style={{ color: COLORS.text.secondary, fontSize: 18, fontWeight: 'bold' }}>No sessions logged yet.</Text>
         </View>
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{stats.longestSession}</Text>
-            <Text style={styles.statLabel}>Longest (min)</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{stats.favoriteSpot || '-'}</Text>
-            <Text style={styles.statLabel}>Favorite Spot</Text>
-          </View>
-        </View>
-        {/* Mini Stat Cards */}
-        <View style={styles.miniStatsRow}>
-          <View style={styles.miniStatCard}>
-            <Text style={styles.miniStatLabel}>Best Month</Text>
-            <Text style={styles.miniStatValue}>{stats.bestMonth}</Text>
-          </View>
-          <View style={styles.miniStatCard}>
-            <Text style={styles.miniStatLabel}>Most Active Week</Text>
-            <Text style={styles.miniStatValue}>{stats.mostActiveWeekRange}</Text>
-          </View>
-          <View style={styles.miniStatCard}>
-            <Text style={styles.miniStatLabel}>Longest Streak</Text>
-            <Text style={styles.miniStatValue}>{stats.longestStreak} days</Text>
-          </View>
-        </View>
-        {/* Trends Over Time */}
-        <View style={styles.trendSection}>
-          <Text style={styles.trendTitle}>Trends Over Time</Text>
-          <View style={styles.trendRow}>
-            <Text style={styles.trendLabel}>Sessions ({trend.thisMonth} vs {trend.lastMonth}): </Text>
-            <Text style={styles.trendValue}>{trend.thisMonthSessions} vs {trend.lastMonthSessions} </Text>
-            <MaterialIcons name={trend.sessionUp ? 'arrow-upward' : 'arrow-downward'} size={18} color={trend.sessionUp ? COLORS.success : COLORS.error} />
-            <Text style={[styles.trendPercent, { color: trend.sessionUp ? COLORS.success : COLORS.error }]}> {trend.sessionChange}%</Text>
-          </View>
-          <View style={styles.trendRow}>
-            <Text style={styles.trendLabel}>Avg. Duration (min): </Text>
-            <Text style={styles.trendValue}>{trend.thisMonthAvg} vs {trend.lastMonthAvg} </Text>
-            <MaterialIcons name={trend.avgDurationUp ? 'arrow-upward' : 'arrow-downward'} size={18} color={trend.avgDurationUp ? COLORS.success : COLORS.error} />
-            <Text style={[styles.trendPercent, { color: trend.avgDurationUp ? COLORS.success : COLORS.error }]}> {trend.avgDurationChange}%</Text>
-          </View>
-        </View>
-        {/* Personal Bests & Achievements */}
-        <View style={styles.achievementsSection}>
-          <Text style={styles.achievementsTitle}>Personal Bests & Achievements</Text>
-          <View style={styles.achievementCard}>
-            <View style={styles.achievementIcon}><Ionicons name="timer-outline" size={28} color={COLORS.primary} /></View>
-            <View style={styles.achievementContent}>
-              <Text style={styles.achievementLabel}>Longest Session</Text>
-              <Text style={styles.achievementValue}>{personalBests.longestSession.duration ? `${Math.floor(personalBests.longestSession.duration / 60)}h ${personalBests.longestSession.duration % 60}m` : '-'} on {personalBests.longestSession.date} at {personalBests.longestSession.spot}</Text>
+      ) : (
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{stats.totalSessions}</Text>
+              <Text style={styles.statLabel}>Sessions</Text>
             </View>
-            {personalBests.longestSession.isNew && <View style={styles.recordBadge}><Text style={styles.recordBadgeText}>🏆 New Record!</Text></View>}
-          </View>
-          <View style={styles.achievementCard}>
-            <View style={styles.achievementIcon}><Ionicons name="calendar-outline" size={28} color={COLORS.primary} /></View>
-            <View style={styles.achievementContent}>
-              <Text style={styles.achievementLabel}>Most Sessions in a Week</Text>
-              <Text style={styles.achievementValue}>{personalBests.mostSessionsWeek.count} ({personalBests.mostSessionsWeek.range})</Text>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{stats.totalHours}</Text>
+              <Text style={styles.statLabel}>Total Hours</Text>
             </View>
-            {personalBests.mostSessionsWeek.isNew && <View style={styles.recordBadge}><Text style={styles.recordBadgeText}>🏆 New Record!</Text></View>}
-          </View>
-          <View style={styles.achievementCard}>
-            <View style={styles.achievementIcon}><Ionicons name="calendar" size={28} color={COLORS.primary} /></View>
-            <View style={styles.achievementContent}>
-              <Text style={styles.achievementLabel}>Most Sessions in a Month</Text>
-              <Text style={styles.achievementValue}>{personalBests.mostSessionsMonth.count} ({personalBests.mostSessionsMonth.month})</Text>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{stats.averageSessionLength}</Text>
+              <Text style={styles.statLabel}>Avg. Minutes</Text>
             </View>
-            {personalBests.mostSessionsMonth.isNew && <View style={styles.recordBadge}><Text style={styles.recordBadgeText}>🏆 New Record!</Text></View>}
           </View>
-        </View>
-        {/* Surf Spot Analytics */}
-        <View style={styles.spotAnalyticsSection}>
-          <Text style={styles.spotAnalyticsTitle}>Surf Spot Analytics</Text>
-          {spotAnalytics.length > 0 ? (
-            spotAnalytics.map((item, idx) => (
-              <View key={item.spot} style={styles.spotRow}>
-                {idx === 0 && <Ionicons name="star" size={18} color={COLORS.secondary} style={{ marginRight: 4 }} />}
-                <Text style={[styles.spotName, idx === 0 && styles.topSpot]}>{item.spot}</Text>
-                <Text style={styles.spotPercent}>{item.percent}%</Text>
-                <Text style={styles.spotCount}>({item.count} session{item.count > 1 ? 's' : ''}, {Math.round(item.totalMinutes)} min)</Text>
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{stats.longestSession}</Text>
+              <Text style={styles.statLabel}>Longest (min)</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{stats.favoriteSpot || '-'}</Text>
+              <Text style={styles.statLabel}>Favorite Spot</Text>
+            </View>
+          </View>
+          {/* Mini Stat Cards */}
+          <View style={styles.miniStatsRow}>
+            <View style={styles.miniStatCard}>
+              <Text style={styles.miniStatLabel}>Best Month</Text>
+              <Text style={styles.miniStatValue}>{stats.bestMonth}</Text>
+            </View>
+            <View style={styles.miniStatCard}>
+              <Text style={styles.miniStatLabel}>Most Active Week</Text>
+              <Text style={styles.miniStatValue}>{stats.mostActiveWeekRange}</Text>
+            </View>
+            <View style={styles.miniStatCard}>
+              <Text style={styles.miniStatLabel}>Longest Streak</Text>
+              <Text style={styles.miniStatValue}>{stats.longestStreak} days</Text>
+            </View>
+          </View>
+          {/* Trends Over Time */}
+          <View style={styles.trendSection}>
+            <Text style={styles.trendTitle}>Trends Over Time</Text>
+            <View style={styles.trendRow}>
+              <Text style={styles.trendLabel}>Sessions ({trend.thisMonth} vs {trend.lastMonth}): </Text>
+              <Text style={styles.trendValue}>{trend.thisMonthSessions} vs {trend.lastMonthSessions} </Text>
+              <MaterialIcons name={trend.sessionUp ? 'arrow-upward' : 'arrow-downward'} size={18} color={trend.sessionUp ? COLORS.success : COLORS.error} />
+              <Text style={[styles.trendPercent, { color: trend.sessionUp ? COLORS.success : COLORS.error }]}> {trend.sessionChange}%</Text>
+            </View>
+            <View style={styles.trendRow}>
+              <Text style={styles.trendLabel}>Avg. Duration (min): </Text>
+              <Text style={styles.trendValue}>{trend.thisMonthAvg} vs {trend.lastMonthAvg} </Text>
+              <MaterialIcons name={trend.avgDurationUp ? 'arrow-upward' : 'arrow-downward'} size={18} color={trend.avgDurationUp ? COLORS.success : COLORS.error} />
+              <Text style={[styles.trendPercent, { color: trend.avgDurationUp ? COLORS.success : COLORS.error }]}> {trend.avgDurationChange}%</Text>
+            </View>
+          </View>
+          {/* Personal Bests & Achievements */}
+          <View style={styles.achievementsSection}>
+            <Text style={styles.achievementsTitle}>Personal Bests & Achievements</Text>
+            <View style={styles.achievementCard}>
+              <View style={styles.achievementIcon}><Ionicons name="timer-outline" size={28} color={COLORS.primary} /></View>
+              <View style={styles.achievementContent}>
+                <Text style={styles.achievementLabel}>Longest Session</Text>
+                <Text style={styles.achievementValue}>{personalBests.longestSession.duration ? `${Math.floor(personalBests.longestSession.duration / 60)}h ${personalBests.longestSession.duration % 60}m` : '-'} on {personalBests.longestSession.date} at {personalBests.longestSession.spot}</Text>
+              </View>
+              {personalBests.longestSession.isNew && <View style={styles.recordBadge}><Text style={styles.recordBadgeText}>🏆 New Record!</Text></View>}
+            </View>
+            <View style={styles.achievementCard}>
+              <View style={styles.achievementIcon}><Ionicons name="calendar-outline" size={28} color={COLORS.primary} /></View>
+              <View style={styles.achievementContent}>
+                <Text style={styles.achievementLabel}>Most Sessions in a Week</Text>
+                <Text style={styles.achievementValue}>{personalBests.mostSessionsWeek.count} ({personalBests.mostSessionsWeek.range})</Text>
+              </View>
+              {personalBests.mostSessionsWeek.isNew && <View style={styles.recordBadge}><Text style={styles.recordBadgeText}>🏆 New Record!</Text></View>}
+            </View>
+            <View style={styles.achievementCard}>
+              <View style={styles.achievementIcon}><Ionicons name="calendar" size={28} color={COLORS.primary} /></View>
+              <View style={styles.achievementContent}>
+                <Text style={styles.achievementLabel}>Most Sessions in a Month</Text>
+                <Text style={styles.achievementValue}>{personalBests.mostSessionsMonth.count} ({personalBests.mostSessionsMonth.month})</Text>
+              </View>
+              {personalBests.mostSessionsMonth.isNew && <View style={styles.recordBadge}><Text style={styles.recordBadgeText}>🏆 New Record!</Text></View>}
+            </View>
+          </View>
+          {/* Surf Spot Analytics */}
+          <View style={styles.spotAnalyticsSection}>
+            <Text style={styles.spotAnalyticsTitle}>Surf Spot Analytics</Text>
+            {spotAnalytics.length > 0 ? (
+              spotAnalytics.map((item, idx) => (
+                <View key={item.spot} style={styles.spotRow}>
+                  {idx === 0 && <Ionicons name="star" size={18} color={COLORS.secondary} style={{ marginRight: 4 }} />}
+                  <Text style={[styles.spotName, idx === 0 && styles.topSpot]}>{item.spot}</Text>
+                  <Text style={styles.spotPercent}>{item.percent}%</Text>
+                  <Text style={styles.spotCount}>({item.count} session{item.count > 1 ? 's' : ''}, {Math.round(item.totalMinutes)} min)</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyText}>No surf spot data yet.</Text>
+            )}
+          </View>
+          {/* Streaks & Consistency */}
+          <View style={styles.streaksSection}>
+            <Text style={styles.streaksTitle}>Streaks & Consistency</Text>
+            <View style={styles.streakRow}>
+              <Text style={styles.streakLabel}>Current Streak:</Text>
+              <Text style={styles.streakValue}>{streaks.current} days</Text>
+              {streaks.current > 0 && <Ionicons name="flame" size={18} color={COLORS.secondary} style={{ marginLeft: 4 }} />}
+            </View>
+            <View style={styles.streakRow}>
+              <Text style={styles.streakLabel}>Longest Streak:</Text>
+              <Text style={styles.streakValue}>{streaks.longest} days</Text>
+              {streaks.milestone > 0 && <View style={styles.streakBadge}><Text style={styles.streakBadgeText}>{streaks.milestone}-day Streak!</Text></View>}
+            </View>
+            <View style={styles.streakDotsRow}>
+              <View style={styles.streakDotRowInner}>
+                {streaks.streakDays.map((active, idx) => (
+                  <View key={idx} style={styles.streakDotCell}>
+                    <View style={[styles.streakDot, { backgroundColor: active ? COLORS.secondary : COLORS.lightGray }]} />
+                  </View>
+                ))}
+              </View>
+            </View>
+            <Text style={styles.streakLegend}>
+              Last 14 days: <Text style={{ color: COLORS.secondary }}>●</Text> = surfed
+            </Text>
+          </View>
+          {/* Session Quality Analytics */}
+          <View style={styles.qualitySection}>
+            <Text style={styles.qualityTitle}>Session Quality Analytics</Text>
+            <View style={styles.qualityRow}>
+              <Ionicons name="star" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} />
+              <Text style={styles.qualityLabel}>Avg. Rating:</Text>
+              <Text style={styles.qualityValue}>{qualityStats.avgRating !== null ? qualityStats.avgRating : '-'}</Text>
+            </View>
+            <View style={styles.qualityRow}>
+              <Ionicons name="trophy-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} />
+              <Text style={styles.qualityLabel}>Best Session:</Text>
+              <Text style={styles.qualityValue}>
+                {qualityStats.bestSession ? `${new Date(qualityStats.bestSession.startTime).toLocaleDateString()} at ${qualityStats.bestSession.spotId} (${qualityStats.bestRating})` : '-'}
+              </Text>
+            </View>
+            <View style={styles.qualityRow}>
+              <Ionicons name="navigate" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} />
+              <Text style={styles.qualityLabel}>Most Common Wind:</Text>
+              <Text style={styles.qualityValue}>{qualityStats.commonWind || '-'}</Text>
+            </View>
+            <View style={styles.qualityRow}>
+              <Ionicons name="partly-sunny-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} />
+              <Text style={styles.qualityLabel}>Most Common Weather:</Text>
+              <Text style={styles.qualityValue}>{qualityStats.commonWeather || '-'}</Text>
+            </View>
+          </View>
+          {/* Fun Facts */}
+          <View style={styles.funFactsSection}>
+            <Text style={styles.funFactsTitle}>Fun Facts</Text>
+            <View style={styles.funFactRow}><Ionicons name="time-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Total Hours Surfed:</Text><Text style={styles.funFactValue}>{funFacts.totalHours}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="calendar-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>First Session Logged:</Text><Text style={styles.funFactValue}>{funFacts.firstSession || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="repeat" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Sessions in a Day:</Text><Text style={styles.funFactValue}>{funFacts.mostSessionsDayDate ? formatDateString(funFacts.mostSessionsDayDate) : '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="alarm-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Earliest Session Time:</Text><Text style={styles.funFactValue}>{formatTime12h(funFacts.earliestTime) || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="moon-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Latest Session Time:</Text><Text style={styles.funFactValue}>{formatTime12h(funFacts.latestTime) || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Popular Day:</Text><Text style={styles.funFactValue}>{funFacts.popularDay || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="bicycle-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Favorite Board:</Text><Text style={styles.funFactValue}>{funFacts.favoriteBoard || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Sessions in a Month:</Text><Text style={styles.funFactValue}>{funFacts.mostSessionsMonthLabel || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Earliest Month Surfed:</Text><Text style={styles.funFactValue}>{funFacts.earliestMonth || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Latest Month Surfed:</Text><Text style={styles.funFactValue}>{funFacts.latestMonth || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="water-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Common Condition:</Text><Text style={styles.funFactValue}>{funFacts.commonCondition || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="location-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Total Spots Surfed:</Text><Text style={styles.funFactValue}>{funFacts.uniqueSpots}</Text></View>
+          </View>
+          {/* Session History */}
+          <Text style={styles.sectionTitle}>Session History</Text>
+          {Object.keys(sessionsByMonth).length > 0 ? (
+            Object.entries(sessionsByMonth).map(([month, monthSessions]) => (
+              <View key={month} style={styles.monthGroup}>
+                <Text style={styles.monthLabel}>{month}</Text>
+                {monthSessions.map((session, idx) => (
+                  <View key={session.id || idx} style={styles.sessionItem}>
+                    <Text style={styles.sessionText}>{new Date(session.startTime).toLocaleDateString()} - {session.spotId} - {session.board?.type || ''}</Text>
+                  </View>
+                ))}
               </View>
             ))
           ) : (
-            <Text style={styles.emptyText}>No surf spot data yet.</Text>
+            <Text style={styles.emptyText}>No sessions logged yet.</Text>
           )}
-        </View>
-        {/* Streaks & Consistency */}
-        <View style={styles.streaksSection}>
-          <Text style={styles.streaksTitle}>Streaks & Consistency</Text>
-          <View style={styles.streakRow}>
-            <Text style={styles.streakLabel}>Current Streak:</Text>
-            <Text style={styles.streakValue}>{streaks.current} days</Text>
-            {streaks.current > 0 && <Ionicons name="flame" size={18} color={COLORS.secondary} style={{ marginLeft: 4 }} />}
-          </View>
-          <View style={styles.streakRow}>
-            <Text style={styles.streakLabel}>Longest Streak:</Text>
-            <Text style={styles.streakValue}>{streaks.longest} days</Text>
-            {streaks.milestone > 0 && <View style={styles.streakBadge}><Text style={styles.streakBadgeText}>{streaks.milestone}-day Streak!</Text></View>}
-          </View>
-          <View style={styles.streakDotsRow}>
-            <View style={styles.streakDotRowInner}>
-              {streaks.streakDays.map((active, idx) => (
-                <View key={idx} style={styles.streakDotCell}>
-                  <View style={[styles.streakDot, { backgroundColor: active ? COLORS.secondary : COLORS.lightGray }]} />
-                </View>
-              ))}
-            </View>
-          </View>
-          <Text style={styles.streakLegend}>
-            Last 14 days: <Text style={{ color: COLORS.secondary }}>●</Text> = surfed
-          </Text>
-        </View>
-        {/* Session Quality Analytics */}
-        <View style={styles.qualitySection}>
-          <Text style={styles.qualityTitle}>Session Quality Analytics</Text>
-          <View style={styles.qualityRow}>
-            <Ionicons name="star" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} />
-            <Text style={styles.qualityLabel}>Avg. Rating:</Text>
-            <Text style={styles.qualityValue}>{qualityStats.avgRating !== null ? qualityStats.avgRating : '-'}</Text>
-          </View>
-          <View style={styles.qualityRow}>
-            <Ionicons name="trophy-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} />
-            <Text style={styles.qualityLabel}>Best Session:</Text>
-            <Text style={styles.qualityValue}>
-              {qualityStats.bestSession ? `${new Date(qualityStats.bestSession.startTime).toLocaleDateString()} at ${qualityStats.bestSession.spotId} (${qualityStats.bestRating})` : '-'}
-            </Text>
-          </View>
-          <View style={styles.qualityRow}>
-            <Ionicons name="navigate" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} />
-            <Text style={styles.qualityLabel}>Most Common Wind:</Text>
-            <Text style={styles.qualityValue}>{qualityStats.commonWind || '-'}</Text>
-          </View>
-          <View style={styles.qualityRow}>
-            <Ionicons name="partly-sunny-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} />
-            <Text style={styles.qualityLabel}>Most Common Weather:</Text>
-            <Text style={styles.qualityValue}>{qualityStats.commonWeather || '-'}</Text>
-          </View>
-        </View>
-        {/* Fun Facts */}
-        <View style={styles.funFactsSection}>
-          <Text style={styles.funFactsTitle}>Fun Facts</Text>
-          <View style={styles.funFactRow}><Ionicons name="time-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Total Hours Surfed:</Text><Text style={styles.funFactValue}>{funFacts.totalHours}</Text></View>
-          <View style={styles.funFactRow}><Ionicons name="calendar-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>First Session Logged:</Text><Text style={styles.funFactValue}>{funFacts.firstSession || '-'}</Text></View>
-          <View style={styles.funFactRow}><Ionicons name="repeat" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Sessions in a Day:</Text><Text style={styles.funFactValue}>{funFacts.mostSessionsDayDate ? formatDateString(funFacts.mostSessionsDayDate) : '-'}</Text></View>
-          <View style={styles.funFactRow}><Ionicons name="alarm-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Earliest Session Time:</Text><Text style={styles.funFactValue}>{formatTime12h(funFacts.earliestTime) || '-'}</Text></View>
-          <View style={styles.funFactRow}><Ionicons name="moon-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Latest Session Time:</Text><Text style={styles.funFactValue}>{formatTime12h(funFacts.latestTime) || '-'}</Text></View>
-          <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Popular Day:</Text><Text style={styles.funFactValue}>{funFacts.popularDay || '-'}</Text></View>
-          <View style={styles.funFactRow}><Ionicons name="bicycle-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Favorite Board:</Text><Text style={styles.funFactValue}>{funFacts.favoriteBoard || '-'}</Text></View>
-          <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Sessions in a Month:</Text><Text style={styles.funFactValue}>{funFacts.mostSessionsMonthLabel || '-'}</Text></View>
-          <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Earliest Month Surfed:</Text><Text style={styles.funFactValue}>{funFacts.earliestMonth || '-'}</Text></View>
-          <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Latest Month Surfed:</Text><Text style={styles.funFactValue}>{funFacts.latestMonth || '-'}</Text></View>
-          <View style={styles.funFactRow}><Ionicons name="water-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Common Condition:</Text><Text style={styles.funFactValue}>{funFacts.commonCondition || '-'}</Text></View>
-          <View style={styles.funFactRow}><Ionicons name="location-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Total Spots Surfed:</Text><Text style={styles.funFactValue}>{funFacts.uniqueSpots}</Text></View>
-        </View>
-        {/* Session History */}
-        <Text style={styles.sectionTitle}>Session History</Text>
-        {Object.keys(sessionsByMonth).length > 0 ? (
-          Object.entries(sessionsByMonth).map(([month, monthSessions]) => (
-            <View key={month} style={styles.monthGroup}>
-              <Text style={styles.monthLabel}>{month}</Text>
-              {monthSessions.map((session, idx) => (
-                <View key={session.id || idx} style={styles.sessionItem}>
-                  <Text style={styles.sessionText}>{new Date(session.startTime).toLocaleDateString()} - {session.spotId} - {session.board?.type || ''}</Text>
-                </View>
-              ))}
-            </View>
-          ))
-        ) : (
-          <Text style={styles.emptyText}>No sessions logged yet.</Text>
-        )}
-      </ScrollView>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };
