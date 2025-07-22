@@ -39,7 +39,7 @@ This document maintains a running list of tasks, enhancements, bug fixes, and te
   - [ ] Create forgot password screen
   - [ ] Implement password reset email flow
   - [ ] Add success/error handling
-- [ ] Add social media login options
+- [X] Add social media login options
   - [X] Add UI for Google and Apple login buttons
   - [ ] Implement Google OAuth integration
   - [ ] Implement Apple Sign In integration
@@ -55,7 +55,7 @@ This document maintains a running list of tasks, enhancements, bug fixes, and te
 - [X] Add map view of surf spots (mock only)
 - [ ] Implement interactive MapView for surf spots (replace mock with real map component showing surf spots)
 - [ ] Implement search and filtering for spots
-- [ ] Add favorites functionality
+- [X] Add favorites functionality
 - [X] Create check-in feature for spots
 - [ ] Implement surf session logging
 
@@ -172,10 +172,10 @@ This document maintains a running list of tasks, enhancements, bug fixes, and te
 
 ## Next Priority Tasks
 - [X] Implement password reset functionality
-- [ ] Add social media login (Google, Apple)
+- [X] Add social media login (Google, Apple)
 - [X] Create user profile screen and editing
-- [ ] Implement session history and statistics
-- [ ] Add favorites functionality for surf spots
+- [X] Implement session history and statistics
+- [X] Add favorites functionality for surf spots
 - [ ] Implement search and filtering for spots
 - [ ] Create tide chart component
 - [ ] Add photo upload capability for session logs

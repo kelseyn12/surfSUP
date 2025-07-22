@@ -7,6 +7,7 @@ import { firebaseAuth } from '../config/firebase';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { User } from '../types';
 import { SocialAuthService } from './socialAuth';
+import { reload, getIdToken, updateProfile } from '@react-native-firebase/auth';
 
 // Constants
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -79,7 +80,7 @@ export const useAuthStore = create<AuthState>()(
 
         const unsubscribe = firebaseAuth.onAuthStateChanged(async (firebaseUser) => {
           if (firebaseUser) {
-            const idToken = await firebaseUser.getIdToken();
+            const idToken = await getIdToken(firebaseUser);
             const user = convertFirebaseUser(firebaseUser);
             set({
               user,
@@ -100,7 +101,7 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: true, error: null });
           const userCredential = await firebaseAuth.signInWithEmailAndPassword(email, password);
           const user = convertFirebaseUser(userCredential.user);
-          const idToken = await userCredential.user.getIdToken();
+          const idToken = await getIdToken(userCredential.user);
 
           set({
             user,
@@ -129,10 +130,10 @@ export const useAuthStore = create<AuthState>()(
           }
 
           const userCredential = await firebaseAuth.createUserWithEmailAndPassword(email, password);
-          await userCredential.user.updateProfile({ displayName: name });
+          await updateProfile(userCredential.user, { displayName: name });
 
           const user = convertFirebaseUser(userCredential.user);
-          const idToken = await userCredential.user.getIdToken();
+          const idToken = await getIdToken(userCredential.user);
           
           set({
             user,
@@ -158,7 +159,7 @@ export const useAuthStore = create<AuthState>()(
           if (updates.name) profileUpdates.displayName = updates.name;
           if (updates.profileImageUrl) profileUpdates.photoURL = updates.profileImageUrl;
 
-          await currentUser.updateProfile(profileUpdates);
+          await updateProfile(currentUser, profileUpdates);
           
           // Get the current user state to preserve existing data
           const currentState = get();
@@ -191,7 +192,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const currentUser = firebaseAuth.currentUser;
           if (currentUser) {
-            const idToken = await currentUser.getIdToken(true);
+            const idToken = await getIdToken(currentUser, true);
             set({ token: idToken, lastActivity: Date.now() });
           }
         } catch (error: any) {
@@ -209,7 +210,7 @@ export const useAuthStore = create<AuthState>()(
           
           if (result.success && result.user) {
             // Force refresh the user data to get the updated profile
-            await result.user.reload();
+            await reload(result.user);
             
             let user = convertFirebaseUser(result.user);
             
@@ -223,7 +224,7 @@ export const useAuthStore = create<AuthState>()(
               };
             }
             
-            const idToken = await result.user.getIdToken();
+            const idToken = await getIdToken(result.user);
             set({
               user,
               token: idToken,
@@ -246,7 +247,7 @@ export const useAuthStore = create<AuthState>()(
           
           if (result.success && result.user) {
             const user = convertFirebaseUser(result.user);
-            const idToken = await result.user.getIdToken();
+            const idToken = await getIdToken(result.user);
             set({
               user,
               token: idToken,
