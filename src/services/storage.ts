@@ -54,19 +54,19 @@ export const removeAuthToken = async (): Promise<void> => {
   }
 };
 
-// Favorite spots storage functions
-export const storeFavoriteSpots = async (spots: SurfSpot[]): Promise<void> => {
+// Favorite spots storage functions (user-specific)
+export const storeFavoriteSpots = async (userId: string, spots: SurfSpot[]): Promise<void> => {
   try {
-    await AsyncStorage.setItem(STORAGE_KEYS.FAVORITE_SPOTS, JSON.stringify(spots));
+    await AsyncStorage.setItem(`${STORAGE_KEYS.FAVORITE_SPOTS}_${userId}`, JSON.stringify(spots));
   } catch (error) {
     console.error('Error storing favorite spots:', error);
     throw error;
   }
 };
 
-export const getFavoriteSpots = async (): Promise<SurfSpot[]> => {
+export const getFavoriteSpots = async (userId: string): Promise<SurfSpot[]> => {
   try {
-    const spotsJson = await AsyncStorage.getItem(STORAGE_KEYS.FAVORITE_SPOTS);
+    const spotsJson = await AsyncStorage.getItem(`${STORAGE_KEYS.FAVORITE_SPOTS}_${userId}`);
     return spotsJson ? JSON.parse(spotsJson) : [];
   } catch (error) {
     console.error('Error getting favorite spots:', error);
@@ -74,14 +74,14 @@ export const getFavoriteSpots = async (): Promise<SurfSpot[]> => {
   }
 };
 
-export const addFavoriteSpot = async (spot: SurfSpot): Promise<SurfSpot[]> => {
+export const addFavoriteSpot = async (userId: string, spot: SurfSpot): Promise<SurfSpot[]> => {
   try {
-    const spots = await getFavoriteSpots();
+    const spots = await getFavoriteSpots(userId);
     
     // Check if spot already exists
     if (!spots.some(s => s.id === spot.id)) {
       spots.push(spot);
-      await storeFavoriteSpots(spots);
+      await storeFavoriteSpots(userId, spots);
     }
     
     return spots;
@@ -91,11 +91,11 @@ export const addFavoriteSpot = async (spot: SurfSpot): Promise<SurfSpot[]> => {
   }
 };
 
-export const removeFavoriteSpot = async (spotId: string): Promise<SurfSpot[]> => {
+export const removeFavoriteSpot = async (userId: string, spotId: string): Promise<SurfSpot[]> => {
   try {
-    const spots = await getFavoriteSpots();
+    const spots = await getFavoriteSpots(userId);
     const updatedSpots = spots.filter(spot => spot.id !== spotId);
-    await storeFavoriteSpots(updatedSpots);
+    await storeFavoriteSpots(userId, updatedSpots);
     return updatedSpots;
   } catch (error) {
     console.error('Error removing favorite spot:', error);
@@ -144,19 +144,18 @@ export const addRecentSpot = async (spot: SurfSpot): Promise<SurfSpot[]> => {
   }
 };
 
-// User sessions storage functions
-export const storeUserSessions = async (sessions: SurfSession[]): Promise<void> => {
+// User sessions storage functions (user-specific)
+export const storeUserSessions = async (userId: string, sessions: SurfSession[]): Promise<void> => {
   try {
-    await AsyncStorage.setItem(STORAGE_KEYS.USER_SESSIONS, JSON.stringify(sessions));
-    const verifyStorage = await AsyncStorage.getItem(STORAGE_KEYS.USER_SESSIONS);
+    await AsyncStorage.setItem(`${STORAGE_KEYS.USER_SESSIONS}_${userId}`, JSON.stringify(sessions));
   } catch (error) {
     throw error;
   }
 };
 
-export const getUserSessions = async (): Promise<SurfSession[]> => {
+export const getUserSessions = async (userId: string): Promise<SurfSession[]> => {
   try {
-    const sessionsJson = await AsyncStorage.getItem(STORAGE_KEYS.USER_SESSIONS);
+    const sessionsJson = await AsyncStorage.getItem(`${STORAGE_KEYS.USER_SESSIONS}_${userId}`);
     return sessionsJson ? JSON.parse(sessionsJson) : [];
   } catch (error) {
     console.error('Error getting user sessions:', error);
@@ -164,11 +163,11 @@ export const getUserSessions = async (): Promise<SurfSession[]> => {
   }
 };
 
-export const addUserSession = async (session: SurfSession): Promise<SurfSession[]> => {
+export const addUserSession = async (userId: string, session: SurfSession): Promise<SurfSession[]> => {
   try {
-    const sessions = await getUserSessions();
+    const sessions = await getUserSessions(userId);
     sessions.unshift(session);
-    await storeUserSessions(sessions);
+    await storeUserSessions(userId, sessions);
     return sessions;
   } catch (error) {
     console.error('Error adding user session:', error);
@@ -176,14 +175,14 @@ export const addUserSession = async (session: SurfSession): Promise<SurfSession[
   }
 };
 
-export const updateUserSession = async (updatedSession: SurfSession): Promise<SurfSession[]> => {
+export const updateUserSession = async (userId: string, updatedSession: SurfSession): Promise<SurfSession[]> => {
   try {
-    const sessions = await getUserSessions();
+    const sessions = await getUserSessions(userId);
     const updatedSessions = sessions.map(session => 
       session.id === updatedSession.id ? updatedSession : session
     );
     
-    await storeUserSessions(updatedSessions);
+    await storeUserSessions(userId, updatedSessions);
     return updatedSessions;
   } catch (error) {
     console.error('Error updating user session:', error);
@@ -191,11 +190,11 @@ export const updateUserSession = async (updatedSession: SurfSession): Promise<Su
   }
 };
 
-export const deleteUserSession = async (sessionId: string): Promise<SurfSession[]> => {
+export const deleteUserSession = async (userId: string, sessionId: string): Promise<SurfSession[]> => {
   try {
-    const sessions = await getUserSessions();
+    const sessions = await getUserSessions(userId);
     const updatedSessions = sessions.filter(session => session.id !== sessionId);
-    await storeUserSessions(updatedSessions);
+    await storeUserSessions(userId, updatedSessions);
     return updatedSessions;
   } catch (error) {
     console.error('Error deleting user session:', error);
@@ -277,12 +276,12 @@ export const clearAllStorage = async (): Promise<void> => {
   }
 };
 
-// Initialize storage with empty data
-export const initializeStorage = async (): Promise<void> => {
+// Initialize storage with empty data (user-specific)
+export const initializeStorage = async (userId: string): Promise<void> => {
   try {
-    const sessions = await getUserSessions();
+    const sessions = await getUserSessions(userId);
     if (!sessions) {
-      await storeUserSessions([]);
+      await storeUserSessions(userId, []);
     }
     console.log('Storage initialized successfully');
   } catch (error) {
