@@ -4,7 +4,7 @@ import {
   StyleSheet
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants';
+import { COLORS } from '../constants/colors';
 
 interface BackButtonProps {
   onPress: () => void;

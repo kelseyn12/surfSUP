@@ -2,27 +2,7 @@
  * Application constants
  */
 
-// Colors used throughout the app
-export const COLORS = {
-  primary: '#0077B6', // Ocean Blue
-  secondary: '#00B4D8', // Light Blue
-  tertiary: '#90E0EF', // Sky Blue
-  background: '#F8F9FA', // Light Gray
-  white: '#FFFFFF', 
-  black: '#000000',
-  gray: '#6C757D',
-  lightGray: '#CED4DA',
-  error: '#DC3545', // Red
-  success: '#28A745', // Green
-  warning: '#FFC107', // Yellow
-  info: '#17A2B8', // Teal
-  text: {
-    primary: '#212529', // Dark Gray
-    secondary: '#6C757D', // Medium Gray
-    light: '#F8F9FA', // Light Gray
-  },
-  transparent: 'transparent',
-};
+import { COLORS } from './colors';
 
 // Font sizes
 export const FONT_SIZES = {
@@ -198,3 +178,5 @@ export const TIDE = {
 
 // API Configuration
 export const API_BASE_URL = 'http://localhost:3000/api'; 
+
+export * from './colors'; 

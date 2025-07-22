@@ -12,7 +12,7 @@ import {
   BackHandler
 } from 'react-native';
 import { HeaderBar } from '../components';
-import { COLORS } from '../constants';
+import { COLORS } from '../constants/colors';
 import { useAuthStore } from '../services/auth';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { RootStackScreenProps } from '../navigation/types';

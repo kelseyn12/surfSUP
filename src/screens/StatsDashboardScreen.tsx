@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS } from '../constants';
+import { COLORS } from '../constants/colors';
 import { getUserSessions, storeUserSessions } from '../services/storage';
 import { SurfSession } from '../types';
 import { useNavigation } from '@react-navigation/native';
@@ -42,7 +42,7 @@ const StatsDashboardScreen: React.FC = () => {
     mostSessionsWeek: { count: 0, week: '', range: '', isNew: false },
     mostSessionsMonth: { count: 0, month: '', isNew: false },
   });
-  const [spotAnalytics, setSpotAnalytics] = useState<{ spot: string; count: number; percent: number }[]>([]);
+  const [spotAnalytics, setSpotAnalytics] = useState<{ spot: string; count: number; percent: number; totalMinutes: number }[]>([]);
   const [streaks, setStreaks] = useState({
     current: 0,
     longest: 0,
@@ -134,35 +134,37 @@ const StatsDashboardScreen: React.FC = () => {
     // Sort sessions by date
     const sorted = [...data].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
     sorted.forEach(session => {
-      const start = new Date(session.startTime);
-      const end = new Date(session.endTime).getTime();
-      const duration = Math.max(0, (end - start.getTime()) / 60000); // in minutes
+      const start = session.startTime ? new Date(session.startTime) : null;
+      const end = session.endTime ? new Date(session.endTime).getTime() : null;
+      const duration = start && end !== null ? Math.max(0, (end - start.getTime()) / 60000) : 0; // in minutes
       totalMinutes += duration;
-      if (duration > longestSession) longestSession = duration;
+      if (start && duration > longestSession) longestSession = duration;
       if (session.spotId) {
         spotCounts[session.spotId] = (spotCounts[session.spotId] || 0) + 1;
       }
       // Month
-      const month = `${start.getFullYear()}-${(start.getMonth() + 1).toString().padStart(2, '0')}`;
-      monthCounts[month] = (monthCounts[month] || 0) + 1;
-      // Week (ISO week string)
-      const week = `${start.getFullYear()}-W${getWeekNumber(start)}`;
-      weekCounts[week] = (weekCounts[week] || 0) + 1;
-      // Streak
-      const dateStr = start.toISOString().slice(0, 10);
-      if (lastDate) {
-        const prev = new Date(lastDate);
-        const diff = (start.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
-        if (diff === 1) {
-          streak++;
+      if (start) {
+        const month = `${start.getFullYear()}-${(start.getMonth() + 1).toString().padStart(2, '0')}`;
+        monthCounts[month] = (monthCounts[month] || 0) + 1;
+        // Week (ISO week string)
+        const week = `${start.getFullYear()}-W${getWeekNumber(start)}`;
+        weekCounts[week] = (weekCounts[week] || 0) + 1;
+        // Streak
+        const dateStr = start.toISOString().slice(0, 10);
+        if (lastDate) {
+          const prev = new Date(lastDate);
+          const diff = (start.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
+          if (diff === 1) {
+            streak++;
+          } else {
+            streak = 1;
+          }
         } else {
           streak = 1;
         }
-      } else {
-        streak = 1;
+        if (streak > maxStreak) maxStreak = streak;
+        lastDate = dateStr;
       }
-      if (streak > maxStreak) maxStreak = streak;
-      lastDate = dateStr;
     });
     const averageSessionLength = totalMinutes / totalSessions;
     favoriteSpot = Object.entries(spotCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
@@ -214,10 +216,10 @@ const StatsDashboardScreen: React.FC = () => {
     let thisMonthSessions = 0, lastMonthSessions = 0;
     let thisMonthTotal = 0, lastMonthTotal = 0;
     data.forEach(session => {
-      const start = new Date(session.startTime);
-      const end = new Date(session.endTime).getTime();
-      const duration = Math.max(0, (end - start.getTime()) / 60000); // in minutes
-      const key = getMonthKey(start);
+      const start = session.startTime ? new Date(session.startTime) : null;
+      const end = session.endTime ? new Date(session.endTime).getTime() : null;
+      const duration = start && end !== null ? Math.max(0, (end - start.getTime()) / 60000) : 0; // in minutes
+      const key = start ? getMonthKey(start) : '';
       if (key === thisMonthKey) {
         thisMonthSessions++;
         thisMonthTotal += duration;
@@ -254,20 +256,22 @@ const StatsDashboardScreen: React.FC = () => {
     // Sort sessions by date
     const sorted = [...data].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
     sorted.forEach(session => {
-      const start = new Date(session.startTime);
-      const end = new Date(session.endTime).getTime();
-      const duration = Math.max(0, (end - start.getTime()) / 60000); // in minutes
-      if (duration > longest.duration) {
+      const start = session.startTime ? new Date(session.startTime) : null;
+      const end = session.endTime ? new Date(session.endTime).getTime() : null;
+      const duration = start && end !== null ? Math.max(0, (end - start.getTime()) / 60000) : 0; // in minutes
+      if (start && duration > longest.duration) {
         longest = { duration, date: start.toLocaleDateString(), spot: session.spotId, isNew: false };
       }
       // Week
-      const week = `${start.getFullYear()}-W${getWeekNumber(start)}`;
-      if (!weekCounts[week]) weekCounts[week] = [];
-      weekCounts[week].push(session);
-      // Month
-      const month = `${start.getFullYear()}-${(start.getMonth() + 1).toString().padStart(2, '0')}`;
-      if (!monthCounts[month]) monthCounts[month] = [];
-      monthCounts[month].push(session);
+      if (start) {
+        const week = `${start.getFullYear()}-W${getWeekNumber(start)}`;
+        if (!weekCounts[week]) weekCounts[week] = [];
+        weekCounts[week].push(session);
+        // Month
+        const month = `${start.getFullYear()}-${(start.getMonth() + 1).toString().padStart(2, '0')}`;
+        if (!monthCounts[month]) monthCounts[month] = [];
+        monthCounts[month].push(session);
+      }
     });
     // Most sessions in a week
     let mostWeek = { count: 0, week: '', range: '', isNew: false };
@@ -311,9 +315,9 @@ const StatsDashboardScreen: React.FC = () => {
       if (session.spotId) {
         if (!spotStats[session.spotId]) spotStats[session.spotId] = { count: 0, totalMinutes: 0 };
         spotStats[session.spotId].count++;
-        const start = new Date(session.startTime).getTime();
-        const end = new Date(session.endTime).getTime();
-        const duration = Math.max(0, (end - start) / 60000); // in minutes
+        const start = session.startTime ? new Date(session.startTime).getTime() : null;
+        const end = session.endTime ? new Date(session.endTime).getTime() : null;
+        const duration = start && end !== null ? Math.max(0, (end - start) / 60000) : 0; // in minutes
         spotStats[session.spotId].totalMinutes += duration;
       }
     });
@@ -383,7 +387,10 @@ const StatsDashboardScreen: React.FC = () => {
     const weatherCounts: { [cond: string]: number } = {};
     data.forEach(session => {
       // Rating
-      const rating = session.conditions?.rating;
+      let rating: number | undefined;
+      if (session.conditions && typeof session.conditions === 'object' && 'rating' in session.conditions) {
+        rating = (session.conditions as any).rating;
+      }
       if (typeof rating === 'number') {
         ratingSum += rating;
         ratingCount++;
@@ -393,10 +400,16 @@ const StatsDashboardScreen: React.FC = () => {
         }
       }
       // Wind
-      const wind = session.conditions?.wind?.direction;
+      let wind: string | undefined;
+      if (session.conditions && typeof session.conditions === 'object' && 'wind' in session.conditions && (session.conditions as any).wind && typeof (session.conditions as any).wind === 'object' && 'direction' in (session.conditions as any).wind) {
+        wind = (session.conditions as any).wind.direction;
+      }
       if (wind) windCounts[wind] = (windCounts[wind] || 0) + 1;
       // Weather
-      const weather = session.conditions?.weather?.condition;
+      let weather: string | undefined;
+      if (session.conditions && typeof session.conditions === 'object' && 'weather' in session.conditions && (session.conditions as any).weather && typeof (session.conditions as any).weather === 'object' && 'condition' in (session.conditions as any).weather) {
+        weather = (session.conditions as any).weather.condition;
+      }
       if (weather) weatherCounts[weather] = (weatherCounts[weather] || 0) + 1;
     });
     // Most common wind and weather
@@ -439,30 +452,30 @@ const StatsDashboardScreen: React.FC = () => {
     const spotSet = new Set<string>();
     data.forEach(session => {
       // Duration
-      const start = new Date(session.startTime);
-      const end = new Date(session.endTime).getTime();
-      const duration = Math.max(0, (end - start.getTime()) / 60000);
+      const start = session.startTime ? new Date(session.startTime) : null;
+      const end = session.endTime ? new Date(session.endTime).getTime() : null;
+      const duration = start && end !== null ? Math.max(0, (end - start.getTime()) / 60000) : 0;
       totalMinutes += duration;
       // First session
       if (!firstSession || (typeof session.startTime === 'string' && typeof firstSession.startTime === 'string' && new Date(session.startTime) < new Date(firstSession.startTime))) firstSession = session;
       // Most sessions in a day
-      const dayKey = start.toISOString().slice(0, 10);
+      const dayKey = start ? start.toISOString().slice(0, 10) : '';
       dayCounts[dayKey] = (dayCounts[dayKey] || 0) + 1;
       // Earliest/latest session time
-      const mins = start.getHours() * 60 + start.getMinutes();
+      const mins = start ? start.getHours() * 60 + start.getMinutes() : 0;
       if (mins < earliest) earliest = mins;
       if (mins > latest) latest = mins;
       // Popular day of week
-      const dow = start.toLocaleDateString(undefined, { weekday: 'long' });
+      const dow = start ? start.toLocaleDateString(undefined, { weekday: 'long' }) : '';
       dowCounts[dow] = (dowCounts[dow] || 0) + 1;
       // Favorite board
       const board = session.board?.type;
       if (board) boardCounts[board] = (boardCounts[board] || 0) + 1;
       // Most sessions in a month
-      const monthKey = `${start.getFullYear()}-${(start.getMonth() + 1).toString().padStart(2, '0')}`;
+      const monthKey = start ? `${start.getFullYear()}-${(start.getMonth() + 1).toString().padStart(2, '0')}` : '';
       monthCounts[monthKey] = (monthCounts[monthKey] || 0) + 1;
       // Earliest/latest month
-      const isoDate = typeof session.startTime === 'string' ? session.startTime : '';
+      const isoDate = session.startTime ? session.startTime : '';
       if (isoDate && (!earliestMonth || isoDate < earliestMonth)) earliestMonth = isoDate;
       if (isoDate && (!latestMonth || isoDate > latestMonth)) latestMonth = isoDate;
       // Most common condition
@@ -506,7 +519,7 @@ const StatsDashboardScreen: React.FC = () => {
     const commonCondition = Object.entries(condCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
     setFunFacts({
       totalHours: Math.round(totalMinutes / 60),
-      firstSession: firstSession && typeof firstSession.startTime === 'string' ? `${formatDateString(firstSession.startTime)} at ${firstSession.spotId}` : '',
+      firstSession: firstSession && typeof (firstSession as any).startTime === 'string' && typeof (firstSession as any).spotId === 'string' ? `${formatDateString((firstSession as any).startTime)} at ${(firstSession as any).spotId}` : '',
       mostSessionsDay,
       mostSessionsDayDate: mostSessionsDayDate || '',
       earliestTime: earliest !== 24 * 60 ? `${String(Math.floor(earliest / 60)).padStart(2, '0')}:${String(earliest % 60).padStart(2, '0')}` : '',

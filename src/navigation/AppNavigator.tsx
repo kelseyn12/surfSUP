@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { enableScreens } from 'react-native-screens';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants';
+import { COLORS } from '../constants/colors';
 import { useAuthStore } from '../services/auth';
 import HomeScreen from '../screens/HomeScreen';
 import MapScreen from '../screens/MapScreen';

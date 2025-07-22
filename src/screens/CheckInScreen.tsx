@@ -11,7 +11,8 @@ import {
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackScreenProps } from '../navigation/types';
-import { COLORS, MESSAGES } from '../constants';
+import { COLORS } from '../constants/colors';
+import { MESSAGES } from '../constants';
 import { SurfConditions } from '../types';
 
 const CheckInScreen: React.FC = () => {

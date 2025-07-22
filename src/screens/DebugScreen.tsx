@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { COLORS } from '../constants';
+import { COLORS } from '../constants/colors';
 import { globalSurferCounts, updateGlobalSurferCount } from '../services/globalState';
 import { getSurferCount, checkInToSpot } from '../services/api';
 

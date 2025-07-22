@@ -10,7 +10,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackScreenProps } from '../navigation/types';
-import { COLORS } from '../constants';
+import { COLORS } from '../constants/colors';
 import { setOnboardingComplete } from '../services/storage';
 
 const OnBoardingScreen: React.FC = () => {

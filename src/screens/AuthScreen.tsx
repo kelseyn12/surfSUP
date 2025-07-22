@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackScreenProps } from '../navigation/types';
-import { COLORS } from '../constants';
+import { COLORS } from '../constants/colors';
 import { useAuthStore } from '../services/auth';
 import { Ionicons } from '@expo/vector-icons';
 

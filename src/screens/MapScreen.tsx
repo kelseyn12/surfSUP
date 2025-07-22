@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator } from 'rea
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { MainTabScreenProps } from '../navigation/types';
-import { COLORS } from '../constants';
+import { COLORS } from '../constants/colors';
 import { SurfSpot } from '../types';
 import { fetchNearbySurfSpots, getSurferCount } from '../services/api';
 import { eventEmitter, AppEvents } from '../services/events';

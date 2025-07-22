@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { COLORS } from '../constants';
+import { COLORS } from '../constants/colors';
 import { SurfSession } from '../types';
 import { getSessionById, deleteSession } from '../services/sessions';
 import { HeaderBar } from '../components';

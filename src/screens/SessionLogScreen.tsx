@@ -9,7 +9,8 @@ import {
   Alert 
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { COLORS, MESSAGES } from '../constants';
+import { COLORS } from '../constants/colors';
+import { MESSAGES } from '../constants';
 import { SurfConditions, SurfSession } from '../types';
 import type { RootStackParamList } from '../navigation/types';
 import type { RouteProp } from '@react-navigation/native';

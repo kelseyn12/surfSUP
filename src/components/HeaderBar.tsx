@@ -6,7 +6,7 @@ import {
   Platform, 
   StatusBar 
 } from 'react-native';
-import { COLORS } from '../constants';
+import { COLORS } from '../constants/colors';
 import BackButton from './BackButton';
 import { useWebSocketStatus } from '../services/WebSocketStatusContext';
 
