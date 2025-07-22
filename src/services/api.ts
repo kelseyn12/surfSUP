@@ -14,6 +14,31 @@ import webSocketService, {
 import axios from 'axios';
 import { addUserSession } from './storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+// Replace the import with require for JSON compatibility
+const spotsDataRaw = require('../constants/spots.json');
+const VALID_DIFFICULTIES = ['beginner', 'intermediate', 'advanced', 'expert'] as const;
+function isValidDifficulty(value: any): value is typeof VALID_DIFFICULTIES[number] {
+  return VALID_DIFFICULTIES.includes(value);
+}
+
+function validateSpots(rawSpots: any[]): SurfSpot[] {
+  const validSpots: SurfSpot[] = [];
+  const invalidSpots: any[] = [];
+  for (const spot of rawSpots) {
+    if (isValidDifficulty(spot.difficulty)) {
+      validSpots.push(spot as SurfSpot);
+    } else {
+      invalidSpots.push(spot);
+    }
+  }
+  if (invalidSpots.length > 0) {
+    console.error('Invalid spots found in spots.json:', invalidSpots);
+    throw new Error('Invalid spot data: some spots have invalid difficulty values.');
+  }
+  return validSpots;
+}
+
+const spotsData: SurfSpot[] = validateSpots(spotsDataRaw);
 
 // Create axios instance with base configuration
 const axiosInstance = axios.create({
@@ -196,7 +221,7 @@ const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout 
 
 // Add a mock database for storing active check-ins and surfer counts
 let activeSurferCounts: Record<string, number> = {
-  'stonypoint': 0,
+  'stoneypoint': 0,
   'parkpoint': 0,
   'lesterriver': 0,
   'superiorentry': 0,
@@ -204,7 +229,7 @@ let activeSurferCounts: Record<string, number> = {
 
 // Initialize with empty arrays for all spots to avoid undefined
 let activeCheckIns: Record<string, CheckIn[]> = {
-  'stonypoint': [],
+  'stoneypoint': [],
   'parkpoint': [],
   'lesterriver': [],
   'superiorentry': [],
@@ -394,95 +419,25 @@ export const fetchNearbySurfSpots = async (
     // Simulate API latency
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    
-    // Mock data for Lake Superior spots
-    const lakeSuperiorSpots: SurfSpot[] = [
-      {
-        id: 'stonypoint',
-        name: 'Stony Point',
-        location: {
-          latitude: 46.9419,
-          longitude: -91.8061,
-          city: 'Duluth',
-          state: 'MN',
-          country: 'USA',
-        },
-        difficulty: 'intermediate',
-        type: ['beach-break', 'point-break'],
-        amenities: ['parking'],
-        description: 'Popular spot for Lake Superior surfers with consistent waves during NE winds.',
-        imageUrls: ['https://example.com/stonypoint.jpg'],
-        currentSurferCount: globalSurferCounts['stonypoint'],
-        lastActivityUpdate: new Date().toISOString(),
-        createdAt: '2023-01-15T00:00:00.000Z',
-        updatedAt: '2023-01-15T00:00:00.000Z',
-      },
-      {
-        id: 'parkpoint',
-        name: 'Park Point',
-        location: {
-          latitude: 46.7825,
-          longitude: -92.0856,
-          city: 'Duluth',
-          state: 'MN',
-          country: 'USA',
-        },
-        difficulty: 'beginner',
-        type: ['beach-break'],
-        amenities: ['parking', 'restrooms'],
-        description: 'Long sandy beach with gentle waves, perfect for beginners during calm conditions.',
-        imageUrls: ['https://example.com/parkpoint.jpg'],
-        currentSurferCount: globalSurferCounts['parkpoint'],
-        lastActivityUpdate: new Date().toISOString(),
-        createdAt: '2023-01-15T00:00:00.000Z',
-        updatedAt: '2023-01-15T00:00:00.000Z',
-      },
-      {
-        id: 'lesterriver',
-        name: 'Lester River',
-        location: {
-          latitude: 46.8331,
-          longitude: -92.0217,
-          city: 'Duluth',
-          state: 'MN',
-          country: 'USA',
-        },
-        difficulty: 'advanced',
-        type: ['river-mouth', 'reef'],
-        amenities: ['parking'],
-        description: 'River mouth break that works well during strong winds and storms.',
-        imageUrls: ['https://example.com/lesterriver.jpg'],
-        currentSurferCount: globalSurferCounts['lesterriver'],
-        lastActivityUpdate: new Date().toISOString(),
-        createdAt: '2023-01-15T00:00:00.000Z',
-        updatedAt: '2023-01-15T00:00:00.000Z',
-      },
-      {
-        id: 'superiorentry',
-        name: 'Superior Entry',
-        location: {
-          latitude: 46.7156,
-          longitude: -92.0595,
-          city: 'Superior',
-          state: 'WI',
-          country: 'USA',
-        },
-        difficulty: 'expert',
-        type: ['point-break'],
-        amenities: ['parking'],
-        description: 'Powerful break near the canal entrance. For experienced surfers only.',
-        imageUrls: ['https://example.com/superiorentry.jpg'],
-        currentSurferCount: globalSurferCounts['superiorentry'],
-        lastActivityUpdate: new Date().toISOString(),
-        createdAt: '2023-01-15T00:00:00.000Z',
-        updatedAt: '2023-01-15T00:00:00.000Z',
-      },
-    ];
-    
-   
-      lakeSuperiorSpots.map(spot => `${spot.name}: ${spot.currentSurferCount}`).join(', ');
-    
-    return lakeSuperiorSpots;
+    // Use real data from spots.json
+    const toRad = (value: number) => (value * Math.PI) / 180;
+    const earthRadius = 6371; // km
+    const isWithinRadius = (lat1: number, lon1: number, lat2: number, lon2: number, r: number) => {
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return earthRadius * c <= r;
+    };
+
+    const nearbySpots = spotsData.filter((spot: any) =>
+      isWithinRadius(latitude, longitude, spot.location.latitude, spot.location.longitude, radius)
+    );
+
+    return nearbySpots;
   } catch (error) {
     console.error('Error fetching nearby surf spots:', error);
     return null;
@@ -733,7 +688,7 @@ export const logSurfSession = async (sessionData: Omit<SurfSession, 'id' | 'crea
     };
     
     // Save to local storage
-    await addUserSession(session);
+    await addUserSession(session.userId, session);
     
     return session;
   } catch (error) {

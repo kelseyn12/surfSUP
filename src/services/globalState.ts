@@ -7,7 +7,7 @@
 
 // Global surfer counts that all components can access
 export const globalSurferCounts: Record<string, number> = {
-  'stonypoint': 0,
+  'stoneypoint': 0,
   'parkpoint': 0,
   'lesterriver': 0,
   'superiorentry': 0,
@@ -15,7 +15,7 @@ export const globalSurferCounts: Record<string, number> = {
 
 // Global list of which spots the user is checked into
 export const userCheckIns: Record<string, boolean> = {
-  'stonypoint': false,
+  'stoneypoint': false,
   'parkpoint': false,
   'lesterriver': false,
   'superiorentry': false,

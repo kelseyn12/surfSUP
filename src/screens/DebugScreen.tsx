@@ -59,7 +59,7 @@ const DebugScreen: React.FC = () => {
   };
 
   // Test spots
-  const spotIds = ['stonypoint', 'parkpoint', 'lesterriver', 'superiorentry'];
+  const spotIds = ['stoneypoint', 'parkpoint', 'lesterriver', 'superiorentry'];
 
   return (
     <ScrollView style={styles.container} key={refreshKey}>

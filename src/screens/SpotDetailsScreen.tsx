@@ -25,6 +25,8 @@ import {
 import { isUserCheckedInAt, getGlobalSurferCount } from '../services/globalState';
 import webSocketService, { WebSocketMessageType } from '../services/websocket';
 import { HeaderBar } from '../components';
+import { addFavoriteSpot, removeFavoriteSpot } from '../services/storage';
+import { useAuthStore } from '../services/auth';
 
 const SpotDetailsScreen: React.FC<any> = (props) => {
   // Use props directly instead of hooks
@@ -40,6 +42,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   const [surferCount, setSurferCount] = useState(0);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [checkInId, setCheckInId] = useState<string | null>(null);
+  const { user } = useAuthStore();
 
   // Function to load spot data
   const loadData = React.useCallback(async () => {
@@ -148,9 +151,15 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   }, [spotId]);
 
   // Toggle favorite status
-  const toggleFavorite = () => {
-    setIsFavorite(!isFavorite);
-    // In a real app, you would persist this to storage or API
+  const toggleFavorite = async () => {
+    if (!user?.id || !spot) return;
+    if (isFavorite) {
+      await removeFavoriteSpot(user.id, spot.id);
+      setIsFavorite(false);
+    } else {
+      await addFavoriteSpot(user.id, spot);
+      setIsFavorite(true);
+    }
   };
 
   // Handle check-in

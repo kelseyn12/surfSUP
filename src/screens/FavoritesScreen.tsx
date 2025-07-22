@@ -6,7 +6,8 @@ import {
   FlatList, 
   TouchableOpacity, 
   RefreshControl,
-  Alert
+  Alert,
+  SafeAreaView
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,121 +16,54 @@ import { COLORS } from '../constants/colors';
 import { SurfSpot } from '../types';
 import { SurfSpotCard } from '../components';
 import { eventEmitter, AppEvents } from '../services/events';
+import { getFavoriteSpots, removeFavoriteSpot } from '../services/storage';
+import { getSurferCount } from '../services/api';
+import { useAuthStore } from '../services/auth';
 
 const FavoritesScreen: React.FC = () => {
   const navigation = useNavigation<MainTabScreenProps<'Favorites'>['navigation']>();
+  const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
-
-  // Mock data for favorite spots
-  const [favoriteSpots, setFavoriteSpots] = useState<SurfSpot[]>([
-    {
-      id: 'stonypoint',
-      name: 'Stoney Point',
-      location: { 
-        latitude: 46.9463, 
-        longitude: -91.8944,
-        city: 'Duluth',
-        state: 'MN',
-        country: 'USA' 
-      },
-      type: ['point-break'],
-      difficulty: 'intermediate',
-      description: 'Popular spot for Lake Superior surfers with consistent waves during NE winds.',
-      imageUrls: ['https://example.com/stonypoint.jpg'],
-      createdAt: '2023-01-15T00:00:00.000Z',
-      updatedAt: '2023-01-15T00:00:00.000Z',
-    },
-    {
-      id: 'parkpoint',
-      name: 'Park Point',
-      location: { 
-        latitude: 46.7616, 
-        longitude: -92.0593,
-        city: 'Duluth',
-        state: 'MN',
-        country: 'USA'
-      },
-      type: ['beach-break'],
-      difficulty: 'beginner',
-      description: 'Long sandy beach with gentle waves, perfect for beginners during calm conditions.',
-      imageUrls: ['https://example.com/parkpoint.jpg'],
-      createdAt: '2023-01-15T00:00:00.000Z',
-      updatedAt: '2023-01-15T00:00:00.000Z',
-    },
-    {
-      id: 'lesterriver',
-      name: 'Lester River',
-      location: { 
-        latitude: 46.8330, 
-        longitude: -92.0070,
-        city: 'Duluth',
-        state: 'MN',
-        country: 'USA'
-      },
-      type: ['river-mouth'],
-      difficulty: 'advanced',
-      description: 'River mouth break that works well during strong winds and storms.',
-      imageUrls: ['https://example.com/lesterriver.jpg'],
-      createdAt: '2023-01-15T00:00:00.000Z',
-      updatedAt: '2023-01-15T00:00:00.000Z',
-    },
-  ]);
-  
+  const [favoriteSpots, setFavoriteSpots] = useState<SurfSpot[]>([]);
   const [surferCounts, setSurferCounts] = useState<Record<string, number>>({});
 
+  const loadFavoriteSpots = useCallback(async () => {
+    if (!user?.id) return;
+    const spots = await getFavoriteSpots(user.id);
+    setFavoriteSpots(spots);
+  }, [user?.id]);
+
   useEffect(() => {
-    // Load initial surfer counts
-    loadSurferCounts();
+    loadFavoriteSpots();
+  }, [loadFavoriteSpots]);
 
-    // Listen for surfer count updates
-    const handleSurferCountUpdate = (data: { spotId: string, count: number }) => {
-      console.log(`[EVENT] Surfer count updated for ${data.spotId}: ${data.count}`);
-      
-      // Update the surfer count for the specific spot
-      setSurferCounts(currentCounts => ({
-        ...currentCounts,
-        [data.spotId]: data.count
-      }));
+  useEffect(() => {
+    const fetchCounts = async () => {
+      const counts: Record<string, number> = {};
+      for (const spot of favoriteSpots) {
+        counts[spot.id] = await getSurferCount(spot.id);
+      }
+      setSurferCounts(counts);
     };
-
-    // Register event listener
-    eventEmitter.on(AppEvents.SURFER_COUNT_UPDATED, handleSurferCountUpdate);
-
-    // Cleanup listener on unmount
-    return () => {
-      eventEmitter.off(AppEvents.SURFER_COUNT_UPDATED, handleSurferCountUpdate);
-    };
-  }, [loadSurferCounts]);
-
-  const loadSurferCounts = useCallback(async () => {
-    const counts: Record<string, number> = {};
-    
-    for (const spot of favoriteSpots) {
-      // const count = await getSurferCount(spot.id); // Removed getSurferCount
-      // counts[spot.id] = count;
-      // Mocking surfer count for now
-      counts[spot.id] = Math.floor(Math.random() * 100); // Example random count
-    }
-    
-    setSurferCounts(counts);
+    fetchCounts();
   }, [favoriteSpots]);
 
-  // Place useFocusEffect after function declarations to avoid linter errors
   useFocusEffect(
     React.useCallback(() => {
-      loadSurferCounts();
+      loadFavoriteSpots();
       return () => {};
-    }, [loadSurferCounts])
+    }, [loadFavoriteSpots])
   );
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadSurferCounts().then(() => {
+    loadFavoriteSpots().then(() => {
       setRefreshing(false);
     });
   };
 
-  const handleRemoveFavorite = (spotId: string) => {
+  const handleRemoveFavorite = async (spotId: string) => {
+    if (!user?.id) return;
     Alert.alert(
       'Remove Favorite',
       'Are you sure you want to remove this spot from favorites?',
@@ -140,8 +74,9 @@ const FavoritesScreen: React.FC = () => {
         },
         {
           text: 'Remove',
-          onPress: () => {
-            setFavoriteSpots(favoriteSpots.filter(spot => spot.id !== spotId));
+          onPress: async () => {
+            await removeFavoriteSpot(user.id, spotId);
+            loadFavoriteSpots();
           },
           style: 'destructive',
         },
@@ -160,7 +95,7 @@ const FavoritesScreen: React.FC = () => {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <FlatList
         data={favoriteSpots}
         keyExtractor={(item) => item.id}
@@ -181,7 +116,7 @@ const FavoritesScreen: React.FC = () => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="heart-outline" size={64} color={COLORS.gray} />
-            <Text style={styles.emptyText}>No favorite spots yet</Text>
+            <Text style={styles.emptyText}>You haven't added any favorites yet</Text>
             <Text style={styles.emptySubText}>
               Add spots to your favorites to see them here
             </Text>
@@ -194,7 +129,7 @@ const FavoritesScreen: React.FC = () => {
           </View>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 };
 

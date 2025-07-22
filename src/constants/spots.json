@@ -1,0 +1,78 @@
+[
+  {
+    "id": "stoneypoint",
+    "name": "Stoney Point",
+    "location": {
+      "latitude": 46.9419,
+      "longitude": -91.8061,
+      "city": "Duluth",
+      "state": "MN",
+      "country": "USA"
+    },
+    "difficulty": "intermediate",
+    "type": ["beach-break", "point-break"],
+    "amenities": ["parking"],
+    "description": "Popular spot for Lake Superior surfers with consistent waves during NE winds.",
+    "imageUrls": ["https://example.com/stonypoint.jpg"],
+    "createdAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "region": "superior"
+  },
+  {
+    "id": "parkpoint",
+    "name": "Park Point",
+    "location": {
+      "latitude": 46.7825,
+      "longitude": -92.0856,
+      "city": "Duluth",
+      "state": "MN",
+      "country": "USA"
+    },
+    "difficulty": "beginner",
+    "type": ["beach-break"],
+    "amenities": ["parking", "restrooms"],
+    "description": "Long sandy beach with gentle waves, perfect for beginners during calm conditions.",
+    "imageUrls": ["https://example.com/parkpoint.jpg"],
+    "createdAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "region": "superior"
+  },
+  {
+    "id": "lesterriver",
+    "name": "Lester River",
+    "location": {
+      "latitude": 46.8331,
+      "longitude": -92.0217,
+      "city": "Duluth",
+      "state": "MN",
+      "country": "USA"
+    },
+    "difficulty": "advanced",
+    "type": ["river-mouth", "reef"],
+    "amenities": ["parking"],
+    "description": "River mouth break that works well during strong winds and storms.",
+    "imageUrls": ["https://example.com/lesterriver.jpg"],
+    "createdAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "region": "superior"
+  },
+  {
+    "id": "superiorentry",
+    "name": "Superior Entry",
+    "location": {
+      "latitude": 46.7156,
+      "longitude": -92.0595,
+      "city": "Superior",
+      "state": "WI",
+      "country": "USA"
+    },
+    "difficulty": "expert",
+    "type": ["point-break"],
+    "amenities": ["parking"],
+    "description": "Powerful break near the canal entrance. For experienced surfers only.",
+    "imageUrls": ["https://example.com/superiorentry.jpg"],
+    "createdAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "region": "superior"
+  }
+] 
