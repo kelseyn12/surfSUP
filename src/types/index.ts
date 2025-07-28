@@ -46,6 +46,7 @@ export interface SurfSpot {
   description?: string;
   imageUrls?: string[];
   buoyIds?: string[]; // IDs of nearby buoys for data
+  region?: string; // 'superior', 'michigan', etc.
   createdAt: string;
   updatedAt: string;
   // Real-time data

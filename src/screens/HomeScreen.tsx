@@ -79,7 +79,7 @@ const HomeScreen: React.FC = () => {
   );
 
   const handleSearch = () => {
-    // Implement search functionality
+    navigation.navigate('Search' as any);
   };
 
   return (

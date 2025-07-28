@@ -7,6 +7,7 @@ import type { SurfSpot } from '../types';
 export type RootStackParamList = {
   AuthScreen: undefined;
   Main: NavigatorScreenParams<MainTabParamList>;
+  Search: undefined;
   SpotDetails: { spotId: string; spot?: SurfSpot };
   CheckIn: { spotId: string; spot?: SurfSpot };
   SessionLog: { spotId: string; spot?: SurfSpot };

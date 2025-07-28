@@ -54,7 +54,10 @@ This document maintains a running list of tasks, enhancements, bug fixes, and te
 - [X] Implement surf spot detail screen
 - [X] Add map view of surf spots (mock only)
 - [ ] Implement interactive MapView for surf spots (replace mock with real map component showing surf spots)
-- [ ] Implement search and filtering for spots
+- [X] Implement search and filtering for spots
+  - X Created comprehensive SearchScreen with text search and multiple filter options
+  - X Added difficulty, wave type, and amenities filters with visual chips
+  - X Integrated search functionality into navigation and HomeScreen
 - [X] Add favorites functionality
 - [X] Create check-in feature for spots
 - [ ] Implement surf session logging
@@ -176,7 +179,10 @@ This document maintains a running list of tasks, enhancements, bug fixes, and te
 - [X] Create user profile screen and editing
 - [X] Implement session history and statistics
 - [X] Add favorites functionality for surf spots
-- [ ] Implement search and filtering for spots
+- [X] Implement search and filtering for spots
+  - X Created comprehensive SearchScreen with text search and multiple filter options
+  - X Added difficulty, wave type, and amenities filters with visual chips
+  - X Integrated search functionality into navigation and HomeScreen
 - [ ] Create tide chart component
 - [ ] Add photo upload capability for session logs
 

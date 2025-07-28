@@ -10,6 +10,7 @@ import HomeScreen from '../screens/HomeScreen';
 import MapScreen from '../screens/MapScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import SearchScreen from '../screens/SearchScreen';
 import SpotDetailsScreen from '../screens/SpotDetailsScreen';
 import LogSessionScreen from '../screens/LogSessionScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -149,6 +150,7 @@ const AppNavigator = () => {
         )}
         <Stack.Screen name="AuthScreen" component={AuthScreen} />
         <Stack.Screen name="Main" component={MainTabNavigator} />
+        <Stack.Screen name="Search" component={SearchScreen} />
         <Stack.Screen name="SpotDetails" component={SpotDetailsScreen} />
         <Stack.Screen name="LogSession" component={LogSessionScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
