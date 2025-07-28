@@ -377,36 +377,7 @@ const SessionLogScreen: React.FC = () => {
           </View>
         </View>
 
-        <View style={styles.inputRow}>
-          <Text style={styles.inputLabel}>Tide</Text>
-          <View style={styles.selectContainer}>
-            {['Low', 'Rising', 'High', 'Falling'].map((tideType) => (
-              <TouchableOpacity
-                key={tideType}
-                style={[
-                  styles.selectOption,
-                  conditions.tide.current === getTideHeight(tideType) ? { backgroundColor: COLORS.primary } : {}
-                ]}
-                onPress={() => setConditions({
-                  ...conditions,
-                  tide: {
-                    ...conditions.tide,
-                    current: getTideHeight(tideType)
-                  }
-                })}
-              >
-                <Text
-                  style={[
-                    styles.selectOptionText,
-                    conditions.tide.current === getTideHeight(tideType) ? { color: COLORS.white } : {}
-                  ]}
-                >
-                  {tideType}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+
       </View>
 
       <View style={styles.section}>
@@ -432,20 +403,7 @@ const SessionLogScreen: React.FC = () => {
   );
 };
 
-const getTideHeight = (tideType: string): number => {
-  switch (tideType) {
-    case 'Low':
-      return 0;
-    case 'Rising':
-      return 2;
-    case 'High':
-      return 4;
-    case 'Falling':
-      return 3;
-    default:
-      return 2;
-  }
-};
+
 
 const styles = StyleSheet.create({
   container: {

@@ -73,13 +73,10 @@ export interface SurfConditions {
     period: number;
     direction: string;
   }[];
-  tide: {
-    current: number;
-    nextHighTime?: string;
-    nextHighHeight?: number;
-    nextLowTime?: string;
-    nextLowHeight?: number;
-    unit: 'ft' | 'm';
+  waterLevel?: {
+    current: number; // Lake Superior water level in feet
+    trend: 'rising' | 'falling' | 'stable';
+    unit: 'ft';
   };
   weather: {
     temperature: number;

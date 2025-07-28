@@ -15,14 +15,14 @@ export const calculateConditionRating = (conditions: SurfConditions): number => 
   const waveScore = calculateWaveScore(conditions.waveHeight.min, conditions.waveHeight.max);
   const windScore = calculateWindScore(conditions.wind.speed, conditions.wind.direction);
   const swellScore = calculateSwellScore(conditions.swell);
-  const tideScore = calculateTideScore(conditions.tide.current);
+  const waterLevelScore = conditions.waterLevel ? calculateWaterLevelScore(conditions.waterLevel.current, conditions.waterLevel.trend) : 5;
   
   // Weighted average (these weights can be adjusted)
   const rating = (
     waveScore * 0.4 + 
     windScore * 0.3 + 
     swellScore * 0.2 + 
-    tideScore * 0.1
+    waterLevelScore * 0.1
   );
   
   // Round to nearest 0.5
@@ -161,23 +161,24 @@ export const calculateSwellHeightScore = (height: number): number => {
 };
 
 /**
- * Calculate score for tide level (1-10)
- * @param currentTide Current tide height
+ * Calculate score for water level (1-10)
+ * @param currentLevel Current water level in feet
+ * @param trend Water level trend
  * @returns A score from 1-10
  */
-export const calculateTideScore = (currentTide: number): number => {
-  // This is simplified and would depend on the spot
-  // Some spots work better at low tide, others at high tide
+export const calculateWaterLevelScore = (currentLevel: number, trend: 'rising' | 'falling' | 'stable'): number => {
+  // Lake Superior water levels typically range from 600-603 feet
+  // Optimal levels depend on the spot and season
   
-  // Assuming a generic beach break that works best at mid tide
-  const idealTide = 3; // Example value for mid tide
-  const difference = Math.abs(currentTide - idealTide);
+  // Base score on level (simplified)
+  if (currentLevel >= 601.5 && currentLevel <= 602.5) return 9; // Good range
+  if (currentLevel >= 601.0 && currentLevel <= 603.0) return 7; // Acceptable range
+  if (currentLevel >= 600.5 && currentLevel <= 603.5) return 5; // Marginal range
   
-  if (difference < 0.5) return 9;
-  if (difference < 1) return 8;
-  if (difference < 1.5) return 7;
-  if (difference < 2) return 6;
-  return 5;
+  // Adjust based on trend
+  if (trend === 'rising') return Math.min(10, currentLevel + 1);
+  if (trend === 'falling') return Math.max(1, currentLevel - 1);
+  return currentLevel; // Stable trend
 };
 
 /**
@@ -193,7 +194,7 @@ export const matchesUserPreferences = (
     maxWaveHeight?: number;
     preferredWindDirection?: string[];
     preferredSwellDirection?: string[];
-    preferredTideLevel?: string[];
+    preferredWaterLevel?: string[];
   }
 ): boolean => {
   // Check wave height preferences

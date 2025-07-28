@@ -319,12 +319,9 @@ export const fetchSurfConditions = async (spotId: string): Promise<SurfCondition
           direction: 'N',
         },
       ],
-      tide: {
-        current: 1.2,
-        nextHighTime: new Date(Date.now() + 3600000).toISOString(),
-        nextHighHeight: 2.1,
-        nextLowTime: new Date(Date.now() + 10800000).toISOString(),
-        nextLowHeight: 0.3,
+      waterLevel: {
+        current: 601.8, // Lake Superior water level in feet
+        trend: 'rising' as const,
         unit: 'ft',
       },
       weather: {
@@ -385,8 +382,9 @@ export const fetchSurfForecast = async (spotId: string, days = 7): Promise<SurfC
             direction: windDirections[(windDirectionIndex + 2) % windDirections.length],
           },
         ],
-        tide: {
-          current: 1.0 + Math.sin(i / 2) * 1.0,
+        waterLevel: {
+          current: 601.5 + Math.sin(i / 4) * 0.5, // Lake Superior water level variation
+          trend: Math.sin(i / 4) > 0 ? 'rising' as const : 'falling' as const,
           unit: 'ft',
         },
         weather: {

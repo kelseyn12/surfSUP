@@ -24,7 +24,7 @@ import {
 } from '../services/api';
 import { isUserCheckedInAt, getGlobalSurferCount } from '../services/globalState';
 import webSocketService, { WebSocketMessageType } from '../services/websocket';
-import { HeaderBar } from '../components';
+import { HeaderBar, WaterLevelChart } from '../components';
 import { addFavoriteSpot, removeFavoriteSpot } from '../services/storage';
 import { useAuthStore } from '../services/auth';
 
@@ -494,6 +494,17 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
               <Text style={styles.noDataText}>No forecast data available</Text>
             </View>
           )}
+        </View>
+
+        {/* Water Level & Buoy Data */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Water Level & Buoy Data</Text>
+          <WaterLevelChart 
+            spotId={spotId}
+            conditions={currentConditions || undefined}
+            forecast={forecast}
+            isLoading={isLoading}
+          />
         </View>
 
         {/* Additional info */}
