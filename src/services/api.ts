@@ -14,6 +14,101 @@ import webSocketService, {
 import axios from 'axios';
 import { addUserSession } from './storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchLakeSuperiorWaterLevel, fetchLakeSuperiorBuoyData, fetchGreatLakesConditions, fetchAllGreatLakesData } from './greatLakesApi';
+
+// Import helper functions for surf likelihood calculation
+// Import surf spots configuration from greatLakesApi
+import { surfSpotsConfig } from './greatLakesApi';
+
+// Wind direction helper for Lake Superior surf spots
+const isFavorableWindDirection = (spotId: string, windDirection: string): boolean => {
+  if (!windDirection) return true; // If no direction data, assume favorable
+  
+  const direction = windDirection.toUpperCase();
+  
+  // Check if spot is in our configuration
+  const spotConfig = surfSpotsConfig[spotId as keyof typeof surfSpotsConfig];
+  
+  if (!spotConfig) {
+    // Default: assume favorable unless clearly offshore
+    const defaultUnfavorable = ['SW', 'W', 'WSW'];
+    return !defaultUnfavorable.includes(direction);
+  }
+  
+  // Check if wind direction is in the offshore wind list for this spot
+  const isOffshore = spotConfig.offshoreWind.includes(direction);
+  
+  return !isOffshore;
+};
+
+const calculateSurfLikelihood = (
+  waveHeight: number,
+  wavePeriod: number,
+  windSpeed: number,
+  windDirection?: string,
+  spotId: string = 'duluth'
+): 'Flat' | 'Maybe Surf' | 'Good' | 'Firing' => {
+  // Check wind direction first
+  const isFavorableWind = isFavorableWindDirection(spotId, windDirection || '');
+  
+  // Calculate base likelihood without wind direction consideration
+  let baseLikelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing';
+  
+  if (waveHeight < 0.5) {
+    baseLikelihood = 'Flat';
+  } else if (waveHeight >= 0.5 && waveHeight < 1.5 && wavePeriod >= 4) {
+    baseLikelihood = 'Maybe Surf';
+  } else if (waveHeight >= 1.5 && waveHeight < 3 && wavePeriod >= 5 && windSpeed < 12) {
+    baseLikelihood = 'Good';
+  } else if (waveHeight >= 3 && wavePeriod >= 6 && windSpeed < 12) {
+    baseLikelihood = 'Firing';
+  } else {
+    baseLikelihood = 'Maybe Surf';
+  }
+  
+  // If wind is unfavorable, downgrade by one tier
+  if (!isFavorableWind) {
+    switch (baseLikelihood) {
+      case 'Firing':
+        return 'Good';
+      case 'Good':
+        return 'Maybe Surf';
+      case 'Maybe Surf':
+        return 'Flat';
+      case 'Flat':
+        return 'Flat'; // Can't go lower
+      default:
+        return 'Maybe Surf';
+    }
+  }
+  
+  return baseLikelihood;
+};
+
+const generateForecastSummary = (
+  surfLikelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing',
+  dayOffset: number
+): string => {
+  const dayNames = [
+    'today', 'tomorrow', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+  ];
+  
+  const dayName = dayOffset < dayNames.length ? dayNames[dayOffset] : `day ${dayOffset + 1}`;
+  
+  switch (surfLikelihood) {
+    case 'Flat':
+      return `Flat conditions ${dayName}. No surf expected.`;
+    case 'Maybe Surf':
+      return `Maybe surf ${dayName}. Watch for a bump.`;
+    case 'Good':
+      return `Good conditions ${dayName} — grab your board.`;
+    case 'Firing':
+      return `Firing ${dayName}! Best window early.`;
+    default:
+      return `Check conditions ${dayName}.`;
+  }
+};
 // Replace the import with require for JSON compatibility
 const spotsDataRaw = require('../constants/spots.json');
 const VALID_DIFFICULTIES = ['beginner', 'intermediate', 'advanced', 'expert'] as const;
@@ -288,53 +383,52 @@ const updateSurferCount = (spotId: string, count: number) => {
  */
 export const fetchSurfConditions = async (spotId: string): Promise<SurfConditions | null> => {
   try {
-    // In a real implementation, this would call actual APIs
-    // For now, we'll simulate a response
-    
-    // Simulate API latency
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
     // Get current surfer count
     const surferCount = await getSurferCount(spotId);
     
-    // Mock response based on spot ID
-    // In production, this would make real API calls to Windy, NOAA, or NDBC
-    const mockCondition: SurfConditions = {
-      spotId,
-      timestamp: new Date().toISOString(),
-      waveHeight: {
-        min: 1.5,
-        max: 3.0,
-        unit: 'ft',
-      },
-      wind: {
-        speed: 10,
-        direction: 'NW',
-        unit: 'mph',
-      },
-      swell: [
-        {
-          height: 2.5,
-          period: 8,
-          direction: 'N',
-        },
-      ],
-      waterLevel: {
-        current: 601.8, // Lake Superior water level in feet
-        trend: 'rising' as const,
-        unit: 'ft',
-      },
-      weather: {
-        temperature: 52,
-        condition: 'partly-cloudy',
-        unit: 'F',
-      },
-      rating: 7,
-      source: 'mock-data',
-      surferCount,
-    };
+    // Get spot coordinates for Great Lakes data
+    const spot = spotsData.find(s => s.id === spotId);
+    if (!spot) {
+      console.error('❌ Spot not found:', spotId);
+      return null;
+    }
     
-    return mockCondition;
+    // Use the comprehensive ALL sources data aggregation
+    const aggregated = await fetchAllGreatLakesData(
+      spotId,
+      spot.location.latitude,
+      spot.location.longitude
+    );
+    
+    if (aggregated) {
+      // Convert to SurfConditions format
+      const conditions: SurfConditions = {
+        spotId,
+        timestamp: new Date().toISOString(),
+        waveHeight: aggregated.waveHeight,
+        wind: aggregated.wind,
+        swell: aggregated.swell,
+        weather: {
+          temperature: aggregated.waterTemp.value,
+          condition: 'partly-cloudy',
+          unit: 'F'
+        },
+        rating: aggregated.rating,
+        source: aggregated.waveHeight.sources.join(','),
+        surferCount,
+        // Map the new surf report fields
+        surfLikelihood: aggregated.surfLikelihood,
+        surfReport: aggregated.surfReport,
+        notes: aggregated.notes,
+      };
+      
+  
+      
+      return conditions;
+    }
+    
+    console.log('❌ No conditions available');
+    return null;
   } catch (error) {
     console.error('Error fetching surf conditions:', error);
     return null;
@@ -344,58 +438,86 @@ export const fetchSurfConditions = async (spotId: string): Promise<SurfCondition
 /**
  * Fetches a forecast for multiple days for a specific spot
  */
-export const fetchSurfForecast = async (spotId: string, days = 7): Promise<SurfConditions[] | null> => {
+export const fetchSurfForecast = async (spotId: string, days = 14): Promise<SurfConditions[] | null> => {
   try {
-    // Simulate API latency
-    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    // Create a mock forecast for the next few days
+    // Get spot coordinates for Great Lakes data
+    const spot = spotsData.find(s => s.id === spotId);
+    if (!spot) {
+      console.error('Spot not found:', spotId);
+      return null;
+    }
+    
+    // For now, create a simple forecast based on current conditions
+    // In the future, this would fetch forecast data from multiple sources
+    const currentConditions = await fetchSurfConditions(spotId);
+    
+    if (!currentConditions) {
+      console.log('❌ No current conditions available for forecast');
+      return null;
+    }
+    
+    // Create a simple forecast based on current conditions with some variation
     const forecast: SurfConditions[] = [];
     const now = new Date();
     
-    for (let i = 0; i < days * 8; i++) { // 8 readings per day (every 3 hours)
-      const forecastTime = new Date(now.getTime() + i * 3 * 60 * 60 * 1000);
+    for (let day = 0; day < days; day++) {
+      const forecastTime = new Date(now.getTime() + day * 24 * 60 * 60 * 1000);
       
-      // Create some variation in the forecast
-      const waveVariation = Math.sin(i / 4) * 1.5 + 2; // Creates a wave-like pattern in the forecast
-      const windVariation = 5 + Math.random() * 15;
-      const windDirections = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-      const windDirectionIndex = Math.floor(i / 3) % windDirections.length;
+      // Add some variation to the forecast
+      const waveVariation = Math.round((Math.sin(day / 2) * 0.5) * 10) / 10; // ±0.5ft variation, rounded to 1 decimal
+      const windVariation = Math.round((Math.sin(day / 3) * 2) * 10) / 10; // ±2mph variation, rounded to 1 decimal
       
-      forecast.push({
+      // Calculate forecast wave height and period
+      const forecastWaveHeight = Math.round(Math.max(0, (currentConditions.waveHeight.min + currentConditions.waveHeight.max) / 2 + waveVariation) * 10) / 10;
+      const forecastWavePeriod = currentConditions.swell[0]?.period || 0;
+      const forecastWindSpeed = Math.round(Math.max(0, currentConditions.wind.speed + windVariation) * 10) / 10;
+      
+      // Calculate surf likelihood for this forecast day
+      const forecastSurfLikelihood = calculateSurfLikelihood(
+        forecastWaveHeight, 
+        forecastWavePeriod, 
+        forecastWindSpeed, 
+        currentConditions.wind.direction,
+        'duluth'
+      );
+      
+      // Generate forecast summary
+      const forecastSummary = generateForecastSummary(forecastSurfLikelihood, day);
+      
+      const forecastConditions: SurfConditions = {
         spotId,
         timestamp: forecastTime.toISOString(),
         waveHeight: {
-          min: Math.max(0.5, waveVariation - 0.5),
-          max: waveVariation + 0.5,
+          min: Math.round(Math.max(0, currentConditions.waveHeight.min + waveVariation - 0.5) * 10) / 10,
+          max: Math.round((currentConditions.waveHeight.max + waveVariation + 0.5) * 10) / 10,
           unit: 'ft',
         },
         wind: {
-          speed: windVariation,
-          direction: windDirections[windDirectionIndex],
+          speed: Math.round(Math.max(0, currentConditions.wind.speed + windVariation) * 10) / 10,
+          direction: currentConditions.wind.direction,
           unit: 'mph',
         },
-        swell: [
-          {
-            height: waveVariation,
-            period: 7 + Math.random() * 5,
-            direction: windDirections[(windDirectionIndex + 2) % windDirections.length],
-          },
-        ],
-        waterLevel: {
-          current: 601.5 + Math.sin(i / 4) * 0.5, // Lake Superior water level variation
-          trend: Math.sin(i / 4) > 0 ? 'rising' as const : 'falling' as const,
-          unit: 'ft',
-        },
+        swell: currentConditions.swell.map(swell => ({
+          height: swell.height + waveVariation,
+          period: swell.period,
+          direction: swell.direction,
+        })),
         weather: {
-          temperature: 50 + Math.random() * 10,
-          condition: i % 8 === 0 ? 'rainy' : i % 5 === 0 ? 'cloudy' : 'sunny',
+          temperature: currentConditions.weather.temperature,
+          condition: 'partly-cloudy',
           unit: 'F',
         },
-        rating: Math.round(5 + Math.sin(i / 4) * 3),
-        source: 'mock-forecast',
-        surferCount: i === 0 ? await getSurferCount(spotId) : undefined, // Only include current surfer count for the first timestamp
-      });
+        rating: Math.max(1, Math.min(10, currentConditions.rating + Math.round(waveVariation))),
+        source: 'forecast-estimate',
+        surferCount: day === 0 ? currentConditions.surferCount : undefined,
+        // Add surf likelihood and summary for forecast
+        surfLikelihood: forecastSurfLikelihood,
+        surfReport: forecastSummary,
+        notes: [], // Forecast doesn't include notes for now
+      };
+      
+      forecast.push(forecastConditions);
     }
     
     return forecast;

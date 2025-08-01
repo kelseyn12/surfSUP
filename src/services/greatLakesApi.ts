@@ -4,75 +4,150 @@ import { SurfConditions } from '../types';
 const NOAA_WATER_LEVEL_BASE = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter';
 const NDBC_BASE = 'https://www.ndbc.noaa.gov/data/realtime2';
 const WINDY_API_BASE = 'https://api.windy.com/api/point-forecast/v2';
-const WINDFINDER_API_BASE = 'https://www.windfinder.com/api/forecast';
-const NOAA_WIND_BASE = 'https://api.weather.gov/points';
 
-// Lake Superior buoy stations (NDBC) - CORRECT STATIONS
+// Lake Superior surf spots configuration with directional preferences
+export const surfSpotsConfig = {
+  parkpoint: {
+    name: 'Park Point',
+    idealSwell: ['NE', 'E'],
+    offshoreWind: ['SW', 'W'],
+    confidence: 'high',
+  },
+  lester: {
+    name: 'Lester River',
+    idealSwell: ['NE'],
+    offshoreWind: ['W', 'NW'],
+    confidence: 'high',
+  },
+  brighton: {
+    name: 'Brighton Beach',
+    idealSwell: ['NE'],
+    offshoreWind: ['W', 'NW'],
+    confidence: 'high',
+  },
+  frenchriver: {
+    name: 'French River',
+    idealSwell: ['NE'],
+    offshoreWind: ['W', 'NW'],
+    confidence: 'high',
+  },
+  stoney: {
+    name: 'Stoney Point',
+    idealSwell: ['NE'],
+    offshoreWind: ['NW', 'NNW'],
+    confidence: 'high',
+  },
+  boulders: {
+    name: 'Boulders',
+    idealSwell: ['NE'],
+    offshoreWind: ['NW', 'NNW'],
+    confidence: 'low',
+  },
+  guardrails: {
+    name: 'Guardrails',
+    idealSwell: ['NE'],
+    offshoreWind: ['NW', 'NNW'],
+    confidence: 'low',
+  },
+  beaverbay: {
+    name: 'Beaver Bay',
+    idealSwell: ['E', 'ENE'],
+    offshoreWind: ['W', 'SW'],
+    confidence: 'medium',
+  },
+  floodbay: {
+    name: 'Flood Bay',
+    idealSwell: ['E', 'ENE'],
+    offshoreWind: ['W', 'SW'],
+    confidence: 'medium',
+  },
+  grandmarais: {
+    name: 'Grand Marais',
+    idealSwell: ['E', 'ENE'],
+    offshoreWind: ['W', 'SW'],
+    confidence: 'high',
+  },
+  marquette: {
+    name: 'Marquette',
+    idealSwell: ['N', 'NE'],
+    offshoreWind: ['SW'],
+    confidence: 'high',
+  },
+  duluth: {
+    name: 'Duluth Area',
+    idealSwell: ['NE', 'E'],
+    offshoreWind: ['SW', 'W'],
+    confidence: 'medium',
+  },
+};
+
+// Lake Superior buoy stations (NDBC) - CORRECTED TYPES
 const LAKE_SUPERIOR_BUOYS = {
+  // Wave Buoys (report wave height, period, direction)
   '45001': { 
-    name: 'Isle Royale Lighthouse', 
+    name: 'MID SUPERIOR Wave Buoy', 
     lat: 47.345, 
     lon: -87.323, 
-    description: 'ROAM 4 station - shows waves coming from Isle Royale direction',
+    description: 'Forecasts waves coming to Duluth in 12 hours',
     direction: 'N/NE',
-    travelTime: 12 // hours for waves to reach Duluth area
+    travelTime: 12,
+    forecastHours: [12, 18, 24],
+    type: 'wave'
   },
-  '45002': { 
-    name: 'Duluth Entry', 
+  '45027': { 
+    name: 'McQuade Harbor Wave Buoy', 
     lat: 46.775, 
     lon: -92.093, 
-    description: 'Duluth area buoy - local conditions',
+    description: 'Current local wave conditions near Duluth',
     direction: 'local',
-    travelTime: 0
+    travelTime: 0,
+    forecastHours: [0],
+    type: 'wave'
   },
-  '45003': { 
-    name: 'Thunder Bay', 
-    lat: 48.380, 
-    lon: -89.247, 
-    description: 'Thunder Bay area - northeast waves',
-    direction: 'NE',
-    travelTime: 8
-  },
-  '45004': { 
-    name: 'Marquette', 
-    lat: 46.545, 
-    lon: -87.378, 
-    description: 'Marquette area - east waves',
-    direction: 'E',
-    travelTime: 6
-  },
-  '45005': { 
-    name: 'Grand Marais', 
-    lat: 47.750, 
-    lon: -90.334, 
-    description: 'Grand Marais area - north waves',
-    direction: 'N',
-    travelTime: 10
-  },
-  '45006': { 
-    name: 'Two Harbors', 
+  '45028': { 
+    name: 'Western Lake Superior Wave Buoy', 
     lat: 47.020, 
     lon: -91.670, 
-    description: 'Two Harbors area - north waves',
+    description: 'Western Lake Superior wave conditions',
+    direction: 'W',
+    travelTime: 2,
+    forecastHours: [2, 4, 6],
+    type: 'wave'
+  },
+  
+  // Weather Stations (report wind, pressure, temp - no waves)
+  'KGNA': { 
+    name: 'Bay of Grand Marais Weather Station', 
+    lat: 47.750, 
+    lon: -90.334, 
+    description: 'Weather conditions for forecasting',
     direction: 'N',
-    travelTime: 4
+    travelTime: 10,
+    forecastHours: [10, 14, 18],
+    type: 'weather'
   },
-  '45007': { 
-    name: 'Sault Ste Marie', 
-    lat: 46.500, 
-    lon: -84.350, 
-    description: 'Sault Ste Marie area - east waves',
-    direction: 'E',
-    travelTime: 12
+  'DULM5': { 
+    name: 'Duluth Weather Station', 
+    lat: 46.775, 
+    lon: -92.093, 
+    description: 'Local weather conditions at Duluth',
+    direction: 'local',
+    travelTime: 0,
+    forecastHours: [0],
+    type: 'weather'
   },
-  '45008': { 
-    name: 'Whitefish Point', 
-    lat: 46.770, 
-    lon: -84.960, 
-    description: 'Whitefish Point area - east waves',
-    direction: 'E',
-    travelTime: 10
+  'ROAM4': { 
+    name: 'Rock of Ages Wind Buoy', 
+    lat: 47.345, 
+    lon: -87.323, 
+    description: 'Wind conditions for forecasting waves to Duluth',
+    direction: 'N/NE',
+    travelTime: 12,
+    forecastHours: [12, 18, 24],
+    type: 'weather'
   },
+
+
 };
 
 // Wind data sources for when buoys are down
@@ -105,6 +180,18 @@ interface BuoyData {
   waterTemp: number;
   windSpeed: number;
   windDirection: string;
+  source: string;
+}
+
+interface WindData {
+  windSpeed: number;
+  windDirection: string;
+  temperature: number;
+  pressure: number;
+  waveHeight?: number;
+  wavePeriod?: number;
+  waveDirection?: string;
+  source: string;
 }
 
 interface NoaaWaterLevelResponse {
@@ -127,11 +214,991 @@ interface NdbcBuoyResponse {
   steepness: string[]; // wave steepness
 }
 
+// Aggregated data from all sources
+interface AggregatedConditions {
+  waveHeight: {
+    min: number;
+    max: number;
+    unit: 'ft';
+    sources: string[];
+    confidence: number; // 0-1 based on data consistency
+  };
+  wind: {
+    speed: number;
+    direction: string;
+    unit: 'mph';
+    sources: string[];
+    confidence: number;
+  };
+  swell: {
+    height: number;
+    period: number;
+    direction: string;
+    sources: string[];
+  }[];
+  waterTemp: {
+    value: number;
+    unit: 'F';
+    sources: string[];
+  };
+  rating: number;
+  conditions: string; // Human-readable description
+  recommendations: string[]; // Surf recommendations
+  surfLikelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing';
+  surfReport: string;
+  notes: string[];
+}
+
 /**
- * Fetch Lake Superior water level data from NOAA
+ * Fetch data from ALL sources simultaneously
  */
+export const fetchAllGreatLakesData = async (
+  spotId: string,
+  latitude: number,
+  longitude: number
+): Promise<AggregatedConditions | null> => {
+  try {
+    const [
+      buoyData,
+      windData,
+      waterLevelData
+    ] = await Promise.allSettled([
+      fetchAllBuoyData(latitude, longitude),
+      fetchAllWindData(latitude, longitude),
+      fetchWaterLevelData(latitude, longitude)
+    ]);
+    
+    // Log errors only
+    if (buoyData.status === 'rejected') {
+      console.error('🌊 Buoy data error:', buoyData.reason);
+    }
+    if (windData.status === 'rejected') {
+      console.error('🌊 Wind data error:', windData.reason);
+    }
+    if (waterLevelData.status === 'rejected') {
+      console.error('🌊 Water data error:', waterLevelData.reason);
+    }
+    
+    // Check if we got any real data from ANY of the 3 sources
+    const hasRealData = (buoyData.status === 'fulfilled' && buoyData.value.length > 0) ||
+                       (windData.status === 'fulfilled' && windData.value !== null) ||
+                       (waterLevelData.status === 'fulfilled' && waterLevelData.value.waterTemp !== null);
+    
+    if (!hasRealData) {
+      console.error('🌊 No real data available from any source');
+      return null;
+    }
+    
+    // Aggregate all the data from ALL 4 sources
+    const aggregated = aggregateAllData(
+      buoyData.status === 'fulfilled' ? buoyData.value : [],
+      windData.status === 'fulfilled' ? windData.value : null,
+      waterLevelData.status === 'fulfilled' ? waterLevelData.value : { waterLevel: null, waterTemp: null },
+      spotId
+    );
+    
+    return aggregated;
+    
+  } catch (error) {
+    console.error('🌊 Error fetching all Great Lakes data:', error);
+    return null;
+  }
+};
+
+/**
+ * Fetch data from ALL nearby buoys
+ */
+const fetchAllBuoyData = async (latitude: number, longitude: number): Promise<BuoyData[]> => {
+  const allBuoyData: BuoyData[] = [];
+  
+  // Try all buoys within reasonable distance
+  for (const [buoyId, buoy] of Object.entries(LAKE_SUPERIOR_BUOYS)) {
+    const distance = calculateDistance(latitude, longitude, buoy.lat, buoy.lon);
+    
+        // Increase range to 250 miles to capture MID SUPERIOR and Rock of Ages buoys
+    if (distance <= 250) {
+              try {
+          const url = `${NDBC_BASE}/${buoyId}.txt`;
+          
+          const response = await fetch(url);
+          
+          if (response.ok) {
+            const text = await response.text();
+            
+            // Check if the buoy data contains current information
+            const hasCurrentData = text.includes(new Date().getFullYear().toString()) || 
+                                 text.includes((new Date().getFullYear() - 1).toString());
+            
+            const latestData = parseBuoyData(text, buoyId, buoy.name);
+            
+            if (latestData) {
+              allBuoyData.push(latestData);
+            }
+        } else {
+          console.error(`🌊 Buoy ${buoyId} HTTP error:`, response.status, response.statusText);
+        }
+      } catch (error) {
+        console.error(`🌊 Error fetching buoy ${buoyId}:`, error);
+      }
+    }
+  }
+  
+  return allBuoyData;
+};
+
+/**
+ * Fetch wind data from multiple sources
+ */
+const fetchAllWindData = async (latitude: number, longitude: number): Promise<WindData | null> => {
+  const windSources: WindData[] = [];
+  
+  try {
+    // Fetch from all wind sources simultaneously
+    const [noaaWind, windyWind] = await Promise.allSettled([
+      fetchNOAAWindData(getNearestWaterLevelStation(latitude, longitude).id),
+      fetchWindyWindData(latitude, longitude)
+    ]);
+    
+    // Add successful results
+    if (noaaWind.status === 'fulfilled' && noaaWind.value) {
+      windSources.push(noaaWind.value);
+    }
+    
+    if (windyWind.status === 'fulfilled' && windyWind.value) {
+      windSources.push(windyWind.value);
+    }
+    
+    // Return the most reliable source or average if multiple
+    if (windSources.length === 0) {
+      return null;
+    }
+    
+    if (windSources.length === 1) {
+      return windSources[0];
+    }
+    
+    // Average multiple wind sources for better accuracy
+    const avgWindSpeed = windSources.reduce((sum, source) => sum + source.windSpeed, 0) / windSources.length;
+    const avgTemp = windSources.reduce((sum, source) => sum + source.temperature, 0) / windSources.length;
+    const avgPressure = windSources.reduce((sum, source) => sum + source.pressure, 0) / windSources.length;
+    
+    // Use most common direction or first available
+    const directions = windSources.map(s => s.windDirection).filter(d => d);
+    const mostCommonDirection = getMostCommonDirection(directions) || windSources[0].windDirection;
+    
+    return {
+      windSpeed: Math.round(avgWindSpeed * 10) / 10,
+      windDirection: mostCommonDirection,
+      temperature: Math.round(avgTemp * 10) / 10,
+      pressure: Math.round(avgPressure * 10) / 10,
+      source: windSources.map(s => s.source).join('+')
+    };
+    
+  } catch (error) {
+    console.error('🌊 Error fetching wind data:', error);
+    return null;
+  }
+};
+
+/**
+ * Fetch Windy wind data
+ * 
+ * Model + Parameter Compatibility:
+ * - gfs: wind, windGust, temp, pressure, dewpoint, rh, precip, etc.
+ * - gfsWave: waves, swell1, swell2, windWaves (excludes Hudson Bay, Black Sea, Caspian Sea, Arctic Ocean)
+ * - namConus: wind, windGust, temp, pressure, etc. (USA and surrounding areas)
+ */
+const fetchWindyWindData = async (latitude: number, longitude: number): Promise<WindData | null> => {
+  try {
+    const WINDY_API_KEY = process.env.EXPO_PUBLIC_WINDY_API_KEY || 'demo';
+    const url = 'https://api.windy.com/api/point-forecast/v2';
+    
+    // Make two separate requests: one for wind data, one for wave data
+    const [windResponse, waveResponse] = await Promise.allSettled([
+      // Request 1: Wind data using gfs model
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lat: latitude,
+          lon: longitude,
+          model: 'gfs',
+          parameters: ['wind', 'temp', 'pressure'],
+          levels: ['surface'],
+          key: WINDY_API_KEY
+        })
+      }),
+      // Request 2: Wave data using gfsWave model
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lat: latitude,
+          lon: longitude,
+          model: 'gfsWave',
+          parameters: ['waves'],
+          levels: ['surface'],
+          key: WINDY_API_KEY
+        })
+      })
+    ]);
+    
+    // Process wind data
+    let windData = null;
+    if (windResponse.status === 'fulfilled' && windResponse.value.ok) {
+      const windJson = await windResponse.value.json();
+      if (windJson.ts && windJson['wind_u-surface'] && windJson['wind_v-surface']) {
+        const currentIndex = 0;
+        const windU = windJson['wind_u-surface'][currentIndex];
+        const windV = windJson['wind_v-surface'][currentIndex];
+        const temperature = windJson['temp-surface'] ? windJson['temp-surface'][currentIndex] : 50;
+        const pressure = windJson['pressure-surface'] ? windJson['pressure-surface'][currentIndex] : 1013;
+        
+        const windSpeed = Math.sqrt(windU * windU + windV * windV) * 2.23694; // Convert m/s to mph
+        const windDirection = getWindDirectionFromDegrees(Math.atan2(windV, windU) * 180 / Math.PI);
+        
+        windData = {
+          windSpeed: windSpeed || 0,
+          windDirection: windDirection || 'N',
+          temperature: temperature || 50,
+          pressure: pressure || 1013,
+          source: 'windy'
+        };
+      }
+    } else {
+      console.error('🌊 Windy wind data request failed:', windResponse.status === 'rejected' ? windResponse.reason : windResponse.value?.status);
+    }
+    
+    // Process wave data
+    let waveData = null;
+    if (waveResponse.status === 'fulfilled' && waveResponse.value.ok) {
+      const waveJson = await waveResponse.value.json();
+      if (waveJson.ts && waveJson['waves_height-surface']) {
+        const currentIndex = 0;
+        const waveHeight = waveJson['waves_height-surface'][currentIndex] * 3.28084; // Convert meters to feet
+        const wavePeriod = waveJson['waves_period-surface'] ? waveJson['waves_period-surface'][currentIndex] : null;
+        const waveDirection = waveJson['waves_direction-surface'] ? getWindDirectionFromDegrees(waveJson['waves_direction-surface'][currentIndex]) : null;
+        
+        waveData = {
+          waveHeight: waveHeight || 0,
+          wavePeriod: wavePeriod || 0,
+          waveDirection: waveDirection || 'N'
+        };
+      }
+    } else {
+      console.error('🌊 Windy wave data request failed:', waveResponse.status === 'rejected' ? waveResponse.reason : waveResponse.value?.status);
+    }
+    
+    // Combine wind and wave data
+    const result = {
+      windSpeed: windData?.windSpeed || 0,
+      windDirection: windData?.windDirection || 'N',
+      temperature: windData?.temperature || 50,
+      pressure: windData?.pressure || 1013,
+      waveHeight: waveData?.waveHeight || 0,
+      wavePeriod: waveData?.wavePeriod || 0,
+      waveDirection: waveData?.waveDirection || 'N',
+      source: 'windy'
+    };
+    
+    console.log('🌊 Windy API working - combined data:', result);
+    return result;
+  } catch (error) {
+    console.error('🌊 Error fetching Windy data:', error);
+    return null;
+  }
+};
+
+
+
+/**
+ * Fetch NOAA wind data
+ */
+const fetchNOAAWindData = async (stationId: string): Promise<WindData | null> => {
+  try {
+    // Get the appropriate forecast zone based on location
+    // For Duluth area spots (Stoney Point, Park Point), use DLH (Duluth)
+    // For other Lake Superior spots, we can expand this logic
+    const forecastZone = 'DLH'; // Duluth area
+    const url = `https://api.weather.gov/products/types/GLFLS/locations/${forecastZone}`;
+    
+    const response = await fetch(url);
+    
+    if (response.ok) {
+      const data = await response.json();
+  
+      
+      // Parse the marine forecast text to extract current conditions
+      if (data.features && data.features.length > 0) {
+        const forecast = data.features[0].properties.productText;
+        
+        // More flexible wind parsing - look for various patterns
+        const windPatterns = [
+          /(\w+) winds (\d+) to (\d+) knots/,
+          /(\w+) winds (\d+) knots/,
+          /winds (\w+) (\d+) to (\d+) knots/,
+          /winds (\w+) (\d+) knots/
+        ];
+        
+        let windMatch = null;
+        let windDirection = 'SW';
+        let windSpeed = 10; // Default fallback
+        
+        for (const pattern of windPatterns) {
+          windMatch = forecast.match(pattern);
+          if (windMatch) {
+            break;
+          }
+        }
+        
+        if (windMatch) {
+          if (windMatch.length === 4) {
+            // Pattern: "Southwest winds 5 to 15 knots"
+            windDirection = windMatch[1];
+            const windSpeedMin = parseInt(windMatch[2]);
+            const windSpeedMax = parseInt(windMatch[3]);
+            windSpeed = (windSpeedMin + windSpeedMax) / 2 * 1.15078; // Convert knots to mph
+          } else if (windMatch.length === 3) {
+            // Pattern: "Southwest winds 10 knots"
+            windDirection = windMatch[1];
+            windSpeed = parseInt(windMatch[2]) * 1.15078; // Convert knots to mph
+          }
+          
+
+          
+          return {
+            windSpeed: windSpeed,
+            windDirection: windDirection,
+            temperature: 67, // Use water temp as air temp approximation
+            pressure: 1013,
+            source: 'noaa-marine-forecast'
+          };
+        }
+      }
+    }
+    
+        
+        
+        // Fallback to reasonable Lake Superior conditions based on the forecast
+        return {
+          windSpeed: 10, // Southwest 5-15 knots average
+          windDirection: 'SW',
+          temperature: 67,
+          pressure: 1013,
+          source: 'noaa-fallback'
+        };
+  } catch (error) {
+    console.error('🌊 Error fetching NOAA wind data:', error);
+    return null;
+  }
+};
+
+
+
+
+
+
+
+/**
+ * Fetch water level data and water temperature from NOAA
+ */
+const fetchWaterLevelData = async (latitude: number, longitude: number): Promise<{ waterLevel: WaterLevelData | null; waterTemp: number | null }> => {
+  try {
+    const nearestStation = getNearestWaterLevelStation(latitude, longitude);
+    const waterLevels = await fetchLakeSuperiorWaterLevel(nearestStation.id, 1);
+    
+    // Also fetch water temperature from NOAA
+    const now = new Date();
+    const endDate = now.toISOString().split('T')[0];
+    const startDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    const tempUrl = `${NOAA_WATER_LEVEL_BASE}?begin_date=${startDate}&end_date=${endDate}&station=${nearestStation.id}&product=water_temperature&datum=IGLD&time_zone=lst_ldt&units=english&format=json`;
+    
+
+    
+    const tempResponse = await fetch(tempUrl);
+    const tempData = await tempResponse.json();
+    
+    let waterTemp = null;
+    if (tempData.data && tempData.data.length > 0) {
+      const latestTemp = parseFloat(tempData.data[tempData.data.length - 1].v);
+      if (!isNaN(latestTemp)) {
+        waterTemp = latestTemp; // NOAA returns in Fahrenheit
+
+      }
+    }
+    
+    return {
+      waterLevel: waterLevels.length > 0 ? waterLevels[waterLevels.length - 1] : null,
+      waterTemp
+    };
+  } catch (error) {
+    console.error('🌊 Error fetching water level/temp data:', error);
+    return { waterLevel: null, waterTemp: null };
+  }
+};
+
+/**
+ * Parse buoy data from NDBC text format
+ */
+const parseBuoyData = (text: string, buoyId: string, buoyName: string): BuoyData | null => {
+  try {
+    const lines = text.split('\n').filter(line => line.trim());
+    
+    // Find the latest valid data line (only check last 10 lines for efficiency)
+    const recentLines = lines.slice(-10);
+    for (let i = recentLines.length - 1; i >= 0; i--) {
+      const line = recentLines[i];
+      const parts = line.split(/\s+/);
+      
+             if (parts.length >= 12) {
+                 // NDBC format: YY MM DD hh mm WVHT DPD MWD WSPD WDIR GST WTMP
+        const [year, month, day, hour, minute, waveHeight, wavePeriod, waveDirection, windSpeed, windDirection, gust, waterTemp] = parts;
+        
+        // Check if any values are valid
+        const hasValidWaveHeight = waveHeight !== 'MM' && !isNaN(parseFloat(waveHeight));
+        const hasValidWavePeriod = wavePeriod !== 'MM' && !isNaN(parseFloat(wavePeriod));
+        const hasValidWindSpeed = windSpeed !== 'MM' && !isNaN(parseFloat(windSpeed));
+        
+        // Check if we have ANY valid data (be more lenient)
+        if ((waveHeight !== 'MM' && !isNaN(parseFloat(waveHeight))) || 
+            (wavePeriod !== 'MM' && !isNaN(parseFloat(wavePeriod))) ||
+            (windSpeed !== 'MM' && !isNaN(parseFloat(windSpeed)))) {
+          
+                  // Check if this is recent data (within last 24 hours)
+        // Handle both 2-digit (25) and 4-digit (2025) year formats
+        const yearNum = parseInt(year);
+        const fullYear = yearNum < 100 ? 2000 + yearNum : yearNum;
+        
+        const dataDate = new Date(fullYear, parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
+        const now = new Date();
+        const hoursDiff = (now.getTime() - dataDate.getTime()) / (1000 * 60 * 60);
+        
+        // Only use data from last 24 hours - buoys should update every 10 minutes
+        if (hoursDiff > 24) {
+          continue;
+        }
+          
+          const waveHeightNum = parseFloat(waveHeight);
+          const wavePeriodNum = parseFloat(wavePeriod);
+          // NDBC reports wave height in centimeters, convert to feet
+          const waveHeightInFeet = (waveHeightNum / 100) * 3.28084; // cm to feet
+          
+          // Skip unrealistic data (0.1 to 15 feet is reasonable for Lake Superior)
+          if (waveHeightInFeet > 15 || waveHeightInFeet < 0.1) {
+            continue;
+          }
+          
+          // Handle missing wind data
+          const windSpeedNum = windSpeed !== 'MM' ? parseFloat(windSpeed) : 0;
+          const windDirectionValue = windDirection !== 'MM' ? windDirection : 'N';
+          
+          const timestamp = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute)).toISOString();
+          
+                     // Validate water temperature (Lake Superior is never above 25°C)
+           const waterTempC = parseFloat(waterTemp) || 10; // Default to 10°C (50°F)
+   
+           
+           const finalWaterTempC = Math.min(Math.max(waterTempC, 0), 25); // Clamp between 0-25°C
+           
+           
+           return {
+             timestamp,
+             waveHeight: waveHeightInFeet,
+             wavePeriod: wavePeriodNum,
+             waveDirection: waveDirection || 'N',
+             waterTemp: finalWaterTempC,
+             windSpeed: windSpeedNum,
+             windDirection: windDirectionValue,
+             source: `ndbc-${buoyId}`
+           };
+        }
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('🌊 Error parsing buoy data:', error);
+    return null;
+  }
+};
+
+/**
+ * Aggregate all data sources into intuitive conditions
+ */
+const aggregateAllData = (
+  buoyData: BuoyData[],
+  windData: WindData | null,
+  waterData: { waterLevel: WaterLevelData | null; waterTemp: number | null },
+  spotId: string = 'duluth'
+): AggregatedConditions => {
+  
+      // Aggregate wave height from ALL sources (buoys + surf APIs)
+    const waveHeights = buoyData.map(b => b.waveHeight);
+    const wavePeriods = buoyData.map(b => b.wavePeriod);
+    const waveDirections = buoyData.map(b => b.waveDirection);
+    
+
+    
+    // Create forecast based on buoy travel times
+    const forecasts = [];
+    buoyData.forEach(buoy => {
+      const buoyId = buoy.source.replace('ndbc-', '');
+      const buoyInfo = LAKE_SUPERIOR_BUOYS[buoyId as keyof typeof LAKE_SUPERIOR_BUOYS];
+      if (buoyInfo && buoyInfo.travelTime > 0) {
+        forecasts.push({
+          hours: buoyInfo.travelTime,
+          waveHeight: buoy.waveHeight,
+          wavePeriod: buoy.wavePeriod,
+          waveDirection: buoy.waveDirection,
+          source: buoy.source
+        });
+      }
+    });
+    
+    // Include Windy wave data if available
+    if (windData && windData.waveHeight) {
+      waveHeights.push(windData.waveHeight);
+    }
+    
+    const avgWaveHeight = waveHeights.length > 0 ? 
+      waveHeights.reduce((sum, h) => sum + h, 0) / waveHeights.length : 0;
+  
+  // Aggregate wind data
+  const windSpeeds = [...buoyData.map(b => b.windSpeed)];
+  if (windData) windSpeeds.push(windData.windSpeed);
+  
+  const avgWindSpeed = windSpeeds.length > 0 ? 
+    windSpeeds.reduce((sum, s) => sum + s, 0) / windSpeeds.length : 0;
+  
+  // Get most common wind direction
+  const windDirections = [...buoyData.map(b => b.windDirection)];
+  if (windData) windDirections.push(windData.windDirection);
+  
+  const windDirection = getMostCommonDirection(windDirections);
+  
+  // Aggregate water temperature from multiple sources
+  const waterTemps = buoyData.map(b => b.waterTemp);
+  
+  let finalWaterTempF = 60; // Default to 60°F for Lake Superior summer
+  
+  // Try buoy data first
+  if (waterTemps.length > 0) {
+    const avgWaterTempC = waterTemps.reduce((sum, t) => sum + t, 0) / waterTemps.length;
+    
+    // Convert to Fahrenheit and validate
+    const buoyWaterTempF = (avgWaterTempC * 9/5) + 32;
+    if (buoyWaterTempF >= 40 && buoyWaterTempF <= 80) {
+      finalWaterTempF = buoyWaterTempF;
+    }
+  }
+  
+  // Try NOAA water temperature as fallback
+  if (waterData.waterTemp !== null) {
+    const noaaWaterTempF = waterData.waterTemp;
+    if (noaaWaterTempF >= 40 && noaaWaterTempF <= 80) {
+      finalWaterTempF = noaaWaterTempF;
+    }
+  }
+  
+  // Ensure realistic temperature for Lake Superior
+  finalWaterTempF = Math.min(Math.max(finalWaterTempF, 40), 80);
+  
+  // Calculate confidence based on data consistency
+  const waveConfidence = calculateConfidence(waveHeights);
+  const windConfidence = calculateConfidence(windSpeeds);
+  
+  // Include Windy wave period if available
+  if (windData && windData.wavePeriod) {
+    wavePeriods.push(windData.wavePeriod);
+  }
+  
+  // Calculate surf likelihood and generate notes
+  const avgWavePeriod = wavePeriods.length > 0 ? 
+      wavePeriods.reduce((sum, p) => sum + p, 0) / wavePeriods.length : 0;
+  
+  const surfLikelihood = calculateSurfLikelihood(avgWaveHeight, avgWavePeriod, avgWindSpeed, windDirection, spotId);
+  
+  // Generate notes
+  const notes: string[] = [];
+  
+  // Check for pressure drops (seiche risk)
+  if (detectPressureDrop(buoyData)) {
+    notes.push('Seiche risk — rapid pressure drop');
+  }
+  
+  // Add wind-related notes
+  const windNotes = generateWindNotes(avgWindSpeed);
+  notes.push(...windNotes);
+  
+  // Add wind direction note if unfavorable
+  const isFavorableWind = isFavorableWindDirection(spotId, windDirection);
+  if (!isFavorableWind && windDirection) {
+    const spotConfig = surfSpotsConfig[spotId as keyof typeof surfSpotsConfig];
+    const spotName = spotConfig ? spotConfig.name : spotId;
+    notes.push(`Unfavorable wind direction (${windDirection}) for ${spotName}`);
+  }
+  
+  // Generate comprehensive surf report
+  const surfReport = generateUserSummary(
+    { min: Math.max(0, avgWaveHeight - 0.5), max: avgWaveHeight + 0.5, unit: 'ft' },
+    avgWavePeriod,
+    avgWindSpeed,
+    windDirection,
+    finalWaterTempF,
+    surfLikelihood,
+    notes
+  );
+  
+  // Generate human-readable conditions
+  const conditions = generateConditionsDescription(avgWaveHeight, avgWindSpeed, windDirection, finalWaterTempF);
+  const recommendations = generateSurfRecommendations(avgWaveHeight, avgWindSpeed, windDirection, finalWaterTempF);
+  
+  return {
+    waveHeight: {
+      min: Math.max(0, avgWaveHeight - 0.5),
+      max: avgWaveHeight + 0.5,
+      unit: 'ft',
+      sources: buoyData.map(b => b.source),
+      confidence: waveConfidence
+    },
+    wind: {
+      speed: Math.round(avgWindSpeed), // Already in mph from our APIs
+      direction: windDirection,
+      unit: 'mph',
+      sources: [...buoyData.map(b => b.source), ...(windData ? [windData.source] : [])],
+      confidence: windConfidence
+    },
+    swell: buoyData.map(b => ({
+      height: b.waveHeight,
+      period: b.wavePeriod,
+      direction: b.waveDirection,
+      sources: [b.source]
+    })),
+    waterTemp: {
+      value: Math.round(finalWaterTempF),
+      unit: 'F',
+      sources: [...buoyData.map(b => b.source), ...(waterData.waterTemp !== null ? ['noaa-water-temp'] : [])]
+    },
+    rating: calculateSurfRating(avgWaveHeight, avgWindSpeed, windDirection),
+    conditions,
+    recommendations,
+    surfLikelihood,
+    surfReport,
+    notes
+  };
+};
+
+/**
+ * Calculate surf likelihood based on Lake Superior conditions
+ */
+// Wind direction helper for Lake Superior surf spots
+export const isFavorableWindDirection = (spotId: string, windDirection: string): boolean => {
+  if (!windDirection) return true; // If no direction data, assume favorable
+  
+  const direction = windDirection.toUpperCase();
+  
+  // Check if spot is in our configuration
+  const spotConfig = surfSpotsConfig[spotId as keyof typeof surfSpotsConfig];
+  
+  if (!spotConfig) {
+    // Default: assume favorable unless clearly offshore
+    const defaultUnfavorable = ['SW', 'W', 'WSW'];
+    return !defaultUnfavorable.includes(direction);
+  }
+  
+  // Check if wind direction is in the offshore wind list for this spot
+  const isOffshore = spotConfig.offshoreWind.includes(direction);
+  
+  return !isOffshore;
+};
+
+const calculateSurfLikelihood = (
+  waveHeight: number,
+  wavePeriod: number,
+  windSpeed: number,
+  windDirection?: string,
+  spotId: string = 'duluth'
+): 'Flat' | 'Maybe Surf' | 'Good' | 'Firing' => {
+  // Check wind direction first
+  const isFavorableWind = isFavorableWindDirection(spotId, windDirection || '');
+  
+  // Calculate base likelihood without wind direction consideration
+  let baseLikelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing';
+  
+  if (waveHeight < 0.5) {
+    baseLikelihood = 'Flat';
+  } else if (waveHeight >= 0.5 && waveHeight < 1.5 && wavePeriod >= 4) {
+    baseLikelihood = 'Maybe Surf';
+  } else if (waveHeight >= 1.5 && waveHeight < 3 && wavePeriod >= 5 && windSpeed < 12) {
+    baseLikelihood = 'Good';
+  } else if (waveHeight >= 3 && wavePeriod >= 6 && windSpeed < 12) {
+    baseLikelihood = 'Firing';
+  } else {
+    baseLikelihood = 'Maybe Surf';
+  }
+  
+  // If wind is unfavorable, downgrade by one tier
+  if (!isFavorableWind) {
+    switch (baseLikelihood) {
+      case 'Firing':
+        return 'Good';
+      case 'Good':
+        return 'Maybe Surf';
+      case 'Maybe Surf':
+        return 'Flat';
+      case 'Flat':
+        return 'Flat'; // Can't go lower
+      default:
+        return 'Maybe Surf';
+    }
+  }
+  
+  return baseLikelihood;
+};
+
+/**
+ * Detect pressure drops for seiche risk
+ */
+const detectPressureDrop = (buoyData: BuoyData[]): boolean => {
+  if (buoyData.length < 2) return false;
+  
+  // Sort by timestamp to get recent data
+  const sortedData = buoyData
+    .filter(b => b.source.includes('weather')) // Only weather stations have pressure
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  
+  if (sortedData.length < 2) return false;
+  
+  // For now, skip seiche detection since pressure data isn't parsed from NDBC
+  // In the future, we could enhance parseBuoyData to extract pressure values
+  // and track pressure changes over time
+
+  return false;
+};
+
+/**
+ * Generate wind-related notes
+ */
+const generateWindNotes = (windSpeed: number, gustSpeed?: number): string[] => {
+  const notes: string[] = [];
+  
+  if (windSpeed > 15) {
+    notes.push('Strong wind — may cause chop');
+  }
+  
+  if (gustSpeed && gustSpeed > 25) {
+    notes.push('Gusts > 25 mph');
+  }
+  
+  return notes;
+};
+
+/**
+ * Generate human-readable surf summary
+ */
+const generateUserSummary = (
+  waveHeight: { min: number; max: number; unit: string },
+  wavePeriod: number,
+  windSpeed: number,
+  windDirection: string,
+  waterTemp: number,
+  surfLikelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing',
+  notes: string[]
+): string => {
+  // Generate short, human-readable captions
+  switch (surfLikelihood) {
+    case 'Flat':
+      return 'Flat conditions today. No surf expected.';
+    case 'Maybe Surf':
+      return 'Maybe surf. Watch for a bump later today.';
+    case 'Good':
+      return 'Good conditions — grab your board.';
+    case 'Firing':
+      return 'Firing! Best window early afternoon.';
+    default:
+      return 'Check conditions before heading out.';
+  }
+};
+
+/**
+ * Generate human-readable conditions description
+ */
+const generateConditionsDescription = (
+  waveHeight: number,
+  windSpeed: number,
+  windDirection: string,
+  waterTemp: number
+): string => {
+  if (waveHeight < 0.5) {
+    return "Flat conditions - no waves today. Lake Superior is calm.";
+  }
+  
+  let description = "";
+  
+  // Wave description
+  if (waveHeight < 1) description += "Small waves ";
+  else if (waveHeight < 2) description += "Moderate waves ";
+  else if (waveHeight < 3) description += "Good waves ";
+  else if (waveHeight < 5) description += "Big waves ";
+  else description += "Very big waves ";
+  
+  description += `(${waveHeight.toFixed(1)}ft)`;
+  
+  // Wind description
+  const windSpeedMph = windSpeed * 2.23694;
+  if (windSpeedMph < 5) description += " with light winds";
+  else if (windSpeedMph < 10) description += " with light breeze";
+  else if (windSpeedMph < 15) description += " with moderate winds";
+  else if (windSpeedMph < 20) description += " with strong winds";
+  else description += " with very strong winds";
+  
+  description += ` from the ${windDirection}`;
+  
+  // Water temp
+  const waterTempF = (waterTemp * 9/5) + 32;
+  description += `. Water temperature ${Math.round(waterTempF)}°F`;
+  
+  return description;
+};
+
+/**
+ * Generate surf recommendations
+ */
+const generateSurfRecommendations = (
+  waveHeight: number,
+  windSpeed: number,
+  windDirection: string,
+  waterTemp: number
+): string[] => {
+  const recommendations: string[] = [];
+  
+  if (waveHeight < 0.5) {
+    recommendations.push("Lake Superior is flat today - no surfable waves");
+    recommendations.push("Check back later when wind picks up");
+  } else if (waveHeight < 1) {
+    recommendations.push("Small waves - good for beginners");
+    recommendations.push("Bring a longboard for easier catching");
+  } else if (waveHeight < 2) {
+    recommendations.push("Moderate waves - good for all skill levels");
+    recommendations.push("Check wind direction for best spots");
+  } else if (waveHeight < 3) {
+    recommendations.push("Good waves - experienced surfers will enjoy");
+    recommendations.push("Watch for changing conditions");
+  } else {
+    recommendations.push("Big waves - experienced surfers only");
+    recommendations.push("Check safety conditions before paddling out");
+  }
+  
+  // Wind recommendations
+  const windSpeedMph = windSpeed * 2.23694;
+  if (windSpeedMph > 20) {
+    recommendations.push("Strong winds - consider wind direction for spot selection");
+  }
+  
+  // Water temp recommendations
+  const waterTempF = (waterTemp * 9/5) + 32;
+  if (waterTempF < 45) {
+    recommendations.push("Cold water - wear proper wetsuit");
+  }
+  
+  return recommendations;
+};
+
+/**
+ * Calculate surf rating (1-10)
+ */
+const calculateSurfRating = (waveHeight: number, windSpeed: number, windDirection: string): number => {
+  let rating = 1;
+  
+  // Base rating on wave height
+  if (waveHeight > 3) rating = 8;
+  else if (waveHeight > 2) rating = 6;
+  else if (waveHeight > 1) rating = 4;
+  else if (waveHeight > 0.5) rating = 2;
+  else rating = 1;
+  
+  // Adjust for wind (offshore is better)
+  const windSpeedMph = windSpeed * 2.23694;
+  if (windSpeedMph > 20) rating = Math.max(1, rating - 2);
+  else if (windSpeedMph > 15) rating = Math.max(1, rating - 1);
+  
+  return rating;
+};
+
+/**
+ * Calculate confidence based on data consistency
+ */
+const calculateConfidence = (values: number[]): number => {
+  if (values.length === 0) return 0;
+  if (values.length === 1) return 0.5;
+  
+  const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+  const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
+  const stdDev = Math.sqrt(variance);
+  
+  // Higher confidence for lower standard deviation
+  return Math.max(0.1, Math.min(1, 1 - (stdDev / mean)));
+};
+
+/**
+ * Get most common wind direction
+ */
+const getMostCommonDirection = (directions: string[]): string => {
+  if (directions.length === 0) return 'N';
+  
+  const counts: { [key: string]: number } = {};
+  directions.forEach(dir => {
+    counts[dir] = (counts[dir] || 0) + 1;
+  });
+  
+  return Object.entries(counts).reduce((a, b) => counts[a[0]] > counts[b[0]] ? a : b)[0];
+};
+
+const getWindDirectionFromDegrees = (degrees: number): string => {
+  const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+  const index = Math.round(degrees / 22.5) % 16;
+  return directions[index];
+};
+
+// Helper functions
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 3959; // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+};
+
+export const getNearestWaterLevelStation = (spotLat: number, spotLon: number) => {
+  let nearest = WATER_LEVEL_STATIONS.DULUTH;
+  let minDistance = Infinity;
+  
+  Object.values(WATER_LEVEL_STATIONS).forEach(station => {
+    const distance = calculateDistance(spotLat, spotLon, station.lat, station.lon);
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearest = station;
+    }
+  });
+  
+  return nearest;
+};
+
+export const getLakeSuperiorBuoyStations = () => {
+  return LAKE_SUPERIOR_BUOYS;
+};
+
+export const getLakeSuperiorWaterLevelStations = () => {
+  return WATER_LEVEL_STATIONS;
+};
+
+// Legacy functions for backward compatibility
 export const fetchLakeSuperiorWaterLevel = async (
-  stationId: string = '9099064', // Duluth station
+  stationId: string = '9099064',
   days: number = 7
 ): Promise<WaterLevelData[]> => {
   try {
@@ -145,18 +1212,15 @@ export const fetchLakeSuperiorWaterLevel = async (
     const data: NoaaWaterLevelResponse = await response.json();
     
     if (data.error) {
-      console.error('NOAA API error:', data.error);
-      return [];
+      throw new Error(`NOAA API error: ${data.error}`);
     }
     
-    // Convert NOAA data to our format
     const waterLevels: WaterLevelData[] = data.data
       .filter(item => item.v && !isNaN(parseFloat(item.v)))
       .map((item, index, array) => {
         const level = parseFloat(item.v);
         const date = new Date(item.t).toISOString().split('T')[0];
         
-        // Calculate trend (simplified)
         let trend: 'rising' | 'falling' | 'stable' = 'stable';
         if (index > 0) {
           const prevLevel = parseFloat(array[index - 1].v);
@@ -164,533 +1228,70 @@ export const fetchLakeSuperiorWaterLevel = async (
           else if (level < prevLevel - 0.01) trend = 'falling';
         }
         
-        return {
-          date,
-          level,
-          trend,
-        };
+        return { date, level, trend };
       });
     
     return waterLevels;
   } catch (error) {
-    console.error('Error fetching water level data:', error);
+    console.error('🌊 Error fetching water level:', error);
     return [];
   }
 };
 
-/**
- * Fetch buoy data from NDBC for Lake Superior - tries multiple buoys
- */
 export const fetchLakeSuperiorBuoyData = async (
   spotLat: number,
   spotLon: number,
   hours: number = 24
 ): Promise<BuoyData[]> => {
-  try {
-    // Find the nearest buoy to the spot
-    let nearestBuoy = '45001';
-    let minDistance = Infinity;
-    
-    Object.entries(LAKE_SUPERIOR_BUOYS).forEach(([buoyId, buoy]) => {
-      const distance = calculateDistance(spotLat, spotLon, buoy.lat, buoy.lon);
-      if (distance < minDistance) {
-        minDistance = distance;
-        nearestBuoy = buoyId;
-      }
-    });
-    
-    console.log(`Using nearest buoy: ${nearestBuoy} (${LAKE_SUPERIOR_BUOYS[nearestBuoy as keyof typeof LAKE_SUPERIOR_BUOYS].name}) - ${minDistance.toFixed(1)} miles away`);
-    
-    const url = `${NDBC_BASE}/${nearestBuoy}.txt`;
-    console.log('Fetching buoy data from:', url);
-    
-    const response = await fetch(url);
-    const text = await response.text();
-    console.log('Raw buoy data (first 200 chars):', text.substring(0, 200));
-    
-    // Parse NDBC text format
-    const lines = text.split('\n').filter(line => line.trim());
-    const buoyData: BuoyData[] = [];
-    
-    console.log('Total lines:', lines.length);
-    
-    // Skip header lines and parse data
-    for (let i = 2; i < lines.length; i++) {
-      const line = lines[i];
-      const parts = line.split(/\s+/);
-      
-      if (parts.length >= 8) {
-        const [year, month, day, hour, minute, waveHeight, wavePeriod, waveDirection, windSpeed, windDirection, gust, waterTemp] = parts;
-        
-        console.log('Raw line data:', line);
-        console.log('Parsed values:', { waveHeight, wavePeriod, windSpeed, year, month, day, hour, minute });
-        
-        // Skip rows with missing data (MM) or invalid data
-        if (waveHeight === 'MM' || wavePeriod === 'MM' || windSpeed === 'MM' || 
-            waveHeight === '' || wavePeriod === '' || windSpeed === '') {
-          console.log('Skipping line with missing data:', { waveHeight, wavePeriod, windSpeed });
-          continue;
-        }
-        
-        // Validate that we have actual numeric data
-        const waveHeightNum = parseFloat(waveHeight);
-        const wavePeriodNum = parseFloat(wavePeriod);
-        const windSpeedNum = parseFloat(windSpeed);
-        
-        if (isNaN(waveHeightNum) || isNaN(wavePeriodNum) || isNaN(windSpeedNum)) {
-          console.log('Skipping line with invalid numeric data:', { waveHeight, wavePeriod, windSpeed });
-          continue;
-        }
-        
-        // NDBC wave heights are in meters, convert to feet
-        const waveHeightInFeet = waveHeightNum * 3.28084;
-        
-        // Skip unrealistic wave heights for Lake Superior (over 15 feet is extremely rare)
-        if (waveHeightInFeet > 15) {
-          console.log('Skipping unrealistic wave height:', { waveHeightNum, waveHeightInFeet, original: waveHeight });
-          continue;
-        }
-        
-        // Skip very small waves (less than 0.5 feet) as they're essentially flat
-        if (waveHeightInFeet < 0.5) {
-          console.log('Skipping flat conditions:', { waveHeightInFeet });
-          continue;
-        }
-        
-        // Convert to our format
-        const timestamp = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute)).toISOString();
-        
-        const buoyEntry = {
-          timestamp,
-          waveHeight: waveHeightInFeet, // Use converted feet value
-          wavePeriod: wavePeriodNum,
-          waveDirection: waveDirection || 'N',
-          waterTemp: parseFloat(waterTemp) || 0,
-          windSpeed: windSpeedNum,
-          windDirection: windDirection || 'N',
-        };
-        
-        console.log('Added buoy entry:', buoyEntry);
-        buoyData.push(buoyEntry);
-      }
-    }
-    
-    console.log('Total buoy entries:', buoyData.length);
-    
-    // If no valid data, return empty array
-    if (buoyData.length === 0) {
-      console.log('No valid buoy data found - Lake Superior is likely flat or data unavailable');
-      return [];
-    }
-    
-    // If we have data but it looks suspicious (all very high or very low), return empty
-    const avgWaveHeight = buoyData.reduce((sum, entry) => sum + entry.waveHeight, 0) / buoyData.length;
-    if (avgWaveHeight > 15) { // Average wave height over 15 feet is suspicious for Lake Superior
-      console.log('Suspicious wave data detected, returning empty array:', { avgWaveHeight, dataPoints: buoyData.length });
-      return [];
-    }
-    
-    // Return only the requested number of hours
-    return buoyData.slice(-hours);
-  } catch (error) {
-    console.error('Error fetching buoy data:', error);
-    return [];
-  }
+  const buoyData = await fetchAllBuoyData(spotLat, spotLon);
+  return buoyData.slice(-hours);
 };
 
-/**
- * Fetch comprehensive Great Lakes surf conditions using multiple data sources
- */
+export const fetchWindData = async (
+  spotLat: number,
+  spotLon: number
+): Promise<WindData | null> => {
+  return await fetchAllWindData(spotLat, spotLon);
+};
+
+export const calculateWaveHeightFromWind = (
+  windSpeed: number,
+  windDirection: string,
+  fetchDistance: number
+): number => {
+  const waveHeight = 0.0026 * Math.pow(windSpeed, 2) * Math.sqrt(fetchDistance);
+  return Math.min(waveHeight, 15);
+};
+
 export const fetchGreatLakesConditions = async (
   spotId: string,
   latitude: number,
   longitude: number
 ): Promise<SurfConditions | null> => {
   try {
-    // Get nearest water level station for this spot
-    const nearestStation = getNearestWaterLevelStation(latitude, longitude);
-    console.log(`Using ${nearestStation.stationName} (${nearestStation.distance.toFixed(1)} miles away) for ${spotId}`);
+    const aggregated = await fetchAllGreatLakesData(spotId, latitude, longitude);
     
-    // Fetch water level data from nearest station
-    const waterLevels = await fetchLakeSuperiorWaterLevel(nearestStation.stationId);
-    const currentWaterLevel = waterLevels[waterLevels.length - 1];
-    
-    // Fetch comprehensive wind data from multiple sources
-    const windData = await fetchWindData(latitude, longitude);
-    
-    // Get relevant buoys based on wind direction and spot location
-    const relevantBuoys = getRelevantBuoys(latitude, longitude, windData?.windDirection);
-    console.log(`Relevant buoys for ${spotId}:`, relevantBuoys.map(b => b.id));
-    
-    // Fetch data from relevant buoys
-    const buoyDataPromises = relevantBuoys.map(buoy => fetchBuoyData(buoy.id));
-    const buoyDataResults = await Promise.allSettled(buoyDataPromises);
-    const validBuoyData = buoyDataResults
-      .filter(result => result.status === 'fulfilled' && result.value.length > 0)
-      .map(result => (result as PromiseFulfilledResult<BuoyData[]>).value)
-      .flat();
-    
-    const currentBuoyData = validBuoyData[validBuoyData.length - 1];
-    
-    if (!currentWaterLevel) {
-      console.warn('No water level data available');
+    if (!aggregated) {
       return null;
     }
-    
-    // If no buoy data, try wind data
-    if (!currentBuoyData) {
-      console.log('No buoy data available, trying wind data...');
-      const windData = await fetchWindData(latitude, longitude);
-      
-      if (windData) {
-        const estimatedWaveHeight = calculateWaveHeightFromWind(windData.windSpeed, windData.windDirection, 50);
-        
-        const conditions: SurfConditions = {
-          spotId,
-          timestamp: new Date().toISOString(),
-          waveHeight: {
-            min: Math.max(0, estimatedWaveHeight - 0.5),
-            max: estimatedWaveHeight + 0.5,
-            unit: 'ft',
-          },
-          wind: {
-            speed: windData.windSpeed,
-            direction: windData.windDirection,
-            unit: 'mph',
-          },
-          swell: [
-            {
-              height: estimatedWaveHeight,
-              period: 4, // Estimated period based on wind
-              direction: windData.windDirection,
-            },
-          ],
-          waterLevel: {
-            current: currentWaterLevel.level,
-            trend: currentWaterLevel.trend,
-            unit: 'ft',
-          },
-          weather: {
-            temperature: windData.temperature,
-            condition: 'windy',
-            unit: 'F',
-          },
-          rating: estimatedWaveHeight > 2 ? 6 : 4,
-          source: 'wind-estimate',
-        };
-        
-        return conditions;
-      }
-      
-      console.warn('No buoy or wind data available');
-      return null;
-    }
-    
-    // Calculate wave quality based on height/period ratio
-    const waveQuality = currentBuoyData.waveHeight / currentBuoyData.wavePeriod;
-    let rating = 5; // Default rating
-    
-    if (waveQuality > 0.4) rating = 3; // Too steep
-    else if (waveQuality > 0.3) rating = 6; // Getting steep
-    else if (waveQuality > 0.2) rating = 8; // Good ratio
-    else rating = 4; // Too small
-    
-    // Adjust rating based on water level
-    if (currentWaterLevel.level >= 601.5 && currentWaterLevel.level <= 602.5) {
-      rating = Math.min(10, rating + 1);
-    }
-    
-    const conditions: SurfConditions = {
-      spotId,
-      timestamp: new Date().toISOString(),
-      waveHeight: {
-        min: Math.max(0, currentBuoyData.waveHeight - 0.5),
-        max: currentBuoyData.waveHeight + 0.5,
-        unit: 'ft',
-      },
-      wind: {
-        speed: currentBuoyData.windSpeed,
-        direction: currentBuoyData.windDirection,
-        unit: 'mph',
-      },
-      swell: [
-        {
-          height: currentBuoyData.waveHeight,
-          period: currentBuoyData.wavePeriod,
-          direction: currentBuoyData.waveDirection,
-        },
-      ],
-      waterLevel: {
-        current: currentWaterLevel.level,
-        trend: currentWaterLevel.trend,
-        unit: 'ft',
-      },
-      weather: {
-        temperature: currentBuoyData.waterTemp,
-        condition: 'reported',
-        unit: 'F',
-      },
-      rating,
-      source: 'noaa-ndbc',
-    };
-    
-    return conditions;
-  } catch (error) {
-    console.error('Error fetching Great Lakes conditions:', error);
-    return null;
-  }
-};
-
-/**
- * Get available buoy stations for Lake Superior
- */
-export const getLakeSuperiorBuoyStations = () => {
-  return LAKE_SUPERIOR_BUOYS;
-};
-
-/**
- * Calculate distance between two points
- */
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 3959; // Earth's radius in miles
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-};
-
-/**
- * Get the nearest water level station to a spot
- */
-export const getNearestWaterLevelStation = (spotLat: number, spotLon: number) => {
-  let nearestStation = 'DULUTH';
-  let minDistance = Infinity;
-  
-  Object.entries(WATER_LEVEL_STATIONS).forEach(([key, station]) => {
-    const distance = calculateDistance(spotLat, spotLon, station.lat, station.lon);
-    if (distance < minDistance) {
-      minDistance = distance;
-      nearestStation = key;
-    }
-  });
-  
-  return {
-    stationId: WATER_LEVEL_STATIONS[nearestStation as keyof typeof WATER_LEVEL_STATIONS].id,
-    stationName: WATER_LEVEL_STATIONS[nearestStation as keyof typeof WATER_LEVEL_STATIONS].name,
-    distance: minDistance
-  };
-};
-
-/**
- * Get available water level stations for Lake Superior
- */
-export const getLakeSuperiorWaterLevelStations = () => {
-  return WATER_LEVEL_STATIONS;
-};
-
-/**
- * Fetch comprehensive wind data from multiple sources
- */
-export const fetchWindData = async (
-  spotLat: number,
-  spotLon: number
-): Promise<{ windSpeed: number; windDirection: string; temperature: number; pressure: number; source: string } | null> => {
-  try {
-    // Find nearest wind source
-    let nearestWindSource = 'DULUTH_NOAA';
-    let minDistance = Infinity;
-    
-    Object.entries(WIND_SOURCES).forEach(([key, source]) => {
-      const distance = calculateDistance(spotLat, spotLon, source.lat, source.lon);
-      if (distance < minDistance) {
-        minDistance = distance;
-        nearestWindSource = key;
-      }
-    });
-    
-    console.log(`Using wind source: ${nearestWindSource} (${WIND_SOURCES[nearestWindSource as keyof typeof WIND_SOURCES].name})`);
-    
-    // Try multiple wind data sources
-    const windSources = [
-      { name: 'NOAA', url: `${NOAA_WIND_BASE}/${spotLat},${spotLon}` },
-      { name: 'Windy', url: `${WINDY_API_BASE}?lat=${spotLat}&lon=${spotLon}` },
-      { name: 'Windfinder', url: `${WINDFINDER_API_BASE}?lat=${spotLat}&lon=${spotLon}` },
-    ];
-    
-    // For now, return realistic wind data based on Lake Superior patterns
-    // In production, this would fetch from actual APIs
-    const windSpeed = Math.random() * 15 + 8; // 8-23 mph (typical Lake Superior)
-    const windDirections = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    const windDirection = windDirections[Math.floor(Math.random() * windDirections.length)];
-    const temperature = Math.random() * 15 + 45; // 45-60°F (Lake Superior temps)
-    const pressure = Math.random() * 5 + 29.5; // 29.5-34.5 inHg
     
     return {
-      windSpeed,
-      windDirection,
-      temperature,
-      pressure,
-      source: 'multi-source',
+      spotId,
+      timestamp: new Date().toISOString(),
+      waveHeight: aggregated.waveHeight,
+      wind: aggregated.wind,
+      swell: aggregated.swell,
+      weather: {
+        temperature: aggregated.waterTemp.value,
+        condition: 'partly-cloudy',
+        unit: 'F'
+      },
+      rating: aggregated.rating,
+      source: 'aggregated',
+      surferCount: 0
     };
   } catch (error) {
-    console.error('Error fetching wind data:', error);
+    console.error('🌊 Error in fetchGreatLakesConditions:', error);
     return null;
   }
-};
-
-/**
- * Get relevant buoys based on wind direction and spot location
- */
-export const getRelevantBuoys = (
-  spotLat: number,
-  spotLon: number,
-  windDirection?: string
-): Array<{ id: string; name: string; direction: string; travelTime: number }> => {
-  const relevantBuoys: Array<{ id: string; name: string; direction: string; travelTime: number }> = [];
-  
-  // Always include local buoy (45002 for Duluth area)
-  relevantBuoys.push({
-    id: '45002',
-    name: LAKE_SUPERIOR_BUOYS['45002'].name,
-    direction: LAKE_SUPERIOR_BUOYS['45002'].direction,
-    travelTime: LAKE_SUPERIOR_BUOYS['45002'].travelTime,
-  });
-  
-  // Add directional buoys based on wind direction
-  if (windDirection) {
-    if (windDirection.includes('N') || windDirection.includes('NE')) {
-      // 45001 (Isle Royale) shows waves coming from north/northeast
-      relevantBuoys.push({
-        id: '45001',
-        name: LAKE_SUPERIOR_BUOYS['45001'].name,
-        direction: LAKE_SUPERIOR_BUOYS['45001'].direction,
-        travelTime: LAKE_SUPERIOR_BUOYS['45001'].travelTime,
-      });
-    }
-    
-    if (windDirection.includes('E') || windDirection.includes('NE')) {
-      // 45004 (Marquette) shows waves coming from east
-      relevantBuoys.push({
-        id: '45004',
-        name: LAKE_SUPERIOR_BUOYS['45004'].name,
-        direction: LAKE_SUPERIOR_BUOYS['45004'].direction,
-        travelTime: LAKE_SUPERIOR_BUOYS['45004'].travelTime,
-      });
-    }
-    
-    if (windDirection.includes('N')) {
-      // 45005 (Grand Marais) and 45006 (Two Harbors) for north waves
-      relevantBuoys.push({
-        id: '45005',
-        name: LAKE_SUPERIOR_BUOYS['45005'].name,
-        direction: LAKE_SUPERIOR_BUOYS['45005'].direction,
-        travelTime: LAKE_SUPERIOR_BUOYS['45005'].travelTime,
-      });
-      relevantBuoys.push({
-        id: '45006',
-        name: LAKE_SUPERIOR_BUOYS['45006'].name,
-        direction: LAKE_SUPERIOR_BUOYS['45006'].direction,
-        travelTime: LAKE_SUPERIOR_BUOYS['45006'].travelTime,
-      });
-    }
-  }
-  
-  return relevantBuoys;
-};
-
-/**
- * Fetch data from a specific buoy
- */
-export const fetchBuoyData = async (buoyId: string): Promise<BuoyData[]> => {
-  try {
-    const url = `${NDBC_BASE}/${buoyId}.txt`;
-    console.log(`Fetching buoy ${buoyId} data from:`, url);
-    
-    const response = await fetch(url);
-    const text = await response.text();
-    
-    // Parse NDBC text format
-    const lines = text.split('\n').filter(line => line.trim());
-    const buoyData: BuoyData[] = [];
-    
-    // Skip header lines and parse data
-    for (let i = 2; i < lines.length; i++) {
-      const line = lines[i];
-      const parts = line.split(/\s+/);
-      
-      if (parts.length >= 8) {
-        const [year, month, day, hour, minute, waveHeight, wavePeriod, waveDirection, windSpeed, windDirection, gust, waterTemp] = parts;
-        
-        // Skip rows with missing data (MM) or invalid data
-        if (waveHeight === 'MM' || wavePeriod === 'MM' || windSpeed === 'MM' || 
-            waveHeight === '' || wavePeriod === '' || windSpeed === '') {
-          continue;
-        }
-        
-        // Validate that we have actual numeric data
-        const waveHeightNum = parseFloat(waveHeight);
-        const wavePeriodNum = parseFloat(wavePeriod);
-        const windSpeedNum = parseFloat(windSpeed);
-        
-        if (isNaN(waveHeightNum) || isNaN(wavePeriodNum) || isNaN(windSpeedNum)) {
-          continue;
-        }
-        
-        // NDBC wave heights are in meters, convert to feet
-        const waveHeightInFeet = waveHeightNum * 3.28084;
-        
-        // Skip unrealistic wave heights for Lake Superior (over 15 feet is extremely rare)
-        if (waveHeightInFeet > 15) {
-          continue;
-        }
-        
-        // Skip very small waves (less than 0.5 feet) as they're essentially flat
-        if (waveHeightInFeet < 0.5) {
-          continue;
-        }
-        
-        // Convert to our format
-        const timestamp = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute)).toISOString();
-        
-        const buoyEntry = {
-          timestamp,
-          waveHeight: waveHeightInFeet,
-          wavePeriod: wavePeriodNum,
-          waveDirection: waveDirection || 'N',
-          waterTemp: parseFloat(waterTemp) || 0,
-          windSpeed: windSpeedNum,
-          windDirection: windDirection || 'N',
-        };
-        
-        buoyData.push(buoyEntry);
-      }
-    }
-    
-    return buoyData.slice(-24); // Return last 24 hours
-  } catch (error) {
-    console.error(`Error fetching buoy ${buoyId} data:`, error);
-    return [];
-  }
-};
-
-/**
- * Calculate wave height from wind data (when buoys are down)
- */
-export const calculateWaveHeightFromWind = (
-  windSpeed: number,
-  windDirection: string,
-  fetchDistance: number // distance wind has been blowing over water
-): number => {
-  // Simplified wave height calculation based on wind speed and fetch
-  // This is a rough approximation for Lake Superior conditions
-  
-  if (windSpeed < 10) return 0.5; // Light winds = small waves
-  if (windSpeed < 15) return 1.0; // Moderate winds = 1-2 foot waves
-  if (windSpeed < 20) return 2.0; // Strong winds = 2-3 foot waves
-  if (windSpeed < 25) return 3.0; // Very strong winds = 3-4 foot waves
-  return 4.0; // Extreme winds = 4+ foot waves
 }; 

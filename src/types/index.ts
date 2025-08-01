@@ -86,6 +86,10 @@ export interface SurfConditions {
   rating: number; // 1-10 rating of overall conditions
   source: string; // 'windy', 'noaa', 'buoy', etc.
   surferCount?: number; // Number of current surfers at the spot
+  // New Lake Superior surf report fields
+  surfLikelihood?: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing';
+  surfReport?: string;
+  notes?: string[];
 }
 
 // User check-ins at surf spots

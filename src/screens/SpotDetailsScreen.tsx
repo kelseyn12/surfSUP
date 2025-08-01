@@ -7,7 +7,8 @@ import {
   TouchableOpacity, 
   Image,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/colors';
@@ -24,7 +25,7 @@ import {
 } from '../services/api';
 import { isUserCheckedInAt, getGlobalSurferCount } from '../services/globalState';
 import webSocketService, { WebSocketMessageType } from '../services/websocket';
-import { HeaderBar, WaterLevelChart } from '../components';
+import { HeaderBar } from '../components';
 import { addFavoriteSpot, removeFavoriteSpot } from '../services/storage';
 import { useAuthStore } from '../services/auth';
 
@@ -34,7 +35,12 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   const navigation = props.navigation;
   
   // Get spot details from route params or use fallback
-  const { spotId, spot } = route?.params || { spotId: '0', spot: { name: 'Unknown Spot' } };
+  const { spotId: rawSpotId, spot } = route?.params || { spotId: '0', spot: { name: 'Unknown Spot' } };
+  
+  // Use a valid spot ID if none provided (for testing)
+  const spotId = rawSpotId === '0' ? 'stoneypoint' : rawSpotId;
+  
+  console.log('🔍 SpotDetailsScreen - rawSpotId:', rawSpotId, 'using spotId:', spotId, 'spot:', spot);
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentConditions, setCurrentConditions] = useState<SurfConditions | null>(null);
   const [forecast, setForecast] = useState<SurfConditions[]>([]);
@@ -42,6 +48,8 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   const [surferCount, setSurferCount] = useState(0);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [checkInId, setCheckInId] = useState<string | null>(null);
+  const [notesModalVisible, setNotesModalVisible] = useState(false);
+  const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
   const { user } = useAuthStore();
 
   // Function to load spot data
@@ -56,7 +64,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
       }
 
       // Fetch forecast
-      const forecastData = await fetchSurfForecast(spotId, 5);
+      const forecastData = await fetchSurfForecast(spotId, 14);
       if (forecastData) {
         setForecast(forecastData);
       }
@@ -325,8 +333,23 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     return COLORS.error;
   };
 
+  const getSurfLikelihoodColor = (likelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing'): string => {
+    switch (likelihood) {
+      case 'Flat':
+        return COLORS.gray;
+      case 'Maybe Surf':
+        return COLORS.warning;
+      case 'Good':
+        return COLORS.success;
+      case 'Firing':
+        return COLORS.error; // Red for "firing" conditions
+      default:
+        return COLORS.gray;
+    }
+  };
+
   // Create a formatted forecast from the API data
-  const formattedForecast = forecast.slice(0, 5).map((item, index) => {
+      const formattedForecast = forecast.slice(0, 14).map((item, index) => {
     const day = index === 0 ? 'Today' : 
                index === 1 ? 'Tomorrow' : 
                new Date(item.timestamp).toLocaleDateString('en-US', { weekday: 'short' });
@@ -338,12 +361,22 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
       period: `${Math.round(item.swell[0]?.period || 0)}s`,
       wind: `${item.wind.direction} ${item.wind.speed}${item.wind.unit}`,
       rating: item.rating,
+      surfLikelihood: item.surfLikelihood,
+      surfReport: item.surfReport,
+      notes: item.notes,
     };
   });
 
   // Simple back button handler
   const handleGoBack = () => {
     navigation.goBack();
+  };
+
+  const handleSurfBadgeTap = (notes: string[]) => {
+    if (notes && notes.length > 0) {
+      setSelectedNotes(notes);
+      setNotesModalVisible(true);
+    }
   };
 
   if (isLoading && !currentConditions) {
@@ -415,6 +448,8 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
           <Text style={styles.sectionTitle}>Current Conditions</Text>
           {currentConditions ? (
             <View style={styles.conditionsCard}>
+
+
               <View style={styles.conditionRow}>
                 <View style={styles.conditionItem}>
                   <Ionicons name="water-outline" size={24} color={COLORS.primary} />
@@ -426,7 +461,11 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                 <View style={styles.conditionItem}>
                   <Ionicons name="time-outline" size={24} color={COLORS.primary} />
                   <Text style={styles.conditionLabel}>Period</Text>
-                  <Text style={styles.conditionValue}>{currentConditions.swell[0]?.period || 0}s</Text>
+                  <Text style={styles.conditionValue}>
+                    {currentConditions.swell && currentConditions.swell.length > 0 && currentConditions.swell[0].period > 0 
+                      ? `${currentConditions.swell[0].period}s` 
+                      : 'N/A'}
+                  </Text>
                 </View>
               </View>
               <View style={styles.conditionRow}>
@@ -434,7 +473,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                   <Ionicons name="speedometer-outline" size={24} color={COLORS.primary} />
                   <Text style={styles.conditionLabel}>Wind</Text>
                   <Text style={styles.conditionValue}>
-                    {currentConditions.wind.speed}{currentConditions.wind.unit === 'mph' ? 'mph' : 'kn'} {currentConditions.wind.direction}
+                    {currentConditions.wind.direction ? `${currentConditions.wind.direction} @ ${currentConditions.wind.speed}${currentConditions.wind.unit === 'mph' ? 'mph' : 'kn'}` : `${currentConditions.wind.speed}${currentConditions.wind.unit === 'mph' ? 'mph' : 'kn'}`}
                   </Text>
                 </View>
                 <View style={styles.conditionItem}>
@@ -445,12 +484,30 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                   </Text>
                 </View>
               </View>
-              <View style={styles.ratingContainer}>
-                <Text style={styles.ratingLabel}>Overall Rating:</Text>
-                <Text style={[styles.ratingValue, { color: getRatingColor(currentConditions.rating) }]}>
-                  {currentConditions.rating}/10
-                </Text>
-              </View>
+              
+              {/* Surf Tag */}
+              {currentConditions.surfLikelihood && (
+                <TouchableOpacity 
+                  style={[styles.surfTagBadge, { backgroundColor: getSurfLikelihoodColor(currentConditions.surfLikelihood) }]}
+                  onPress={() => handleSurfBadgeTap(currentConditions.notes || [])}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.surfTagText}>
+                    {currentConditions.surfLikelihood}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Surf Report Summary - Small caption under badge */}
+              {currentConditions.surfReport && (
+                <View style={styles.surfSummaryContainer}>
+                  <Text style={styles.surfSummaryText}>
+                    {currentConditions.surfReport}
+                  </Text>
+                </View>
+              )}
+
+
             </View>
           ) : (
             <View style={styles.noDataContainer}>
@@ -462,18 +519,36 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
         {/* Forecast */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Forecast</Text>
-          {formattedForecast.length > 0 ? (
+          {forecast && forecast.length > 0 ? (
             <ScrollView 
-              horizontal
+              horizontal 
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.forecastContainer}
             >
               {formattedForecast.map((day, index) => (
                 <View key={index} style={styles.forecastCard}>
                   <Text style={styles.forecastDay}>{day.day}</Text>
-                  <Text style={[styles.forecastRating, { color: getRatingColor(day.rating) }]}>
-                    {day.rating}/10
-                  </Text>
+                  
+                  {/* Surf Likelihood Badge */}
+                  {day.surfLikelihood && (
+                    <TouchableOpacity 
+                      style={[styles.forecastSurfBadge, { backgroundColor: getSurfLikelihoodColor(day.surfLikelihood) }]}
+                      onPress={() => handleSurfBadgeTap(day.notes || [])}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.forecastSurfBadgeText}>
+                        {day.surfLikelihood}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  
+                  {/* Forecast Summary */}
+                  {day.surfReport && (
+                    <Text style={styles.forecastSummaryText}>
+                      {day.surfReport}
+                    </Text>
+                  )}
+                  
                   <View style={styles.forecastDetail}>
                     <Ionicons name="water-outline" size={16} color={COLORS.gray} />
                     <Text style={styles.forecastDetailText}>{day.waveHeight}</Text>
@@ -494,17 +569,6 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
               <Text style={styles.noDataText}>No forecast data available</Text>
             </View>
           )}
-        </View>
-
-        {/* Water Level & Buoy Data */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Water Level & Buoy Data</Text>
-          <WaterLevelChart 
-            spotId={spotId}
-            conditions={currentConditions || undefined}
-            forecast={forecast}
-            isLoading={isLoading}
-          />
         </View>
 
         {/* Additional info */}
@@ -540,6 +604,35 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Notes Modal */}
+      <Modal
+        visible={notesModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setNotesModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setNotesModalVisible(false)}
+        >
+          <View style={styles.notesModalContent}>
+            <Text style={styles.notesModalTitle}>Surf Notes</Text>
+            {selectedNotes.map((note, index) => (
+              <Text key={index} style={styles.notesModalText}>
+                • {note}
+              </Text>
+            ))}
+            <TouchableOpacity 
+              style={styles.notesModalCloseButton}
+              onPress={() => setNotesModalVisible(false)}
+            >
+              <Text style={styles.notesModalCloseText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -779,6 +872,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text.secondary,
   },
+  conditionsDescription: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  conditionsText: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+    marginLeft: 8,
+    fontStyle: 'italic',
+  },
   modalContent: {
     backgroundColor: COLORS.background,
     padding: 20,
@@ -786,6 +891,143 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.lightGray,
+  },
+  surfReportContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+    backgroundColor: COLORS.lightGray,
+    padding: 12,
+    borderRadius: 8,
+  },
+  surfReportText: {
+    fontSize: 18,
+    color: COLORS.text.primary,
+    marginLeft: 8,
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 24,
+  },
+  surfLikelihoodBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  surfLikelihoodText: {
+    color: COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  notesContainer: {
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  notesText: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+  },
+  surfTagBadge: {
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 25,
+    marginTop: 20,
+    marginBottom: 12,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  surfTagText: {
+    color: COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  surfSummaryContainer: {
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  surfSummaryText: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  forecastSurfBadge: {
+    alignSelf: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  forecastSurfBadgeText: {
+    color: COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  forecastSummaryText: {
+    fontSize: 10,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: 8,
+    lineHeight: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notesModalContent: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 20,
+    margin: 20,
+    maxWidth: 300,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  notesModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text.primary,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  notesModalText: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  notesModalCloseButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  notesModalCloseText: {
+    color: COLORS.white,
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
 
