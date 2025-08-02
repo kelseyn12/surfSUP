@@ -1,22 +1,21 @@
 import { SurfSession, User } from '../types';
-import { getUserSessions, storeUserSessions } from './storage';
+import { storeUserSessions, getUserSessions as getUserSessionsFromStorage } from './storage';
 import { useAuthStore } from './auth';
 
 /**
  * Calculate session duration in minutes
  */
 const calculateSessionDuration = (session: SurfSession): number => {
-  if (!session.endTime) return 0;
-  const start = new Date(session.startTime).getTime();
-  const end = new Date(session.endTime).getTime();
-  return Math.round((end - start) / (1000 * 60)); // Convert ms to minutes
+  const start = new Date(session.startTime);
+  const end = session.endTime ? new Date(session.endTime) : new Date();
+  return Math.round((end.getTime() - start.getTime()) / (1000 * 60));
 };
 
 /**
  * Calculate user statistics from sessions
  */
 export const calculateUserStats = async (userId: string): Promise<User['stats']> => {
-  const sessions = await getUserSessions();
+  const sessions = await getUserSessionsFromStorage(userId);
   const userSessions = sessions.filter(session => session.userId === userId);
 
   if (userSessions.length === 0) {
@@ -76,9 +75,9 @@ export const addSession = async (session: Omit<SurfSession, 'id' | 'createdAt' |
     updatedAt: now
   };
 
-  const sessions = await getUserSessions();
+  const sessions = await getUserSessionsFromStorage(session.userId);
   sessions.unshift(newSession);
-  await storeUserSessions(sessions);
+  await storeUserSessions(session.userId, sessions);
 
   // Update user stats
   const stats = await calculateUserStats(session.userId);
@@ -97,7 +96,14 @@ export const addSession = async (session: Omit<SurfSession, 'id' | 'createdAt' |
  * Update an existing session and recalculate stats
  */
 export const updateSession = async (sessionId: string, updates: Partial<SurfSession>): Promise<SurfSession> => {
-  const sessions = await getUserSessions();
+  const authStore = useAuthStore.getState();
+  const userId = authStore.user?.id;
+  
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
+
+  const sessions = await getUserSessionsFromStorage(userId);
   const sessionIndex = sessions.findIndex(s => s.id === sessionId);
   
   if (sessionIndex === -1) {
@@ -111,11 +117,10 @@ export const updateSession = async (sessionId: string, updates: Partial<SurfSess
   };
 
   sessions[sessionIndex] = updatedSession;
-  await storeUserSessions(sessions);
+  await storeUserSessions(userId, sessions);
 
-  // Update user stats
-  const stats = await calculateUserStats(updatedSession.userId);
-  const authStore = useAuthStore.getState();
+  // Recalculate user stats
+  const stats = await calculateUserStats(userId);
   if (authStore.user) {
     await authStore.updateUserProfile({
       ...authStore.user,
@@ -130,19 +135,24 @@ export const updateSession = async (sessionId: string, updates: Partial<SurfSess
  * Delete a session and recalculate stats
  */
 export const deleteSession = async (sessionId: string): Promise<void> => {
-  const sessions = await getUserSessions();
-  const session = sessions.find(s => s.id === sessionId);
+  const authStore = useAuthStore.getState();
+  const userId = authStore.user?.id;
   
-  if (!session) {
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
+
+  const sessions = await getUserSessionsFromStorage(userId);
+  const updatedSessions = sessions.filter(s => s.id !== sessionId);
+  
+  if (updatedSessions.length === sessions.length) {
     throw new Error('Session not found');
   }
 
-  const updatedSessions = sessions.filter(s => s.id !== sessionId);
-  await storeUserSessions(updatedSessions);
+  await storeUserSessions(userId, updatedSessions);
 
-  // Update user stats
-  const stats = await calculateUserStats(session.userId);
-  const authStore = useAuthStore.getState();
+  // Recalculate user stats
+  const stats = await calculateUserStats(userId);
   if (authStore.user) {
     await authStore.updateUserProfile({
       ...authStore.user,
@@ -152,17 +162,23 @@ export const deleteSession = async (sessionId: string): Promise<void> => {
 };
 
 /**
- * Get a single session by ID
+ * Get a specific session by ID
  */
 export const getSessionById = async (sessionId: string): Promise<SurfSession | null> => {
-  const sessions = await getUserSessions();
+  const authStore = useAuthStore.getState();
+  const userId = authStore.user?.id;
+  
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
+
+  const sessions = await getUserSessionsFromStorage(userId);
   return sessions.find(s => s.id === sessionId) || null;
 };
 
 /**
- * Get all sessions for a user
+ * Get all sessions for the current user
  */
 export const getUserSessionsById = async (userId: string): Promise<SurfSession[]> => {
-  const sessions = await getUserSessions();
-  return sessions.filter(s => s.userId === userId);
+  return await getUserSessionsFromStorage(userId);
 }; 

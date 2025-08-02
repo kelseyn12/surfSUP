@@ -59,7 +59,11 @@ const DebugScreen: React.FC = () => {
   };
 
   // Test spots
-  const spotIds = ['stoneypoint', 'parkpoint', 'lesterriver', 'superiorentry'];
+  const spotIds = [
+    'stoneypoint', 'boulders', 'guardrails', 'lesterriver', 'brightonbeach', 
+    'frenchriver', 'parkpoint', 'floodbay', 'beaverbay', 'grandmaraismn',
+    'marquette', 'ashland', 'cornucopia', 'grandmaraismi', 'duluth'
+  ];
 
   return (
     <ScrollView style={styles.container} key={refreshKey}>

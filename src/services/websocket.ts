@@ -192,8 +192,6 @@ class WebSocketService {
       return;
     }
     
-    console.log('[WebSocket] Sending message:', message);
-    
     // In a real implementation, this would send the message to the server
     // For the mock implementation, we'll just echo it back after a delay
     setTimeout(() => {

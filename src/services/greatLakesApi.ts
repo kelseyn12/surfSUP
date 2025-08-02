@@ -1,85 +1,25 @@
-import { SurfConditions } from '../types';
+import { 
+  SurfConditions, 
+  WaterLevelData, 
+  BuoyData, 
+  WindData, 
+  NoaaWaterLevelResponse, 
+  NdbcBuoyResponse, 
+  AggregatedConditions 
+} from '../types';
+import { 
+  checkWindDirection, 
+  getSpotConfig, 
+  isFavorableWindDirection, 
+  generateWindDirectionNotes,
+  convertWindyWindDirection,
+  getWindDirectionFromDegrees
+} from '../config/surfConfig';
 
 // Multiple data source APIs for comprehensive Great Lakes forecasting
 const NOAA_WATER_LEVEL_BASE = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter';
 const NDBC_BASE = 'https://www.ndbc.noaa.gov/data/realtime2';
 const WINDY_API_BASE = 'https://api.windy.com/api/point-forecast/v2';
-
-// Lake Superior surf spots configuration with directional preferences
-export const surfSpotsConfig = {
-  parkpoint: {
-    name: 'Park Point',
-    idealSwell: ['NE', 'E'],
-    offshoreWind: ['SW', 'W'],
-    confidence: 'high',
-  },
-  lester: {
-    name: 'Lester River',
-    idealSwell: ['NE'],
-    offshoreWind: ['W', 'NW'],
-    confidence: 'high',
-  },
-  brighton: {
-    name: 'Brighton Beach',
-    idealSwell: ['NE'],
-    offshoreWind: ['W', 'NW'],
-    confidence: 'high',
-  },
-  frenchriver: {
-    name: 'French River',
-    idealSwell: ['NE'],
-    offshoreWind: ['W', 'NW'],
-    confidence: 'high',
-  },
-  stoney: {
-    name: 'Stoney Point',
-    idealSwell: ['NE'],
-    offshoreWind: ['NW', 'NNW'],
-    confidence: 'high',
-  },
-  boulders: {
-    name: 'Boulders',
-    idealSwell: ['NE'],
-    offshoreWind: ['NW', 'NNW'],
-    confidence: 'low',
-  },
-  guardrails: {
-    name: 'Guardrails',
-    idealSwell: ['NE'],
-    offshoreWind: ['NW', 'NNW'],
-    confidence: 'low',
-  },
-  beaverbay: {
-    name: 'Beaver Bay',
-    idealSwell: ['E', 'ENE'],
-    offshoreWind: ['W', 'SW'],
-    confidence: 'medium',
-  },
-  floodbay: {
-    name: 'Flood Bay',
-    idealSwell: ['E', 'ENE'],
-    offshoreWind: ['W', 'SW'],
-    confidence: 'medium',
-  },
-  grandmarais: {
-    name: 'Grand Marais',
-    idealSwell: ['E', 'ENE'],
-    offshoreWind: ['W', 'SW'],
-    confidence: 'high',
-  },
-  marquette: {
-    name: 'Marquette',
-    idealSwell: ['N', 'NE'],
-    offshoreWind: ['SW'],
-    confidence: 'high',
-  },
-  duluth: {
-    name: 'Duluth Area',
-    idealSwell: ['NE', 'E'],
-    offshoreWind: ['SW', 'W'],
-    confidence: 'medium',
-  },
-};
 
 // Lake Superior buoy stations (NDBC) - CORRECTED TYPES
 const LAKE_SUPERIOR_BUOYS = {
@@ -162,92 +102,11 @@ const WIND_SOURCES = {
 const WATER_LEVEL_STATIONS = {
   'DULUTH': { id: '9099064', name: 'Duluth', lat: 46.775, lon: -92.093 },
   'MARQUETTE': { id: '9099090', name: 'Marquette', lat: 46.545, lon: -87.378 },
-  'SUPERIOR_ENTRY': { id: '9099064', name: 'Superior Entry', lat: 46.715, lon: -92.059 },
+
   'THUNDER_BAY': { id: '9099090', name: 'Thunder Bay', lat: 48.380, lon: -89.247 },
 };
 
-interface WaterLevelData {
-  date: string;
-  level: number; // in feet above chart datum
-  trend: 'rising' | 'falling' | 'stable';
-}
 
-interface BuoyData {
-  timestamp: string;
-  waveHeight: number;
-  wavePeriod: number;
-  waveDirection: string;
-  waterTemp: number;
-  windSpeed: number;
-  windDirection: string;
-  source: string;
-}
-
-interface WindData {
-  windSpeed: number;
-  windDirection: string;
-  temperature: number;
-  pressure: number;
-  waveHeight?: number;
-  wavePeriod?: number;
-  waveDirection?: string;
-  source: string;
-}
-
-interface NoaaWaterLevelResponse {
-  data: Array<{
-    t: string; // time
-    v: string; // value (water level)
-  }>;
-  error?: string;
-}
-
-interface NdbcBuoyResponse {
-  time: string[];
-  wvht: number[]; // significant wave height
-  dpd: number[]; // dominant wave period
-  mwd: number[]; // mean wave direction
-  wspd: number[]; // wind speed
-  wdir: number[]; // wind direction
-  gst: number[]; // gust speed
-  wtemp: number[]; // water temperature
-  steepness: string[]; // wave steepness
-}
-
-// Aggregated data from all sources
-interface AggregatedConditions {
-  waveHeight: {
-    min: number;
-    max: number;
-    unit: 'ft';
-    sources: string[];
-    confidence: number; // 0-1 based on data consistency
-  };
-  wind: {
-    speed: number;
-    direction: string;
-    unit: 'mph';
-    sources: string[];
-    confidence: number;
-  };
-  swell: {
-    height: number;
-    period: number;
-    direction: string;
-    sources: string[];
-  }[];
-  waterTemp: {
-    value: number;
-    unit: 'F';
-    sources: string[];
-  };
-  rating: number;
-  conditions: string; // Human-readable description
-  recommendations: string[]; // Surf recommendations
-  surfLikelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing';
-  surfReport: string;
-  notes: string[];
-}
 
 /**
  * Fetch data from ALL sources simultaneously
@@ -258,6 +117,8 @@ export const fetchAllGreatLakesData = async (
   longitude: number
 ): Promise<AggregatedConditions | null> => {
   try {
+  
+    
     const [
       buoyData,
       windData,
@@ -268,34 +129,38 @@ export const fetchAllGreatLakesData = async (
       fetchWaterLevelData(latitude, longitude)
     ]);
     
-    // Log errors only
+    // Extract successful results
+    const successfulBuoyData = buoyData.status === 'fulfilled' ? buoyData.value : [];
+    const successfulWindData = windData.status === 'fulfilled' ? windData.value : null;
+    const successfulWaterData = waterLevelData.status === 'fulfilled' ? waterLevelData.value : { waterLevel: null, waterTemp: null };
+    
+
+    
+    // Log errors with context
     if (buoyData.status === 'rejected') {
       console.error('🌊 Buoy data error:', buoyData.reason);
     }
     if (windData.status === 'rejected') {
-      console.error('🌊 Wind data error:', windData.reason);
+      const error = windData.reason;
+      if (error && error.toString().includes('429')) {
+        // Rate limited - silent fail
+      } else {
+        console.error('🌊 Wind data error:', error);
+      }
     }
     if (waterLevelData.status === 'rejected') {
       console.error('🌊 Water data error:', waterLevelData.reason);
     }
     
-    // Check if we got any real data from ANY of the 3 sources
-    const hasRealData = (buoyData.status === 'fulfilled' && buoyData.value.length > 0) ||
-                       (windData.status === 'fulfilled' && windData.value !== null) ||
-                       (waterLevelData.status === 'fulfilled' && waterLevelData.value.waterTemp !== null);
-    
-    if (!hasRealData) {
-      console.error('🌊 No real data available from any source');
-      return null;
-    }
-    
-    // Aggregate all the data from ALL 4 sources
+    // Aggregate all data sources with intelligent blending
     const aggregated = aggregateAllData(
-      buoyData.status === 'fulfilled' ? buoyData.value : [],
-      windData.status === 'fulfilled' ? windData.value : null,
-      waterLevelData.status === 'fulfilled' ? waterLevelData.value : { waterLevel: null, waterTemp: null },
+      successfulBuoyData,
+      successfulWindData,
+      successfulWaterData,
       spotId
     );
+    
+
     
     return aggregated;
     
@@ -310,34 +175,54 @@ export const fetchAllGreatLakesData = async (
  */
 const fetchAllBuoyData = async (latitude: number, longitude: number): Promise<BuoyData[]> => {
   const allBuoyData: BuoyData[] = [];
+  const buoyStatus: { [key: string]: string } = {};
   
   // Try all buoys within reasonable distance
   for (const [buoyId, buoy] of Object.entries(LAKE_SUPERIOR_BUOYS)) {
     const distance = calculateDistance(latitude, longitude, buoy.lat, buoy.lon);
     
-        // Increase range to 250 miles to capture MID SUPERIOR and Rock of Ages buoys
+    // Increase range to 250 miles to capture MID SUPERIOR and Rock of Ages buoys
     if (distance <= 250) {
-              try {
-          const url = `${NDBC_BASE}/${buoyId}.txt`;
+      try {
+        const url = `${NDBC_BASE}/${buoyId}.txt`;
+        
+        const response = await fetch(url);
+        
+        if (response.ok) {
+          const text = await response.text();
           
-          const response = await fetch(url);
+
           
-          if (response.ok) {
-            const text = await response.text();
+          // Check if the buoy data contains current information
+          const hasCurrentData = text.includes(new Date().getFullYear().toString()) || 
+                               text.includes((new Date().getFullYear() - 1).toString());
+          
+          const latestData = parseBuoyData(text, buoyId, buoy.name);
+          
+          if (latestData) {
+            // Check if buoy data is realistic (not out of water)
+            // Be more lenient - allow buoys with wave data even if wind data is missing
+            const hasValidWaveData = latestData.waveHeight > 0;
+            const hasValidWindData = latestData.windSpeed > 0;
+            const isRealistic = hasValidWaveData || hasValidWindData;
             
-            // Check if the buoy data contains current information
-            const hasCurrentData = text.includes(new Date().getFullYear().toString()) || 
-                                 text.includes((new Date().getFullYear() - 1).toString());
-            
-            const latestData = parseBuoyData(text, buoyId, buoy.name);
-            
-            if (latestData) {
+            if (isRealistic) {
               allBuoyData.push(latestData);
+              buoyStatus[buoyId] = 'active';
+            } else {
+              buoyStatus[buoyId] = 'out-of-water';
+              console.log(`🌊 Buoy ${buoyId} (${buoy.name}) appears to be out of water or not reporting realistic data`);
             }
+          } else {
+            buoyStatus[buoyId] = 'no-data';
+            console.log(`🌊 Buoy ${buoyId} (${buoy.name}) returned no parseable data`);
+          }
         } else {
+          buoyStatus[buoyId] = 'http-error';
           console.error(`🌊 Buoy ${buoyId} HTTP error:`, response.status, response.statusText);
         }
       } catch (error) {
+        buoyStatus[buoyId] = 'fetch-error';
         console.error(`🌊 Error fetching buoy ${buoyId}:`, error);
       }
     }
@@ -410,10 +295,30 @@ const fetchAllWindData = async (latitude: number, longitude: number): Promise<Wi
  */
 const fetchWindyWindData = async (latitude: number, longitude: number): Promise<WindData | null> => {
   try {
-    const WINDY_API_KEY = process.env.EXPO_PUBLIC_WINDY_API_KEY || 'demo';
-    const url = 'https://api.windy.com/api/point-forecast/v2';
+    const WINDY_API_KEY = process.env.EXPO_PUBLIC_WINDY_API_KEY;
+    
+    if (!WINDY_API_KEY) {
+      console.warn('🌊 Windy API key not found. Set EXPO_PUBLIC_WINDY_API_KEY in your environment variables.');
+      return null;
+    }
+    
+    // Add debouncing to prevent rate limiting
+    const lastCallTime = (globalThis as any).lastWindyCall || 0;
+    const timeSinceLastCall = Date.now() - lastCallTime;
+    const minInterval = 200; // 200ms between calls
+    
+    if (timeSinceLastCall < minInterval) {
+      await new Promise(resolve => setTimeout(resolve, minInterval - timeSinceLastCall));
+    }
+    
+    (globalThis as any).lastWindyCall = Date.now();
+    
+    const url = WINDY_API_BASE;
     
     // Make two separate requests: one for wind data, one for wave data
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
     const [windResponse, waveResponse] = await Promise.allSettled([
       // Request 1: Wind data using gfs model
       fetch(url, {
@@ -426,7 +331,8 @@ const fetchWindyWindData = async (latitude: number, longitude: number): Promise<
           parameters: ['wind', 'temp', 'pressure'],
           levels: ['surface'],
           key: WINDY_API_KEY
-        })
+        }),
+        signal: controller.signal
       }),
       // Request 2: Wave data using gfsWave model
       fetch(url, {
@@ -439,9 +345,12 @@ const fetchWindyWindData = async (latitude: number, longitude: number): Promise<
           parameters: ['waves'],
           levels: ['surface'],
           key: WINDY_API_KEY
-        })
+        }),
+        signal: controller.signal
       })
     ]);
+    
+    clearTimeout(timeoutId);
     
     // Process wind data
     let windData = null;
@@ -455,7 +364,7 @@ const fetchWindyWindData = async (latitude: number, longitude: number): Promise<
         const pressure = windJson['pressure-surface'] ? windJson['pressure-surface'][currentIndex] : 1013;
         
         const windSpeed = Math.sqrt(windU * windU + windV * windV) * 2.23694; // Convert m/s to mph
-        const windDirection = getWindDirectionFromDegrees(Math.atan2(windV, windU) * 180 / Math.PI);
+        const windDirection = convertWindyWindDirection(windU, windV);
         
         windData = {
           windSpeed: windSpeed || 0,
@@ -466,7 +375,12 @@ const fetchWindyWindData = async (latitude: number, longitude: number): Promise<
         };
       }
     } else {
-      console.error('🌊 Windy wind data request failed:', windResponse.status === 'rejected' ? windResponse.reason : windResponse.value?.status);
+      const status = windResponse.status === 'rejected' ? windResponse.reason : windResponse.value?.status;
+      if (status === 429) {
+        // Rate limited - silent fail
+      } else {
+        console.error('🌊 Windy wind data request failed:', status);
+      }
     }
     
     // Process wave data
@@ -486,7 +400,12 @@ const fetchWindyWindData = async (latitude: number, longitude: number): Promise<
         };
       }
     } else {
-      console.error('🌊 Windy wave data request failed:', waveResponse.status === 'rejected' ? waveResponse.reason : waveResponse.value?.status);
+      const status = waveResponse.status === 'rejected' ? waveResponse.reason : waveResponse.value?.status;
+      if (status === 429) {
+        // Rate limited - silent fail
+      } else {
+        console.error('🌊 Windy wave data request failed:', status);
+      }
     }
     
     // Combine wind and wave data
@@ -498,10 +417,19 @@ const fetchWindyWindData = async (latitude: number, longitude: number): Promise<
       waveHeight: waveData?.waveHeight || 0,
       wavePeriod: waveData?.wavePeriod || 0,
       waveDirection: waveData?.waveDirection || 'N',
-      source: 'windy'
+      source: windData || waveData ? 'windy' : 'windy-rate-limited'
     };
     
-    console.log('🌊 Windy API working - combined data:', result);
+    // Only log success if we actually got data
+    if (windData || waveData) {
+      console.log('🌊 Windy API working - combined data:', result);
+    }
+    
+    // Return null if no data available (let other sources handle it)
+    if (!windData && !waveData) {
+      return null;
+    }
+    
     return result;
   } catch (error) {
     console.error('🌊 Error fetching Windy data:', error);
@@ -512,13 +440,11 @@ const fetchWindyWindData = async (latitude: number, longitude: number): Promise<
 
 
 /**
- * Fetch NOAA wind data
+ * Fetch NOAA wind data with improved parsing
  */
 const fetchNOAAWindData = async (stationId: string): Promise<WindData | null> => {
   try {
     // Get the appropriate forecast zone based on location
-    // For Duluth area spots (Stoney Point, Park Point), use DLH (Duluth)
-    // For other Lake Superior spots, we can expand this logic
     const forecastZone = 'DLH'; // Duluth area
     const url = `https://api.weather.gov/products/types/GLFLS/locations/${forecastZone}`;
     
@@ -526,24 +452,31 @@ const fetchNOAAWindData = async (stationId: string): Promise<WindData | null> =>
     
     if (response.ok) {
       const data = await response.json();
-  
       
       // Parse the marine forecast text to extract current conditions
       if (data.features && data.features.length > 0) {
         const forecast = data.features[0].properties.productText;
         
-        // More flexible wind parsing - look for various patterns
+        // Enhanced wind parsing with multiple flexible patterns
         const windPatterns = [
-          /(\w+) winds (\d+) to (\d+) knots/,
-          /(\w+) winds (\d+) knots/,
-          /winds (\w+) (\d+) to (\d+) knots/,
-          /winds (\w+) (\d+) knots/
+          // Standard patterns
+          /(\w+)\s+winds?\s+(\d+)\s+to\s+(\d+)\s+knots?/i,
+          /(\w+)\s+winds?\s+(\d+)\s+knots?/i,
+          /winds?\s+(\w+)\s+(\d+)\s+to\s+(\d+)\s+knots?/i,
+          /winds?\s+(\w+)\s+(\d+)\s+knots?/i,
+          // Alternative formats
+          /(\w+)\s+(\d+)\s+to\s+(\d+)\s+knots?/i,
+          /(\w+)\s+(\d+)\s+knots?/i,
+          // With cardinal directions
+          /(north|south|east|west|northeast|northwest|southeast|southwest|nne|nnw|ene|ese|sse|ssw|wsw|wnw)\s+winds?\s+(\d+)\s+to\s+(\d+)\s+knots?/i,
+          /(north|south|east|west|northeast|northwest|southeast|southwest|nne|nnw|ene|ese|sse|ssw|wsw|wnw)\s+winds?\s+(\d+)\s+knots?/i,
         ];
         
         let windMatch = null;
         let windDirection = 'SW';
         let windSpeed = 10; // Default fallback
         
+        // Try each pattern until we find a match
         for (const pattern of windPatterns) {
           windMatch = forecast.match(pattern);
           if (windMatch) {
@@ -552,43 +485,99 @@ const fetchNOAAWindData = async (stationId: string): Promise<WindData | null> =>
         }
         
         if (windMatch) {
+          // Extract wind direction and speed based on pattern
           if (windMatch.length === 4) {
-            // Pattern: "Southwest winds 5 to 15 knots"
-            windDirection = windMatch[1];
+            // Pattern: "Southwest winds 5 to 15 knots" or "SW 5 to 15 knots"
+            windDirection = normalizeWindDirection(windMatch[1]);
             const windSpeedMin = parseInt(windMatch[2]);
             const windSpeedMax = parseInt(windMatch[3]);
             windSpeed = (windSpeedMin + windSpeedMax) / 2 * 1.15078; // Convert knots to mph
           } else if (windMatch.length === 3) {
-            // Pattern: "Southwest winds 10 knots"
-            windDirection = windMatch[1];
+            // Pattern: "Southwest winds 10 knots" or "SW 10 knots"
+            windDirection = normalizeWindDirection(windMatch[1]);
             windSpeed = parseInt(windMatch[2]) * 1.15078; // Convert knots to mph
           }
           
-
-          
+          // Validate extracted data
+          if (windSpeed > 0 && windSpeed < 50 && windDirection) {
+            return {
+              windSpeed: Math.round(windSpeed * 10) / 10,
+              windDirection: windDirection,
+              temperature: 67, // Use water temp as air temp approximation
+              pressure: 1013,
+              source: 'noaa-marine-forecast'
+            };
+          }
+        }
+        
+        // If no wind pattern found, try to extract any wind information
+        const fallbackWind = extractFallbackWind(forecast);
+        if (fallbackWind) {
           return {
-            windSpeed: windSpeed,
-            windDirection: windDirection,
-            temperature: 67, // Use water temp as air temp approximation
+            windSpeed: fallbackWind.speed,
+            windDirection: fallbackWind.direction,
+            temperature: 67,
             pressure: 1013,
-            source: 'noaa-marine-forecast'
+            source: 'noaa-marine-forecast-fallback'
           };
         }
       }
     }
     
-        
-        
-        // Fallback to reasonable Lake Superior conditions based on the forecast
-        return {
-          windSpeed: 10, // Southwest 5-15 knots average
-          windDirection: 'SW',
-          temperature: 67,
-          pressure: 1013,
-          source: 'noaa-fallback'
-        };
+    // Final fallback to reasonable Lake Superior conditions
+    return {
+      windSpeed: 10,
+      windDirection: 'SW',
+      temperature: 67,
+      pressure: 1013,
+      source: 'noaa-fallback'
+    };
   } catch (error) {
     console.error('🌊 Error fetching NOAA wind data:', error);
+    return null;
+  }
+};
+
+/**
+ * Normalize wind direction to standard format
+ */
+const normalizeWindDirection = (direction: string): string => {
+  const directionMap: { [key: string]: string } = {
+    'north': 'N', 'south': 'S', 'east': 'E', 'west': 'W',
+    'northeast': 'NE', 'northwest': 'NW', 'southeast': 'SE', 'southwest': 'SW',
+    'nne': 'NNE', 'nnw': 'NNW', 'ene': 'ENE', 'ese': 'ESE',
+    'sse': 'SSE', 'ssw': 'SSW', 'wsw': 'WSW', 'wnw': 'WNW'
+  };
+  
+  const normalized = direction.toLowerCase();
+  return directionMap[normalized] || direction.toUpperCase();
+};
+
+/**
+ * Extract wind information from forecast text using fuzzy matching
+ */
+const extractFallbackWind = (forecast: string): { speed: number; direction: string } | null => {
+  try {
+    // Look for any mention of wind with numbers
+    const windMentions = forecast.match(/(\w+)\s+(\d+)\s*(knots?|mph|miles?)/gi);
+    if (windMentions && windMentions.length > 0) {
+      const firstMention = windMentions[0];
+      const parts = firstMention.split(/\s+/);
+      
+      if (parts.length >= 2) {
+        const direction = normalizeWindDirection(parts[0]);
+        const speed = parseInt(parts[1]) || 10;
+        
+        return {
+          speed: speed * 1.15078, // Assume knots, convert to mph
+          direction: direction
+        };
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('🌊 Error in fallback wind extraction:', error);
     return null;
   }
 };
@@ -642,50 +631,94 @@ const fetchWaterLevelData = async (latitude: number, longitude: number): Promise
  * Parse buoy data from NDBC text format
  */
 const parseBuoyData = (text: string, buoyId: string, buoyName: string): BuoyData | null => {
+  // Parse NDBC text format into structured data
+  // NDBC format: YY MM DD hh mm WVHT DPD MWD WSPD WDIR GST WTMP
+  // This represents the NdbcBuoyResponse structure
   try {
-    const lines = text.split('\n').filter(line => line.trim());
+
     
-    // Find the latest valid data line (only check last 10 lines for efficiency)
-    const recentLines = lines.slice(-10);
-    for (let i = recentLines.length - 1; i >= 0; i--) {
+    // Convert text to NdbcBuoyResponse format for type safety
+    const lines = text.split('\n').filter(line => line.trim());
+    const ndbcResponse: NdbcBuoyResponse = {
+      time: [],
+      wvht: [],
+      dpd: [],
+      mwd: [],
+      wspd: [],
+      wdir: [],
+      gst: [],
+      wtemp: [],
+      steepness: []
+    };
+    
+    // Parse each line into NDBC format
+    lines.forEach(line => {
+      const parts = line.split(/\s+/);
+      if (parts.length >= 12) {
+        ndbcResponse.time.push(parts.slice(0, 5).join(' '));
+        ndbcResponse.wvht.push(parseFloat(parts[5]) || 0);
+        ndbcResponse.dpd.push(parseFloat(parts[6]) || 0);
+        ndbcResponse.mwd.push(parseFloat(parts[7]) || 0);
+        ndbcResponse.wspd.push(parseFloat(parts[8]) || 0);
+        ndbcResponse.wdir.push(parseFloat(parts[9]) || 0);
+        ndbcResponse.gst.push(parseFloat(parts[10]) || 0);
+        ndbcResponse.wtemp.push(parseFloat(parts[11]) || 0);
+        ndbcResponse.steepness.push(parts[12] || '');
+      }
+    });
+    
+    // Find the latest valid data line (check first 20 lines for most recent data)
+    const recentLines = lines.slice(0, 20);
+    
+    for (let i = 0; i < recentLines.length; i++) {
       const line = recentLines[i];
       const parts = line.split(/\s+/);
       
-             if (parts.length >= 12) {
-                 // NDBC format: YY MM DD hh mm WVHT DPD MWD WSPD WDIR GST WTMP
-        const [year, month, day, hour, minute, waveHeight, wavePeriod, waveDirection, windSpeed, windDirection, gust, waterTemp] = parts;
+      if (parts.length >= 15) {
+        // Current NDBC format: YY MM DD hh mm WDIR WSPD GST WVHT DPD APD MWD PRES ATMP WTMP DEWP VIS PTDY TIDE
+        const [year, month, day, hour, minute, windDirection, windSpeed, gust, waveHeight, wavePeriod, avgPeriod, waveDirection, pressure, airTemp, waterTemp, dewPoint, visibility, pressureChange, tide] = parts;
         
-        // Check if any values are valid
+        // Check if we have valid wave data (this is most important)
         const hasValidWaveHeight = waveHeight !== 'MM' && !isNaN(parseFloat(waveHeight));
         const hasValidWavePeriod = wavePeriod !== 'MM' && !isNaN(parseFloat(wavePeriod));
         const hasValidWindSpeed = windSpeed !== 'MM' && !isNaN(parseFloat(windSpeed));
         
         // Check if we have ANY valid data (be more lenient)
-        if ((waveHeight !== 'MM' && !isNaN(parseFloat(waveHeight))) || 
-            (wavePeriod !== 'MM' && !isNaN(parseFloat(wavePeriod))) ||
-            (windSpeed !== 'MM' && !isNaN(parseFloat(windSpeed)))) {
+        if (hasValidWaveHeight || hasValidWavePeriod || hasValidWindSpeed) {
           
-                  // Check if this is recent data (within last 24 hours)
-        // Handle both 2-digit (25) and 4-digit (2025) year formats
-        const yearNum = parseInt(year);
-        const fullYear = yearNum < 100 ? 2000 + yearNum : yearNum;
-        
-        const dataDate = new Date(fullYear, parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
-        const now = new Date();
-        const hoursDiff = (now.getTime() - dataDate.getTime()) / (1000 * 60 * 60);
-        
-        // Only use data from last 24 hours - buoys should update every 10 minutes
-        if (hoursDiff > 24) {
-          continue;
-        }
+          // Check if this is recent data (within last 24 hours)
+          // Handle both 2-digit (25) and 4-digit (2025) year formats
+          const yearNum = parseInt(year);
+          const fullYear = yearNum < 100 ? 2000 + yearNum : yearNum;
+          
+          // Create date object in UTC (NDBC data is in UTC)
+          const dataDate = new Date(Date.UTC(fullYear, parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute)));
+          const now = new Date();
+          const hoursDiff = (now.getTime() - dataDate.getTime()) / (1000 * 60 * 60);
+          
+          // Be more lenient with time window - buoys might be delayed up to 48 hours
+          if (hoursDiff > 48) {
+            // Fallback: Check if data is from the same day
+            const dataDay = new Date(Date.UTC(fullYear, parseInt(month) - 1, parseInt(day)));
+            const today = new Date();
+            const todayDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+            
+            if (dataDay.getTime() !== todayDay.getTime()) {
+              console.log(`🌊 Buoy ${buoyId} data too old (${hoursDiff.toFixed(1)} hours)`);
+              continue;
+            } else {
+              console.log(`🌊 Buoy ${buoyId} using same-day data (${hoursDiff.toFixed(1)} hours old)`);
+            }
+          }
           
           const waveHeightNum = parseFloat(waveHeight);
           const wavePeriodNum = parseFloat(wavePeriod);
-          // NDBC reports wave height in centimeters, convert to feet
-          const waveHeightInFeet = (waveHeightNum / 100) * 3.28084; // cm to feet
+          // NDBC reports wave height in meters, convert to feet
+          const waveHeightInFeet = waveHeightNum * 3.28084; // meters to feet
           
-          // Skip unrealistic data (0.1 to 15 feet is reasonable for Lake Superior)
-          if (waveHeightInFeet > 15 || waveHeightInFeet < 0.1) {
+          // Skip unrealistic data (0.05 to 15 feet is reasonable for Lake Superior)
+          if (waveHeightInFeet > 15 || waveHeightInFeet < 0.05) {
+            console.log(`🌊 Buoy ${buoyId} wave height unrealistic: ${waveHeightInFeet.toFixed(1)}ft`);
             continue;
           }
           
@@ -693,25 +726,32 @@ const parseBuoyData = (text: string, buoyId: string, buoyName: string): BuoyData
           const windSpeedNum = windSpeed !== 'MM' ? parseFloat(windSpeed) : 0;
           const windDirectionValue = windDirection !== 'MM' ? windDirection : 'N';
           
-          const timestamp = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute)).toISOString();
+          // Convert wind direction from degrees to cardinal direction if needed
+          let finalWindDirection = windDirectionValue;
+          if (windDirectionValue && !isNaN(parseFloat(windDirectionValue))) {
+            // Convert degrees to cardinal direction
+            const degrees = parseFloat(windDirectionValue);
+            finalWindDirection = getWindDirectionFromDegrees(degrees);
+          }
           
-                     // Validate water temperature (Lake Superior is never above 25°C)
-           const waterTempC = parseFloat(waterTemp) || 10; // Default to 10°C (50°F)
-   
-           
-           const finalWaterTempC = Math.min(Math.max(waterTempC, 0), 25); // Clamp between 0-25°C
-           
-           
-           return {
-             timestamp,
-             waveHeight: waveHeightInFeet,
-             wavePeriod: wavePeriodNum,
-             waveDirection: waveDirection || 'N',
-             waterTemp: finalWaterTempC,
-             windSpeed: windSpeedNum,
-             windDirection: windDirectionValue,
-             source: `ndbc-${buoyId}`
-           };
+          // Create timestamp in UTC consistently
+          const timestamp = new Date(Date.UTC(fullYear, parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute))).toISOString();
+          
+          // Validate water temperature (Lake Superior is never above 25°C)
+          const waterTempC = parseFloat(waterTemp) || 10; // Default to 10°C (50°F)
+          
+          const finalWaterTempC = Math.min(Math.max(waterTempC, 0), 25); // Clamp between 0-25°C
+          
+          return {
+            timestamp,
+            waveHeight: waveHeightInFeet,
+            wavePeriod: wavePeriodNum,
+            waveDirection: waveDirection || 'N',
+            waterTemp: finalWaterTempC,
+            windSpeed: windSpeedNum,
+            windDirection: finalWindDirection,
+            source: `ndbc-${buoyId}`
+          };
         }
       }
     }
@@ -724,60 +764,327 @@ const parseBuoyData = (text: string, buoyId: string, buoyName: string): BuoyData
 };
 
 /**
- * Aggregate all data sources into intuitive conditions
+ * Validate spot ID exists in configuration
  */
-const aggregateAllData = (
-  buoyData: BuoyData[],
-  windData: WindData | null,
-  waterData: { waterLevel: WaterLevelData | null; waterTemp: number | null },
-  spotId: string = 'duluth'
-): AggregatedConditions => {
+const validateSpotId = (spotId: string): boolean => {
+  const spotConfig = getSpotConfig(spotId);
+  return spotConfig !== undefined;
+};
+
+/**
+ * Validate that we have sufficient data to generate conditions
+ */
+const validateData = (buoyData: BuoyData[], windData: WindData | null): boolean => {
+  return buoyData.length > 0 || windData !== null;
+};
+
+/**
+ * Aggregate wave data from all sources
+ */
+interface WaveDataPoint {
+  value: number;
+  source: string;
+  confidence: number;
+  timestamp?: string;
+}
+
+interface BlendedWaveData {
+  avgWaveHeight: number;
+  avgWavePeriod: number;
+  waveDirections: string[];
+  waveConfidence: number;
+  sources: string[];
+  debugInfo: {
+    method: string;
+    reasoning: string;
+    conflicts?: string[];
+  };
+}
+
+const aggregateWaveData = (buoyData: BuoyData[], windData: WindData | null): BlendedWaveData => {
+  const waveHeightPoints: WaveDataPoint[] = [];
+  const wavePeriodPoints: WaveDataPoint[] = [];
+  const waveDirectionPoints: WaveDataPoint[] = [];
   
-      // Aggregate wave height from ALL sources (buoys + surf APIs)
-    const waveHeights = buoyData.map(b => b.waveHeight);
-    const wavePeriods = buoyData.map(b => b.wavePeriod);
-    const waveDirections = buoyData.map(b => b.waveDirection);
+  // Collect all wave height data points with source info
+  buoyData.forEach(buoy => {
+    if (buoy.waveHeight > 0) {
+      waveHeightPoints.push({
+        value: buoy.waveHeight,
+        source: `ndbc-${buoy.source}`,
+        confidence: 0.9, // High confidence for buoy data
+        timestamp: buoy.timestamp
+      });
+    }
+  });
+  
+  // Add Windy wave data if available
+  if (windData && windData.waveHeight) {
+    waveHeightPoints.push({
+      value: windData.waveHeight,
+      source: 'windy-gfsWave',
+      confidence: 0.7, // Medium confidence for model data
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  if (windData && windData.wavePeriod) {
+    wavePeriodPoints.push({
+      value: windData.wavePeriod,
+      source: 'windy-gfsWave',
+      confidence: 0.7
+    });
+  }
+  
+  // Collect wave period data
+  buoyData.forEach(buoy => {
+    if (buoy.wavePeriod > 0) {
+      wavePeriodPoints.push({
+        value: buoy.wavePeriod,
+        source: `ndbc-${buoy.source}`,
+        confidence: 0.9
+      });
+    }
+  });
+  
+  // Intelligent blending logic
+  const blendWaveHeight = (points: WaveDataPoint[]): BlendedWaveData => {
+    if (points.length === 0) {
+      return {
+        avgWaveHeight: 0,
+        avgWavePeriod: 0,
+        waveDirections: [],
+        waveConfidence: 0.1,
+        sources: [],
+        debugInfo: {
+          method: 'no-data',
+          reasoning: 'No wave height data available from any source'
+        }
+      };
+    }
+    
+    if (points.length === 1) {
+      return {
+        avgWaveHeight: points[0].value,
+        avgWavePeriod: 0,
+        waveDirections: [],
+        waveConfidence: points[0].confidence,
+        sources: [points[0].source],
+        debugInfo: {
+          method: 'single-source',
+          reasoning: `Using single source: ${points[0].source}`
+        }
+      };
+    }
+    
+    // Multiple sources - intelligent blending
+    const values = points.map(p => p.value);
+    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+    const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
+    const stdDev = Math.sqrt(variance);
+    
+    // Check for significant conflicts
+    const conflicts: string[] = [];
+    const maxDiff = Math.max(...values) - Math.min(...values);
+    if (maxDiff > 2.0) { // More than 2ft difference
+      conflicts.push(`High variance detected: ${maxDiff.toFixed(1)}ft range`);
+    }
+    
+    // Weighted average based on confidence
+    const totalWeight = points.reduce((sum, p) => sum + p.confidence, 0);
+    const weightedValue = points.reduce((sum, p) => sum + (p.value * p.confidence), 0) / totalWeight;
+    
+    // Calculate blended confidence
+    const avgConfidence = points.reduce((sum, p) => sum + p.confidence, 0) / points.length;
+    const variancePenalty = Math.min(stdDev * 0.1, 0.3); // Penalty for high variance
+    const finalConfidence = Math.max(avgConfidence - variancePenalty, 0.1);
+    
+    let method = 'weighted-average';
+    let reasoning = `Blended ${points.length} sources with weighted average`;
+    
+    if (conflicts.length > 0) {
+      method = 'weighted-average-with-conflicts';
+      reasoning += `. Conflicts detected: ${conflicts.join(', ')}`;
+    }
     
 
     
-    // Create forecast based on buoy travel times
-    const forecasts = [];
-    buoyData.forEach(buoy => {
-      const buoyId = buoy.source.replace('ndbc-', '');
-      const buoyInfo = LAKE_SUPERIOR_BUOYS[buoyId as keyof typeof LAKE_SUPERIOR_BUOYS];
-      if (buoyInfo && buoyInfo.travelTime > 0) {
-        forecasts.push({
-          hours: buoyInfo.travelTime,
-          waveHeight: buoy.waveHeight,
-          wavePeriod: buoy.wavePeriod,
-          waveDirection: buoy.waveDirection,
-          source: buoy.source
-        });
+    return {
+      avgWaveHeight: weightedValue,
+      avgWavePeriod: 0,
+      waveDirections: [],
+      waveConfidence: finalConfidence,
+      sources: points.map(p => p.source),
+      debugInfo: {
+        method,
+        reasoning,
+        conflicts
       }
+    };
+  };
+  
+  const blendedWaveHeight = blendWaveHeight(waveHeightPoints);
+  
+  // Simple average for wave period (less critical)
+  const avgWavePeriod = wavePeriodPoints.length > 0 ? 
+    wavePeriodPoints.reduce((sum, p) => sum + p.value, 0) / wavePeriodPoints.length : 0;
+  
+  return {
+    avgWaveHeight: blendedWaveHeight.avgWaveHeight,
+    avgWavePeriod,
+    waveDirections: buoyData.map(b => b.waveDirection),
+    waveConfidence: blendedWaveHeight.waveConfidence,
+    sources: blendedWaveHeight.sources,
+    debugInfo: blendedWaveHeight.debugInfo
+  };
+};
+
+/**
+ * Aggregate wind data from all sources
+ */
+interface WindDataPoint {
+  speed: number;
+  direction: string;
+  source: string;
+  confidence: number;
+  timestamp?: string;
+}
+
+interface BlendedWindData {
+  avgWindSpeed: number;
+  windDirection: string;
+  windConfidence: number;
+  gustSpeed?: number;
+  sources: string[];
+  debugInfo: {
+    method: string;
+    reasoning: string;
+    conflicts?: string[];
+  };
+}
+
+const aggregateWindData = (buoyData: BuoyData[], windData: WindData | null): BlendedWindData => {
+  const windSpeedPoints: WindDataPoint[] = [];
+  const windDirectionPoints: WindDataPoint[] = [];
+  
+  // Collect all wind speed data points with source info
+  buoyData.forEach(buoy => {
+    if (buoy.windSpeed > 0) {
+      windSpeedPoints.push({
+        speed: buoy.windSpeed,
+        direction: buoy.windDirection,
+        source: `ndbc-${buoy.source}`,
+        confidence: 0.9, // High confidence for buoy data
+        timestamp: buoy.timestamp
+      });
+    }
+  });
+  
+  // Add Windy wind data if available
+  if (windData && windData.windSpeed > 0) {
+    windSpeedPoints.push({
+      speed: windData.windSpeed,
+      direction: windData.windDirection,
+      source: 'windy-gfs',
+      confidence: 0.7, // Medium confidence for model data
+      timestamp: new Date().toISOString()
     });
-    
-    // Include Windy wave data if available
-    if (windData && windData.waveHeight) {
-      waveHeights.push(windData.waveHeight);
+  }
+  
+  // Intelligent blending logic
+  const blendWindSpeed = (points: WindDataPoint[]): BlendedWindData => {
+    if (points.length === 0) {
+      return {
+        avgWindSpeed: 0,
+        windDirection: 'N',
+        windConfidence: 0.1,
+        sources: [],
+        debugInfo: {
+          method: 'no-data',
+          reasoning: 'No wind data available from any source'
+        }
+      };
     }
     
-    const avgWaveHeight = waveHeights.length > 0 ? 
-      waveHeights.reduce((sum, h) => sum + h, 0) / waveHeights.length : 0;
+    if (points.length === 1) {
+      return {
+        avgWindSpeed: points[0].speed,
+        windDirection: points[0].direction,
+        windConfidence: points[0].confidence,
+        sources: [points[0].source],
+        debugInfo: {
+          method: 'single-source',
+          reasoning: `Using single source: ${points[0].source}`
+        }
+      };
+    }
+    
+    // Multiple sources - intelligent blending
+    const speeds = points.map(p => p.speed);
+    const mean = speeds.reduce((sum, v) => sum + v, 0) / speeds.length;
+    const variance = speeds.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / speeds.length;
+    const stdDev = Math.sqrt(variance);
+    
+    // Check for significant conflicts
+    const conflicts: string[] = [];
+    const maxDiff = Math.max(...speeds) - Math.min(...speeds);
+    if (maxDiff > 15) { // More than 15mph difference
+      conflicts.push(`High variance detected: ${maxDiff.toFixed(1)}mph range`);
+    }
+    
+    // Weighted average based on confidence
+    const totalWeight = points.reduce((sum, p) => sum + p.confidence, 0);
+    const weightedSpeed = points.reduce((sum, p) => sum + (p.speed * p.confidence), 0) / totalWeight;
+    
+    // Use most common direction or weighted by confidence
+    const directions = points.map(p => p.direction);
+    const windDirection = getMostCommonDirection(directions);
+    
+    // Calculate blended confidence
+    const avgConfidence = points.reduce((sum, p) => sum + p.confidence, 0) / points.length;
+    const variancePenalty = Math.min(stdDev * 0.05, 0.2); // Smaller penalty for wind variance
+    const finalConfidence = Math.max(avgConfidence - variancePenalty, 0.1);
+    
+    let method = 'weighted-average';
+    let reasoning = `Blended ${points.length} sources with weighted average`;
+    
+    if (conflicts.length > 0) {
+      method = 'weighted-average-with-conflicts';
+      reasoning += `. Conflicts detected: ${conflicts.join(', ')}`;
+    }
+    
+
+    
+    return {
+      avgWindSpeed: weightedSpeed,
+      windDirection,
+      windConfidence: finalConfidence,
+      gustSpeed: windData?.gustSpeed,
+      sources: points.map(p => p.source),
+      debugInfo: {
+        method,
+        reasoning,
+        conflicts
+      }
+    };
+  };
   
-  // Aggregate wind data
-  const windSpeeds = [...buoyData.map(b => b.windSpeed)];
-  if (windData) windSpeeds.push(windData.windSpeed);
+  const blendedWind = blendWindSpeed(windSpeedPoints);
   
-  const avgWindSpeed = windSpeeds.length > 0 ? 
-    windSpeeds.reduce((sum, s) => sum + s, 0) / windSpeeds.length : 0;
-  
-  // Get most common wind direction
-  const windDirections = [...buoyData.map(b => b.windDirection)];
-  if (windData) windDirections.push(windData.windDirection);
-  
-  const windDirection = getMostCommonDirection(windDirections);
-  
-  // Aggregate water temperature from multiple sources
+  return {
+    avgWindSpeed: blendedWind.avgWindSpeed,
+    windDirection: blendedWind.windDirection,
+    windConfidence: blendedWind.windConfidence,
+    gustSpeed: blendedWind.gustSpeed,
+    sources: blendedWind.sources,
+    debugInfo: blendedWind.debugInfo
+  };
+};
+
+/**
+ * Aggregate water temperature from multiple sources
+ */
+const aggregateWaterData = (buoyData: BuoyData[], waterData: { waterLevel: WaterLevelData | null; waterTemp: number | null }) => {
   const waterTemps = buoyData.map(b => b.waterTemp);
   
   let finalWaterTempF = 60; // Default to 60°F for Lake Superior summer
@@ -785,8 +1092,6 @@ const aggregateAllData = (
   // Try buoy data first
   if (waterTemps.length > 0) {
     const avgWaterTempC = waterTemps.reduce((sum, t) => sum + t, 0) / waterTemps.length;
-    
-    // Convert to Fahrenheit and validate
     const buoyWaterTempF = (avgWaterTempC * 9/5) + 32;
     if (buoyWaterTempF >= 40 && buoyWaterTempF <= 80) {
       finalWaterTempF = buoyWaterTempF;
@@ -804,19 +1109,27 @@ const aggregateAllData = (
   // Ensure realistic temperature for Lake Superior
   finalWaterTempF = Math.min(Math.max(finalWaterTempF, 40), 80);
   
-  // Calculate confidence based on data consistency
-  const waveConfidence = calculateConfidence(waveHeights);
-  const windConfidence = calculateConfidence(windSpeeds);
+  return {
+    waterTempF: Math.round(finalWaterTempF),
+    sources: [...buoyData.map(b => b.source), ...(waterData.waterTemp !== null ? ['noaa-water-temp'] : [])]
+  };
+};
+
+/**
+ * Generate surf report with likelihood, notes, and summary
+ */
+const generateSurfReport = (
+  waveData: { avgWaveHeight: number; avgWavePeriod: number },
+  windData: { avgWindSpeed: number; windDirection: string; gustSpeed?: number },
+  waterData: { waterTempF: number },
+  spotId: string,
+  buoyData: BuoyData[] = []
+) => {
+  const { avgWaveHeight, avgWavePeriod } = waveData;
+  const { avgWindSpeed, windDirection, gustSpeed } = windData;
+  const { waterTempF } = waterData;
   
-  // Include Windy wave period if available
-  if (windData && windData.wavePeriod) {
-    wavePeriods.push(windData.wavePeriod);
-  }
-  
-  // Calculate surf likelihood and generate notes
-  const avgWavePeriod = wavePeriods.length > 0 ? 
-      wavePeriods.reduce((sum, p) => sum + p, 0) / wavePeriods.length : 0;
-  
+  // Calculate surf likelihood
   const surfLikelihood = calculateSurfLikelihood(avgWaveHeight, avgWavePeriod, avgWindSpeed, windDirection, spotId);
   
   // Generate notes
@@ -828,15 +1141,16 @@ const aggregateAllData = (
   }
   
   // Add wind-related notes
-  const windNotes = generateWindNotes(avgWindSpeed);
+  const windNotes = generateWindNotes(avgWindSpeed, gustSpeed);
   notes.push(...windNotes);
   
-  // Add wind direction note if unfavorable
-  const isFavorableWind = isFavorableWindDirection(spotId, windDirection);
-  if (!isFavorableWind && windDirection) {
-    const spotConfig = surfSpotsConfig[spotId as keyof typeof surfSpotsConfig];
-    const spotName = spotConfig ? spotConfig.name : spotId;
-    notes.push(`Unfavorable wind direction (${windDirection}) for ${spotName}`);
+  // Add wind direction notes using new surfConfig logic
+  const windDirectionNotes = generateWindDirectionNotes(spotId, windDirection);
+  notes.push(...windDirectionNotes);
+  
+  // Add fallback note if no specific wind direction notes were generated
+  if (windDirectionNotes.length === 0 && windDirection) {
+    notes.push(`Wind from ${windDirection} direction.`);
   }
   
   // Generate comprehensive surf report
@@ -845,29 +1159,90 @@ const aggregateAllData = (
     avgWavePeriod,
     avgWindSpeed,
     windDirection,
-    finalWaterTempF,
+    waterTempF,
     surfLikelihood,
     notes
   );
   
-  // Generate human-readable conditions
-  const conditions = generateConditionsDescription(avgWaveHeight, avgWindSpeed, windDirection, finalWaterTempF);
-  const recommendations = generateSurfRecommendations(avgWaveHeight, avgWindSpeed, windDirection, finalWaterTempF);
+  return {
+    surfLikelihood,
+    surfReport,
+    notes
+  };
+};
+
+/**
+ * Aggregate all data sources into intuitive conditions
+ */
+const aggregateAllData = (
+  buoyData: BuoyData[],
+  windData: WindData | null,
+  waterData: { waterLevel: WaterLevelData | null; waterTemp: number | null },
+  spotId: string = 'duluth'
+): AggregatedConditions => {
+  
+
+  
+  // Validate inputs
+  if (!validateSpotId(spotId)) {
+    console.warn(`🌊 Unknown spot ID: ${spotId}, using default configuration`);
+  }
+  
+  if (!validateData(buoyData, windData)) {
+    console.warn('🌊 No valid data sources available');
+  }
+  
+  // Aggregate data from all sources with intelligent blending
+  const waveData = aggregateWaveData(buoyData, windData);
+
+  
+  const windDataAggregated = aggregateWindData(buoyData, windData);
+
+  
+  const waterDataAggregated = aggregateWaterData(buoyData, waterData);
+
+  
+  // Generate surf report
+  const surfReport = generateSurfReport(waveData, windDataAggregated, waterDataAggregated, spotId, buoyData);
+  
+  // Calculate overall confidence based on all sources
+  const overallConfidence = (
+    waveData.waveConfidence * 0.4 + // Wave data is most important
+    windDataAggregated.windConfidence * 0.4 + // Wind data is equally important
+    waterDataAggregated.waterTempF ? 0.8 : 0.3 // Water temp if available
+  ) / 1.2; // Normalize to 0-1 range
+  
+  // Generate human-readable descriptions
+  const conditions = generateConditionsDescription(
+    waveData.avgWaveHeight, 
+    windDataAggregated.avgWindSpeed, 
+    windDataAggregated.windDirection, 
+    waterDataAggregated.waterTempF
+  );
+  
+  const recommendations = generateSurfRecommendations(
+    waveData.avgWaveHeight, 
+    windDataAggregated.avgWindSpeed, 
+    windDataAggregated.windDirection, 
+    waterDataAggregated.waterTempF
+  );
+  
+
   
   return {
     waveHeight: {
-      min: Math.max(0, avgWaveHeight - 0.5),
-      max: avgWaveHeight + 0.5,
+      min: Math.max(0, waveData.avgWaveHeight - 0.5),
+      max: waveData.avgWaveHeight + 0.5,
       unit: 'ft',
-      sources: buoyData.map(b => b.source),
-      confidence: waveConfidence
+      sources: waveData.sources,
+      confidence: waveData.waveConfidence
     },
     wind: {
-      speed: Math.round(avgWindSpeed), // Already in mph from our APIs
-      direction: windDirection,
+      speed: Math.round(windDataAggregated.avgWindSpeed),
+      direction: windDataAggregated.windDirection,
       unit: 'mph',
-      sources: [...buoyData.map(b => b.source), ...(windData ? [windData.source] : [])],
-      confidence: windConfidence
+      sources: windDataAggregated.sources,
+      confidence: windDataAggregated.windConfidence
     },
     swell: buoyData.map(b => ({
       height: b.waveHeight,
@@ -876,42 +1251,22 @@ const aggregateAllData = (
       sources: [b.source]
     })),
     waterTemp: {
-      value: Math.round(finalWaterTempF),
+      value: waterDataAggregated.waterTempF,
       unit: 'F',
-      sources: [...buoyData.map(b => b.source), ...(waterData.waterTemp !== null ? ['noaa-water-temp'] : [])]
+      sources: waterDataAggregated.sources
     },
-    rating: calculateSurfRating(avgWaveHeight, avgWindSpeed, windDirection),
+    rating: calculateSurfRating(waveData.avgWaveHeight, windDataAggregated.avgWindSpeed, windDataAggregated.windDirection, spotId),
     conditions,
     recommendations,
-    surfLikelihood,
-    surfReport,
-    notes
+    surfLikelihood: surfReport.surfLikelihood,
+    surfReport: surfReport.surfReport,
+    notes: surfReport.notes
   };
 };
 
 /**
  * Calculate surf likelihood based on Lake Superior conditions
  */
-// Wind direction helper for Lake Superior surf spots
-export const isFavorableWindDirection = (spotId: string, windDirection: string): boolean => {
-  if (!windDirection) return true; // If no direction data, assume favorable
-  
-  const direction = windDirection.toUpperCase();
-  
-  // Check if spot is in our configuration
-  const spotConfig = surfSpotsConfig[spotId as keyof typeof surfSpotsConfig];
-  
-  if (!spotConfig) {
-    // Default: assume favorable unless clearly offshore
-    const defaultUnfavorable = ['SW', 'W', 'WSW'];
-    return !defaultUnfavorable.includes(direction);
-  }
-  
-  // Check if wind direction is in the offshore wind list for this spot
-  const isOffshore = spotConfig.offshoreWind.includes(direction);
-  
-  return !isOffshore;
-};
 
 const calculateSurfLikelihood = (
   waveHeight: number,
@@ -920,41 +1275,41 @@ const calculateSurfLikelihood = (
   windDirection?: string,
   spotId: string = 'duluth'
 ): 'Flat' | 'Maybe Surf' | 'Good' | 'Firing' => {
-  // Check wind direction first
-  const isFavorableWind = isFavorableWindDirection(spotId, windDirection || '');
+  // Check wind direction first - surf is only possible if wind is from ideal direction
+  const windCheck = checkWindDirection(spotId, windDirection || '');
   
-  // Calculate base likelihood without wind direction consideration
-  let baseLikelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing';
+  // If wind is blocked, return Flat
+  if (windCheck.isBlocked) {
+    return 'Flat';
+  }
   
+  // Lake Superior-specific wave + period thresholds
   if (waveHeight < 0.5) {
-    baseLikelihood = 'Flat';
-  } else if (waveHeight >= 0.5 && waveHeight < 1.5 && wavePeriod >= 4) {
-    baseLikelihood = 'Maybe Surf';
-  } else if (waveHeight >= 1.5 && waveHeight < 3 && wavePeriod >= 5 && windSpeed < 12) {
-    baseLikelihood = 'Good';
-  } else if (waveHeight >= 3 && wavePeriod >= 6 && windSpeed < 12) {
-    baseLikelihood = 'Firing';
-  } else {
-    baseLikelihood = 'Maybe Surf';
+    return 'Flat';
   }
   
-  // If wind is unfavorable, downgrade by one tier
-  if (!isFavorableWind) {
-    switch (baseLikelihood) {
-      case 'Firing':
-        return 'Good';
-      case 'Good':
-        return 'Maybe Surf';
-      case 'Maybe Surf':
-        return 'Flat';
-      case 'Flat':
-        return 'Flat'; // Can't go lower
-      default:
-        return 'Maybe Surf';
-    }
+  // Handle missing wave period (0 or undefined)
+  const hasValidPeriod = wavePeriod > 0;
+  
+  // If no valid period data, return Flat (can't determine surf quality)
+  if (!hasValidPeriod) {
+    return 'Flat';
   }
   
-  return baseLikelihood;
+  if (waveHeight < 1.5 && wavePeriod >= 4) {
+    return 'Maybe Surf';
+  }
+  
+  if (waveHeight < 3 && wavePeriod >= 5 && windSpeed < 12) {
+    return 'Good';
+  }
+  
+  if (waveHeight >= 3 && wavePeriod >= 6 && windSpeed < 12) {
+    return 'Firing';
+  }
+  
+  // If wave height is good but period is too short
+  return 'Flat';
 };
 
 /**
@@ -963,17 +1318,35 @@ const calculateSurfLikelihood = (
 const detectPressureDrop = (buoyData: BuoyData[]): boolean => {
   if (buoyData.length < 2) return false;
   
+  // Filter for weather stations that might have pressure data
+  const weatherStations = buoyData.filter(b => 
+    b.source.includes('weather') || 
+    b.source.includes('KGNA') || 
+    b.source.includes('DULM5')
+  );
+  
+  if (weatherStations.length < 2) return false;
+  
   // Sort by timestamp to get recent data
-  const sortedData = buoyData
-    .filter(b => b.source.includes('weather')) // Only weather stations have pressure
+  const sortedData = weatherStations
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   
-  if (sortedData.length < 2) return false;
-  
-  // For now, skip seiche detection since pressure data isn't parsed from NDBC
+  // For now, implement a basic check
   // In the future, we could enhance parseBuoyData to extract pressure values
   // and track pressure changes over time
-
+  
+  // Check if we have recent data (within last 6 hours)
+  const now = new Date();
+  const recentData = sortedData.filter(buoy => {
+    const buoyTime = new Date(buoy.timestamp);
+    const hoursDiff = (now.getTime() - buoyTime.getTime()) / (1000 * 60 * 60);
+    return hoursDiff <= 6;
+  });
+  
+  // If we have multiple recent readings, we could analyze pressure trends
+  // For now, return false since we don't have pressure data parsed from NDBC
+  // TODO: Enhance parseBuoyData to extract pressure values from NDBC text format
+  
   return false;
 };
 
@@ -995,27 +1368,43 @@ const generateWindNotes = (windSpeed: number, gustSpeed?: number): string[] => {
 };
 
 /**
- * Generate human-readable surf summary
+ * Generate human-readable surf summary using actual conditions data
  */
 const generateUserSummary = (
   waveHeight: { min: number; max: number; unit: string },
   wavePeriod: number,
-  windSpeed: number,
+  _windSpeed: number, // Prefixed with underscore to indicate intentionally unused
   windDirection: string,
-  waterTemp: number,
+  _waterTemp: number, // Prefixed with underscore to indicate intentionally unused
   surfLikelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing',
-  notes: string[]
+  _notes: string[] // Prefixed with underscore to indicate intentionally unused
 ): string => {
-  // Generate short, human-readable captions
+  // Generate dynamic summaries based on actual conditions
   switch (surfLikelihood) {
     case 'Flat':
-      return 'Flat conditions today. No surf expected.';
+      if (waveHeight.max < 0.5) {
+        return 'Flat conditions today. No surf expected.';
+      } else {
+        return `Flat conditions (${waveHeight.min}-${waveHeight.max}ft waves). Wind from ${windDirection} not ideal.`;
+      }
     case 'Maybe Surf':
-      return 'Maybe surf. Watch for a bump later today.';
+      if (wavePeriod > 0) {
+        return `Maybe surf with ${waveHeight.min}-${waveHeight.max}ft waves @ ${wavePeriod}s. ${windDirection} winds.`;
+      } else {
+        return `Maybe surf with ${waveHeight.min}-${waveHeight.max}ft waves. ${windDirection} winds.`;
+      }
     case 'Good':
-      return 'Good conditions — grab your board.';
+      if (wavePeriod > 0) {
+        return `Good conditions — ${waveHeight.min}-${waveHeight.max}ft waves @ ${wavePeriod}s. ${windDirection} winds.`;
+      } else {
+        return `Good conditions — ${waveHeight.min}-${waveHeight.max}ft waves. ${windDirection} winds.`;
+      }
     case 'Firing':
-      return 'Firing! Best window early afternoon.';
+      if (wavePeriod > 0) {
+        return `Firing! ${waveHeight.min}-${waveHeight.max}ft waves @ ${wavePeriod}s. ${windDirection} winds.`;
+      } else {
+        return `Firing! ${waveHeight.min}-${waveHeight.max}ft waves. ${windDirection} winds.`;
+      }
     default:
       return 'Check conditions before heading out.';
   }
@@ -1046,11 +1435,10 @@ const generateConditionsDescription = (
   description += `(${waveHeight.toFixed(1)}ft)`;
   
   // Wind description
-  const windSpeedMph = windSpeed * 2.23694;
-  if (windSpeedMph < 5) description += " with light winds";
-  else if (windSpeedMph < 10) description += " with light breeze";
-  else if (windSpeedMph < 15) description += " with moderate winds";
-  else if (windSpeedMph < 20) description += " with strong winds";
+  if (windSpeed < 5) description += " with light winds";
+  else if (windSpeed < 10) description += " with light breeze";
+  else if (windSpeed < 15) description += " with moderate winds";
+  else if (windSpeed < 20) description += " with strong winds";
   else description += " with very strong winds";
   
   description += ` from the ${windDirection}`;
@@ -1068,7 +1456,7 @@ const generateConditionsDescription = (
 const generateSurfRecommendations = (
   waveHeight: number,
   windSpeed: number,
-  windDirection: string,
+  _windDirection: string, // Prefixed with underscore to indicate intentionally unused
   waterTemp: number
 ): string[] => {
   const recommendations: string[] = [];
@@ -1091,8 +1479,7 @@ const generateSurfRecommendations = (
   }
   
   // Wind recommendations
-  const windSpeedMph = windSpeed * 2.23694;
-  if (windSpeedMph > 20) {
+  if (windSpeed > 20) {
     recommendations.push("Strong winds - consider wind direction for spot selection");
   }
   
@@ -1108,7 +1495,7 @@ const generateSurfRecommendations = (
 /**
  * Calculate surf rating (1-10)
  */
-const calculateSurfRating = (waveHeight: number, windSpeed: number, windDirection: string): number => {
+const calculateSurfRating = (waveHeight: number, windSpeed: number, windDirection: string, spotId: string = 'duluth'): number => {
   let rating = 1;
   
   // Base rating on wave height
@@ -1118,10 +1505,19 @@ const calculateSurfRating = (waveHeight: number, windSpeed: number, windDirectio
   else if (waveHeight > 0.5) rating = 2;
   else rating = 1;
   
-  // Adjust for wind (offshore is better)
-  const windSpeedMph = windSpeed * 2.23694;
-  if (windSpeedMph > 20) rating = Math.max(1, rating - 2);
-  else if (windSpeedMph > 15) rating = Math.max(1, rating - 1);
+  // Check wind direction for this specific spot
+  const isFavorableWind = isFavorableWindDirection(spotId, windDirection);
+  
+  // If wind is not favorable for this spot, significantly reduce rating
+  if (!isFavorableWind) {
+    rating = Math.max(1, rating - 4); // Major penalty for wrong wind direction
+  }
+  
+  // Adjust for wind speed (only if wind direction is favorable)
+  if (isFavorableWind) {
+    if (windSpeed > 20) rating = Math.max(1, rating - 2);
+    else if (windSpeed > 15) rating = Math.max(1, rating - 1);
+  }
   
   return rating;
 };
@@ -1155,11 +1551,7 @@ const getMostCommonDirection = (directions: string[]): string => {
   return Object.entries(counts).reduce((a, b) => counts[a[0]] > counts[b[0]] ? a : b)[0];
 };
 
-const getWindDirectionFromDegrees = (degrees: number): string => {
-  const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-  const index = Math.round(degrees / 22.5) % 16;
-  return directions[index];
-};
+
 
 // Helper functions
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {

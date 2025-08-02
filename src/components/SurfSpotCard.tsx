@@ -54,7 +54,6 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
       (message: WebSocketMessage) => {
         if (typeof message.payload === 'object' && message.payload && 'spotId' in message.payload && (message.payload as any).spotId === spot.id) {
           const payload = message.payload as { spotId: string; count: number };
-          console.log(`[WebSocket] Received surfer count update for ${spot.name}: ${payload.count}`);
           setCurrentSurferCount(payload.count);
         }
       }

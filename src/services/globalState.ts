@@ -8,17 +8,39 @@
 // Global surfer counts that all components can access
 export const globalSurferCounts: Record<string, number> = {
   'stoneypoint': 0,
-  'parkpoint': 0,
+  'boulders': 0,
+  'guardrails': 0,
   'lesterriver': 0,
-  'superiorentry': 0,
+  'brightonbeach': 0,
+  'frenchriver': 0,
+  'parkpoint': 0,
+  'floodbay': 0,
+  'beaverbay': 0,
+  'grandmaraismn': 0,
+  'marquette': 0,
+  'ashland': 0,
+  'cornucopia': 0,
+  'grandmaraismi': 0,
+  'duluth': 0,
 };
 
 // Global list of which spots the user is checked into
 export const userCheckIns: Record<string, boolean> = {
   'stoneypoint': false,
-  'parkpoint': false,
+  'boulders': false,
+  'guardrails': false,
   'lesterriver': false,
-  'superiorentry': false,
+  'brightonbeach': false,
+  'frenchriver': false,
+  'parkpoint': false,
+  'floodbay': false,
+  'beaverbay': false,
+  'grandmaraismn': false,
+  'marquette': false,
+  'ashland': false,
+  'cornucopia': false,
+  'grandmaraismi': false,
+  'duluth': false,
 };
 
 // Call this function to update the global surfer count

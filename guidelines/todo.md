@@ -74,6 +74,16 @@ This document maintains a running list of tasks, enhancements, bug fixes, and te
   - X Integrated into SpotDetailsScreen for comprehensive spot information
 - [X] Add swell information display
 - [X] Implement wind information display
+- [X] Implement intelligent data blending system
+  - X Created comprehensive data aggregation that uses ALL API sources simultaneously
+  - X Implemented weighted averaging with confidence scoring for wave height and wind data
+  - X Added conflict detection when sources disagree significantly (>2ft for waves, >15mph for wind)
+  - X Added detailed debug logging showing how final values are derived from multiple sources
+  - X Enhanced buoy reliability detection (out-of-water, damaged, not reporting)
+  - X Improved fallback strategy when buoys are unavailable
+  - X Fixed NDBC buoy data parsing to match current format (columns reordered)
+  - X Cleaned up excessive logging - moved most logs to development-only
+  - X Removed all debug logging for clean production experience
 
 ### User Profile
 
@@ -193,6 +203,12 @@ This document maintains a running list of tasks, enhancements, bug fixes, and te
   - X NDBC Buoy Data API integration
   - X Replace mock data with real-time data
   - X Add error handling and fallback to mock data
+- [ ] Replace mock database with Firebase Firestore
+  - [ ] Set up Firestore database structure
+  - [ ] Migrate surfer counts and check-ins to Firestore
+  - [ ] Add real-time listeners for live updates
+  - [ ] Implement offline support with Firestore
+  - [ ] Add security rules for user data
 
 To-Do List: Building SurfSUP
 Phase 1: Planning

@@ -56,8 +56,6 @@ const MapScreen: React.FC = () => {
   // Set up event listener for surfer count updates
   useEffect(() => {
     const handleSurferCountUpdate = (data: { spotId: string, count: number }) => {
-      console.log(`[EVENT] MapScreen received surfer count update for ${data.spotId}: ${data.count}`);
-      
       // Update the surfer count for the specific spot
       setSurfSpots(currentSpots => 
         currentSpots.map(spot => 

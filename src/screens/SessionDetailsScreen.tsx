@@ -24,10 +24,6 @@ const SessionDetailsScreen: React.FC = () => {
   const [session, setSession] = useState<SurfSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadSessionDetails();
-  }, [loadSessionDetails]);
-
   const loadSessionDetails = React.useCallback(async () => {
     try {
       setIsLoading(true);
@@ -45,7 +41,11 @@ const SessionDetailsScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [sessionId, navigation]);
+
+  useEffect(() => {
+    loadSessionDetails();
+  }, [loadSessionDetails]);
 
   const handleDeleteSession = async () => {
     Alert.alert(
@@ -99,7 +99,7 @@ const SessionDetailsScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Date & Time</Text>
           <Text style={styles.text}>{formatDate(session.startTime)}</Text>
           <Text style={styles.text}>
-            {formatTime(session.startTime)} - {formatTime(session.endTime)}
+            {formatTime(session.startTime)} - {session.endTime ? formatTime(session.endTime) : 'Ongoing'}
           </Text>
           <Text style={styles.text}>Duration: {session.duration} minutes</Text>
         </View>
@@ -176,12 +176,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: COLORS.text.primary,
     marginBottom: 8
   },
   text: {
     fontSize: 16,
-    color: COLORS.text,
+    color: COLORS.text.primary,
     marginBottom: 4
   }
 });

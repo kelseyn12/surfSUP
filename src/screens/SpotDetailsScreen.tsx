@@ -16,13 +16,15 @@ import { SurfConditions } from '../types';
 import { 
   fetchSurfConditions, 
   fetchSurfForecast, 
+  fetchNearbySurfSpots 
+} from '../services/api';
+import { 
   checkInToSpot, 
   checkOutFromSpot, 
   getSurferCount, 
   getActiveCheckInForUser, 
-  getActiveCheckInForUserAnywhere, 
-  fetchNearbySurfSpots 
-} from '../services/api';
+  getActiveCheckInForUserAnywhere 
+} from '../services/mockBackend';
 import { isUserCheckedInAt, getGlobalSurferCount } from '../services/globalState';
 import webSocketService, { WebSocketMessageType } from '../services/websocket';
 import { HeaderBar } from '../components';
@@ -119,7 +121,6 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
       (message) => {
         if (typeof message.payload === 'object' && message.payload && 'spotId' in message.payload && (message.payload as any).spotId === spotId) {
           const payload = message.payload as { spotId: string; count: number };
-          console.log(`[WebSocket] Received surfer count update for current spot: ${payload.count}`);
           setSurferCount(payload.count);
         }
       }
@@ -376,6 +377,13 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     if (notes && notes.length > 0) {
       setSelectedNotes(notes);
       setNotesModalVisible(true);
+    } else {
+      // Show a simple alert if no notes are available
+      Alert.alert(
+        'No Additional Notes',
+        'No detailed notes are available for this forecast period.',
+        [{ text: 'OK' }]
+      );
     }
   };
 

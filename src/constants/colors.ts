@@ -13,6 +13,7 @@ export const COLORS = {
   warning: '#f39c12',
   info: '#3498db',
   border: '#e0e0e0', // Added border color
+  card: '#ffffff', // Added card color
   text: {
     primary: '#2c3e50',
     secondary: '#7f8c8d',

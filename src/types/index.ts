@@ -206,4 +206,77 @@ export interface NdbcBuoyResponse {
   gst: number[]; // gust speed
   wtemp: number[]; // water temperature
   steepness: string[]; // wave steepness
+}
+
+// Great Lakes API specific interfaces
+export interface WaterLevelData {
+  date: string;
+  level: number; // in feet above chart datum
+  trend: 'rising' | 'falling' | 'stable';
+}
+
+export interface BuoyData {
+  timestamp: string;
+  waveHeight: number;
+  wavePeriod: number;
+  waveDirection: string;
+  waterTemp: number;
+  windSpeed: number;
+  windDirection: string;
+  source: string;
+}
+
+export interface WindData {
+  windSpeed: number;
+  windDirection: string;
+  temperature: number;
+  pressure: number;
+  gustSpeed?: number;
+  waveHeight?: number;
+  wavePeriod?: number;
+  waveDirection?: string;
+  source: string;
+}
+
+export interface NoaaWaterLevelResponse {
+  data: Array<{
+    t: string; // time
+    v: string; // value (water level)
+  }>;
+  error?: string;
+}
+
+// Aggregated data from all sources
+export interface AggregatedConditions {
+  waveHeight: {
+    min: number;
+    max: number;
+    unit: 'ft';
+    sources: string[];
+    confidence: number; // 0-1 based on data consistency
+  };
+  wind: {
+    speed: number;
+    direction: string;
+    unit: 'mph';
+    sources: string[];
+    confidence: number;
+  };
+  swell: {
+    height: number;
+    period: number;
+    direction: string;
+    sources: string[];
+  }[];
+  waterTemp: {
+    value: number;
+    unit: 'F';
+    sources: string[];
+  };
+  rating: number;
+  conditions: string; // Human-readable description
+  recommendations: string[]; // Surf recommendations
+  surfLikelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing';
+  surfReport: string;
+  notes: string[];
 } 

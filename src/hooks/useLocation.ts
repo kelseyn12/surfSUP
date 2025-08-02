@@ -58,7 +58,7 @@ export const useLocation = ({
       const locationData = {
         latitude: currentLocation.coords.latitude,
         longitude: currentLocation.coords.longitude,
-        accuracy: currentLocation.coords.accuracy,
+        accuracy: currentLocation.coords.accuracy || undefined,
       };
 
       setLocation(locationData);
@@ -69,7 +69,7 @@ export const useLocation = ({
       setIsLoading(false);
       return true;
     } catch (error) {
-      setErrorMsg(`Error getting location: ${error.message}`);
+      setErrorMsg(`Error getting location: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setIsLoading(false);
       return false;
     }
@@ -100,7 +100,7 @@ export const useLocation = ({
           const locationData = {
             latitude: newLocation.coords.latitude,
             longitude: newLocation.coords.longitude,
-            accuracy: newLocation.coords.accuracy,
+            accuracy: newLocation.coords.accuracy || undefined,
           };
 
           setLocation(locationData);
@@ -143,7 +143,7 @@ export const useLocation = ({
       const locationData = {
         latitude: currentLocation.coords.latitude,
         longitude: currentLocation.coords.longitude,
-        accuracy: currentLocation.coords.accuracy,
+        accuracy: currentLocation.coords.accuracy || undefined,
       };
 
       setLocation(locationData);
@@ -154,7 +154,7 @@ export const useLocation = ({
       setIsLoading(false);
       return true;
     } catch (error) {
-      setErrorMsg(`Error getting location: ${error.message}`);
+      setErrorMsg(`Error getting location: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setIsLoading(false);
       return false;
     }
