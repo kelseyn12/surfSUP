@@ -42,7 +42,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   // Use a valid spot ID if none provided (for testing)
   const spotId = rawSpotId === '0' ? 'stoneypoint' : rawSpotId;
   
-  console.log('🔍 SpotDetailsScreen - rawSpotId:', rawSpotId, 'using spotId:', spotId, 'spot:', spot);
+  // SpotDetailsScreen initialized
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentConditions, setCurrentConditions] = useState<SurfConditions | null>(null);
   const [forecast, setForecast] = useState<SurfConditions[]>([]);
@@ -350,7 +350,13 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   };
 
   // Create a formatted forecast from the API data
-      const formattedForecast = forecast.slice(0, 14).map((item, index) => {
+  console.log(`🔍 Forecast data in UI:`, {
+    forecastLength: forecast?.length || 0,
+    forecastSample: forecast?.[0],
+    hasForecast: forecast && forecast.length > 0
+  });
+  
+  const formattedForecast = (forecast || []).slice(0, 14).map((item, index) => {
     const day = index === 0 ? 'Today' : 
                index === 1 ? 'Tomorrow' : 
                new Date(item.timestamp).toLocaleDateString('en-US', { weekday: 'short' });

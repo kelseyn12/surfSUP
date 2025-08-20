@@ -49,12 +49,7 @@ export const createSurfConditions = (
   aggregated: AggregatedConditions,
   surferCount: number = 0
 ): SurfConditions => {
-  console.log(`🔧 Creating SurfConditions for ${spotId}:`, {
-    waveHeight: aggregated.waveHeight,
-    wind: aggregated.wind,
-    waterTemp: aggregated.waterTemp,
-    sources: aggregated.waveHeight?.sources || []
-  });
+  // Creating SurfConditions
   
   return {
     spotId,

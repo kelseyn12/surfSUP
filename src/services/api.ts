@@ -278,7 +278,7 @@ initializeMockBackend();
  */
 export const fetchSurfConditions = async (spotId: string): Promise<SurfConditions | null> => {
   try {
-    console.log(`🌊 Fetching current conditions for ${spotId}`);
+    // Fetching current conditions
     
     // Get current surfer count
     const surferCount = await getSurferCount(spotId);
@@ -300,27 +300,17 @@ export const fetchSurfConditions = async (spotId: string): Promise<SurfCondition
     );
     
     if (aggregated) {
-      console.log(`✅ Received aggregated data for ${spotId}:`, {
-        waveHeight: aggregated.waveHeight,
-        wind: aggregated.wind,
-        waterTemp: aggregated.waterTemp,
-        sources: aggregated.waveHeight.sources
-      });
+      // Received aggregated data
       
       // Use the new helper function to create SurfConditions
       const conditions = createSurfConditions(spotId, aggregated, surferCount);
       
-      console.log(`📊 Final conditions for ${spotId}:`, {
-        waveHeight: conditions.waveHeight,
-        wind: conditions.wind,
-        weather: conditions.weather,
-        source: conditions.source
-      });
+      // Final conditions
       
       return conditions;
     }
     
-    console.log('❌ No conditions available');
+    // No conditions available
     return null;
   } catch (error) {
     console.error('❌ Error fetching surf conditions:', error);
@@ -352,25 +342,24 @@ export const fetchSurfForecast = async (spotId: string, days = 14): Promise<Surf
     );
     
     if (forecastData && forecastData.length > 0) {
-      console.log(`✅ Received ${forecastData.length} forecast points`);
+      console.log(`📊 Received ${forecastData.length} forecast data points`);
       
       // Convert AggregatedConditions to SurfConditions
       const forecast: SurfConditions[] = forecastData.map((data: any, index: number) => {
-        console.log(`📊 Forecast point ${index}:`, {
+        console.log(`📊 Converting forecast point ${index}:`, {
           waveHeight: data.waveHeight,
           wind: data.wind,
-          waterTemp: data.waterTemp,
-          sources: data.waveHeight.sources
+          timestamp: data.timestamp
         });
         
         return createSurfConditions(spotId, data, 0); // 0 surfer count for forecast
       });
       
-      console.log(`📈 Final forecast for ${spotId}: ${forecast.length} points`);
+      console.log(`📊 Final forecast array length: ${forecast.length}`);
       return forecast;
     }
     
-    console.log('❌ No forecast data available');
+    // No forecast data available
     return null;
   } catch (error) {
     console.error('❌ Error fetching surf forecast:', error);
