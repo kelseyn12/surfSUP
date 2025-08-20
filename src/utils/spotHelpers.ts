@@ -53,7 +53,7 @@ export const createSurfConditions = (
   
   return {
     spotId,
-    timestamp: new Date().toISOString(),
+    timestamp: aggregated.timestamp || new Date().toISOString(), // Preserve original timestamp for forecasts
     waveHeight: aggregated.waveHeight,
     wind: aggregated.wind,
     swell: aggregated.swell,

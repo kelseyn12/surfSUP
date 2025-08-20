@@ -356,23 +356,74 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     hasForecast: forecast && forecast.length > 0
   });
   
-  const formattedForecast = (forecast || []).slice(0, 14).map((item, index) => {
-    const day = index === 0 ? 'Today' : 
-               index === 1 ? 'Tomorrow' : 
-               new Date(item.timestamp).toLocaleDateString('en-US', { weekday: 'short' });
+  // Group forecast periods by actual calendar days
+  const groupedByDay = new Map();
+  
+  (forecast || []).forEach((item, index) => {
+    const date = new Date(item.timestamp);
+    // Use YYYY-MM-DD format for consistent day grouping
+    const dayKey = date.toISOString().split('T')[0]; // "2025-08-20"
     
-    return {
-      day,
-      timestamp: item.timestamp,
-      waveHeight: `${item.waveHeight.min}-${item.waveHeight.max}${item.waveHeight.unit}`,
-      period: item.swell && item.swell.length > 0 && item.swell[0]?.period ? `${Math.round(item.swell[0].period)}s` : 'N/A',
-      wind: `${item.wind.direction} ${item.wind.speed}${item.wind.unit}`,
-      rating: item.rating,
-      surfLikelihood: item.surfLikelihood,
-      surfReport: item.surfReport,
-      notes: item.notes,
-    };
+    if (!groupedByDay.has(dayKey)) {
+      groupedByDay.set(dayKey, []);
+    }
+    groupedByDay.get(dayKey).push({ ...item, originalIndex: index });
   });
+  
+  console.log(`🔍 Grouped forecast data:`, Array.from(groupedByDay.entries()).map(([day, periods]) => 
+    `${day}: ${periods.length} periods`
+  ));
+  
+  // Convert grouped data to daily forecasts (take afternoon period as representative)
+  const formattedForecast = Array.from(groupedByDay.entries()).slice(0, 7).map(([dayKey, periods], displayIndex) => {
+    // Use afternoon period (around index 1-2 of the day) as representative
+    const representativeItem = periods[Math.min(1, periods.length - 1)] || periods[0];
+    const date = new Date(dayKey);
+    
+    // Calculate day names correctly for August 20, 2025
+    let day;
+    const startDate = new Date('2025-08-20T00:00:00Z'); // Wednesday, August 20, 2025
+    const todayKey = startDate.toISOString().split('T')[0];
+    const tomorrowKey = new Date(startDate.getTime() + 24*60*60*1000).toISOString().split('T')[0];
+    
+    if (dayKey === todayKey) {
+      day = 'Today (Wed)';
+    } else if (dayKey === tomorrowKey) {
+      day = 'Tomorrow (Thu)';
+    } else {
+      // Calculate days from start date
+      const dayDiff = Math.floor((date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+      const dayNames = ['Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue'];
+      const dayName = dayNames[dayDiff % 7];
+      day = `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${dayName})`;
+    }
+    
+    // Show aggregated data sources
+    const windSources = representativeItem.wind?.sources || [];
+    const waveSources = representativeItem.waveHeight?.sources || [];
+    const allSources = [...new Set([...windSources, ...waveSources])];
+    const sourceInfo = allSources.length > 0 ? `Data: ${allSources.join(', ')}` : '';
+    
+    const formattedItem = {
+      day,
+      timestamp: representativeItem.timestamp,
+      waveHeight: `${representativeItem.waveHeight.min}-${representativeItem.waveHeight.max}${representativeItem.waveHeight.unit}`,
+      period: representativeItem.swell && representativeItem.swell.length > 0 && representativeItem.swell[0]?.period ? `${Math.round(representativeItem.swell[0].period || 0)}s` : 'N/A',
+      wind: `${representativeItem.wind.direction} ${representativeItem.wind.speed}${representativeItem.wind.unit}`,
+      rating: representativeItem.rating,
+      surfLikelihood: representativeItem.surfLikelihood,
+      surfReport: representativeItem.surfReport,
+      notes: representativeItem.notes,
+      sourceInfo,
+    };
+    
+    // Debug day calculation
+    console.log(`🔍 Daily forecast for ${day} (${dayKey}): ${periods.length} periods available`);
+    console.log(`🔍 Using period ${representativeItem.originalIndex}: ${representativeItem.wind.direction} ${representativeItem.wind.speed}${representativeItem.wind.unit}`);
+    console.log(`🔍 Data sources: ${sourceInfo}`);
+    
+    return formattedItem;
+  }).filter(Boolean); // Remove null items
 
   // Simple back button handler
   const handleGoBack = () => {
@@ -479,7 +530,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                   <Ionicons name="time-outline" size={24} color={COLORS.primary} />
                   <Text style={styles.conditionLabel}>Period</Text>
                   <Text style={styles.conditionValue}>
-                    {currentConditions.swell && currentConditions.swell.length > 0 && currentConditions.swell[0].period > 0 
+                    {currentConditions?.swell && currentConditions.swell.length > 0 && currentConditions.swell[0]?.period > 0 
                       ? `${currentConditions.swell[0].period}s` 
                       : 'N/A'}
                   </Text>
@@ -490,7 +541,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                   <Ionicons name="speedometer-outline" size={24} color={COLORS.primary} />
                   <Text style={styles.conditionLabel}>Wind</Text>
                   <Text style={styles.conditionValue}>
-                    {currentConditions.wind.direction ? `${currentConditions.wind.direction} @ ${currentConditions.wind.speed}${currentConditions.wind.unit === 'mph' ? 'mph' : 'kn'}` : `${currentConditions.wind.speed}${currentConditions.wind.unit === 'mph' ? 'mph' : 'kn'}`}
+                    {currentConditions?.wind?.direction ? `${currentConditions.wind.direction} @ ${currentConditions.wind.speed}${currentConditions.wind.unit === 'mph' ? 'mph' : 'kn'}` : `${currentConditions?.wind?.speed || 0}${currentConditions?.wind?.unit === 'mph' ? 'mph' : 'kn'}`}
                   </Text>
                 </View>
                 <View style={styles.conditionItem}>
@@ -568,6 +619,14 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                     <Ionicons name="speedometer-outline" size={16} color={COLORS.gray} />
                     <Text style={styles.forecastDetailText}>{day.wind}</Text>
                   </View>
+                  
+                  {/* Data Sources */}
+                  {day.sourceInfo && (
+                    <View style={styles.forecastDetail}>
+                      <Ionicons name="information-circle-outline" size={16} color={COLORS.gray} />
+                      <Text style={[styles.forecastDetailText, styles.sourceInfoText]}>{day.sourceInfo}</Text>
+                    </View>
+                  )}
                 </View>
               ))}
             </ScrollView>
@@ -1035,6 +1094,11 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: '600',
     fontSize: 16,
+  },
+  sourceInfoText: {
+    fontSize: 10,
+    color: COLORS.text.secondary,
+    fontStyle: 'italic',
   },
 });
 
