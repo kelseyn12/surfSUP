@@ -172,7 +172,10 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
           <View style={styles.conditionRow}>
             <Ionicons name="water" size={16} color={COLORS.primary} />
             <Text style={styles.conditionText}>
-              {formatWaveHeight(conditions.waveHeight.min, conditions.waveHeight.max, conditions.waveHeight.unit)}
+              {conditions.waveHeight.max < 0.5 
+                ? 'Flat' 
+                : formatWaveHeight(conditions.waveHeight.min, conditions.waveHeight.max, conditions.waveHeight.unit)
+              }
             </Text>
           </View>
           

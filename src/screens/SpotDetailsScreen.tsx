@@ -359,7 +359,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
       day,
       timestamp: item.timestamp,
       waveHeight: `${item.waveHeight.min}-${item.waveHeight.max}${item.waveHeight.unit}`,
-      period: `${Math.round(item.swell[0]?.period || 0)}s`,
+      period: item.swell && item.swell.length > 0 && item.swell[0]?.period ? `${Math.round(item.swell[0].period)}s` : 'N/A',
       wind: `${item.wind.direction} ${item.wind.speed}${item.wind.unit}`,
       rating: item.rating,
       surfLikelihood: item.surfLikelihood,
@@ -463,7 +463,10 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                   <Ionicons name="water-outline" size={24} color={COLORS.primary} />
                   <Text style={styles.conditionLabel}>Wave Height</Text>
                   <Text style={styles.conditionValue}>
-                    {currentConditions.waveHeight.min}-{currentConditions.waveHeight.max} {currentConditions.waveHeight.unit}
+                    {currentConditions.waveHeight.max < 0.5 
+                      ? 'Flat' 
+                      : `${currentConditions.waveHeight.min.toFixed(1)}-${currentConditions.waveHeight.max.toFixed(1)} ${currentConditions.waveHeight.unit}`
+                    }
                   </Text>
                 </View>
                 <View style={styles.conditionItem}>
@@ -488,7 +491,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                   <Ionicons name="thermometer-outline" size={24} color={COLORS.primary} />
                   <Text style={styles.conditionLabel}>Water Temp</Text>
                   <Text style={styles.conditionValue}>
-                    {currentConditions.weather.temperature}°{currentConditions.weather.unit}
+                    {currentConditions.weather?.temperature ? Number(currentConditions.weather.temperature).toFixed(1) : 'N/A'}°{currentConditions.weather?.unit || 'F'}
                   </Text>
                 </View>
               </View>
@@ -505,16 +508,6 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                   </Text>
                 </TouchableOpacity>
               )}
-
-              {/* Surf Report Summary - Small caption under badge */}
-              {currentConditions.surfReport && (
-                <View style={styles.surfSummaryContainer}>
-                  <Text style={styles.surfSummaryText}>
-                    {currentConditions.surfReport}
-                  </Text>
-                </View>
-              )}
-
 
             </View>
           ) : (

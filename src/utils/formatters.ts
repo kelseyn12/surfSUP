@@ -30,6 +30,10 @@ export const formatWaveHeight = (
   if (max === undefined || height === max) {
     return `${height.toFixed(1)} ${unit}`;
   } else {
+    // Clean up the display for very small waves
+    if (max < 0.5) {
+      return 'Flat';
+    }
     return `${height.toFixed(1)}-${max.toFixed(1)} ${unit}`;
   }
 };

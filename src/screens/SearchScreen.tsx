@@ -244,7 +244,7 @@ const SearchScreen: React.FC = () => {
           <Ionicons
             name={showFilters ? 'close' : 'filter'}
             size={24}
-            color={COLORS.text.primary}
+            color={COLORS.text?.primary || COLORS.text || '#000'}
           />
         </TouchableOpacity>
       </View>
@@ -252,20 +252,20 @@ const SearchScreen: React.FC = () => {
       {/* Search Input */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color={COLORS.gray} />
+          <Ionicons name="search" size={20} color={COLORS.gray || '#666'} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search spots by name, location, or description..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor={COLORS.gray}
+            placeholderTextColor={COLORS.gray || '#666'}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity
               onPress={() => setSearchQuery('')}
               style={styles.clearButton}
             >
-              <Ionicons name="close-circle" size={20} color={COLORS.gray} />
+              <Ionicons name="close-circle" size={20} color={COLORS.gray || '#666'} />
             </TouchableOpacity>
           )}
         </View>

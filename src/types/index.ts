@@ -70,7 +70,7 @@ export interface SurfConditions {
   };
   swell: {
     height: number;
-    period: number;
+    period?: number;
     direction: string;
   }[];
   waterLevel?: {
@@ -224,18 +224,20 @@ export interface BuoyData {
   windSpeed: number;
   windDirection: string;
   source: string;
+  distance?: number; // Distance from user location in miles
 }
 
 export interface WindData {
   windSpeed: number;
   windDirection: string;
-  temperature: number;
-  pressure: number;
+  temperature?: number;
+  pressure?: number;
   gustSpeed?: number;
   waveHeight?: number;
   wavePeriod?: number;
   waveDirection?: string;
   source: string;
+  timestamp?: string;
 }
 
 export interface NoaaWaterLevelResponse {
@@ -264,11 +266,11 @@ export interface AggregatedConditions {
   };
   swell: {
     height: number;
-    period: number;
+    period?: number;
     direction: string;
     sources: string[];
   }[];
-  waterTemp: {
+  waterTemp?: {
     value: number;
     unit: 'F';
     sources: string[];
@@ -277,6 +279,7 @@ export interface AggregatedConditions {
   conditions: string; // Human-readable description
   recommendations: string[]; // Surf recommendations
   surfLikelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing';
-  surfReport: string;
+  surfReport?: string;
   notes: string[];
+  timestamp?: string;
 } 

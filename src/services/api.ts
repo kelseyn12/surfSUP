@@ -4,7 +4,7 @@ import { SurfLikelihood, DEFAULT_SURF_THRESHOLDS, SPOT_SURF_THRESHOLDS } from '.
 import axios from 'axios';
 import { addUserSession } from './storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fetchAllGreatLakesData } from './greatLakesApi';
+import { fetchAllGreatLakesData, fetchAllGreatLakesForecastData } from './greatLakesApi';
 import { getSpotById, createSurfConditions, findNearbySpots } from '../utils/spotHelpers';
 import { 
   getSurferCount,
@@ -278,6 +278,8 @@ initializeMockBackend();
  */
 export const fetchSurfConditions = async (spotId: string): Promise<SurfConditions | null> => {
   try {
+    console.log(`🌊 Fetching current conditions for ${spotId}`);
+    
     // Get current surfer count
     const surferCount = await getSurferCount(spotId);
     
@@ -288,6 +290,8 @@ export const fetchSurfConditions = async (spotId: string): Promise<SurfCondition
       return null;
     }
     
+    console.log(`📍 Spot coordinates: ${spot.location.latitude}, ${spot.location.longitude}`);
+    
     // Use the comprehensive ALL sources data aggregation
     const aggregated = await fetchAllGreatLakesData(
       spotId,
@@ -296,14 +300,30 @@ export const fetchSurfConditions = async (spotId: string): Promise<SurfCondition
     );
     
     if (aggregated) {
+      console.log(`✅ Received aggregated data for ${spotId}:`, {
+        waveHeight: aggregated.waveHeight,
+        wind: aggregated.wind,
+        waterTemp: aggregated.waterTemp,
+        sources: aggregated.waveHeight.sources
+      });
+      
       // Use the new helper function to create SurfConditions
-      return createSurfConditions(spotId, aggregated, surferCount);
+      const conditions = createSurfConditions(spotId, aggregated, surferCount);
+      
+      console.log(`📊 Final conditions for ${spotId}:`, {
+        waveHeight: conditions.waveHeight,
+        wind: conditions.wind,
+        weather: conditions.weather,
+        source: conditions.source
+      });
+      
+      return conditions;
     }
     
     console.log('❌ No conditions available');
     return null;
   } catch (error) {
-    console.error('Error fetching surf conditions:', error);
+    console.error('❌ Error fetching surf conditions:', error);
     return null;
   }
 };
@@ -313,123 +333,47 @@ export const fetchSurfConditions = async (spotId: string): Promise<SurfCondition
  */
 export const fetchSurfForecast = async (spotId: string, days = 14): Promise<SurfConditions[] | null> => {
   try {
+    console.log(`📆 Fetching forecast for ${spotId} (${days} days)`);
+    
     // Get spot coordinates for Great Lakes data
     const spot = getSpotById(spotId);
     if (!spot) {
-      console.error('Spot not found:', spotId);
+      console.error('❌ Spot not found:', spotId);
       return null;
     }
     
-    // For now, create a simple forecast based on current conditions
-    // In the future, this would fetch forecast data from multiple sources
-    const currentConditions = await fetchSurfConditions(spotId);
+    console.log(`📍 Forecast coordinates: ${spot.location.latitude}, ${spot.location.longitude}`);
     
-    if (!currentConditions) {
-      console.log('❌ No current conditions available for forecast');
-      return null;
+    // Use the new forecast data function that uses Windy + NOAA
+    const forecastData = await fetchAllGreatLakesForecastData(
+      spotId,
+      spot.location.latitude,
+      spot.location.longitude
+    );
+    
+    if (forecastData && forecastData.length > 0) {
+      console.log(`✅ Received ${forecastData.length} forecast points`);
+      
+      // Convert AggregatedConditions to SurfConditions
+      const forecast: SurfConditions[] = forecastData.map((data: any, index: number) => {
+        console.log(`📊 Forecast point ${index}:`, {
+          waveHeight: data.waveHeight,
+          wind: data.wind,
+          waterTemp: data.waterTemp,
+          sources: data.waveHeight.sources
+        });
+        
+        return createSurfConditions(spotId, data, 0); // 0 surfer count for forecast
+      });
+      
+      console.log(`📈 Final forecast for ${spotId}: ${forecast.length} points`);
+      return forecast;
     }
     
-    // Create a simple forecast based on current conditions with some variation
-    const forecast: SurfConditions[] = [];
-    const now = new Date();
-    
-    for (let day = 0; day < days; day++) {
-      const forecastTime = new Date(now.getTime() + day * 24 * 60 * 60 * 1000);
-      
-      // Add some variation to the forecast
-      const waveVariation = Math.round((Math.sin(day / 2) * 0.5) * 10) / 10; // ±0.5ft variation, rounded to 1 decimal
-      const windVariation = Math.round((Math.sin(day / 3) * 2) * 10) / 10; // ±2mph variation, rounded to 1 decimal
-      
-      // Calculate forecast wave height and period
-      const forecastWaveHeight = Math.round(Math.max(0, (currentConditions.waveHeight.min + currentConditions.waveHeight.max) / 2 + waveVariation) * 10) / 10;
-      const forecastWavePeriod = currentConditions.swell[0]?.period || 0;
-      const forecastWindSpeed = Math.round(Math.max(0, currentConditions.wind.speed + windVariation) * 10) / 10;
-      
-      // Calculate surf likelihood for this forecast day
-      const forecastSurfLikelihood = calculateSurfLikelihood(
-        forecastWaveHeight, 
-        forecastWavePeriod, 
-        forecastWindSpeed, 
-        currentConditions.wind.direction,
-        spotId
-      );
-      
-      // Generate forecast summary
-      const forecastSummary = generateForecastSummary(forecastSurfLikelihood, day);
-      
-      // Generate forecast-specific notes
-      const forecastNotes: string[] = [];
-      
-      // Add wind-related notes
-      if (forecastWindSpeed > 15) {
-        forecastNotes.push('Strong wind — may cause chop');
-      }
-      if (forecastWindSpeed > 25) {
-        forecastNotes.push('High winds — challenging conditions');
-      }
-      
-      // Add wave-related notes
-      if (forecastWaveHeight < 0.5) {
-        forecastNotes.push('Very small waves — minimal surf');
-      } else if (forecastWaveHeight > 3) {
-        forecastNotes.push('Large waves — experienced surfers only');
-      }
-      
-      // Add period-related notes
-      if (forecastWavePeriod < 4) {
-        forecastNotes.push('Short period — choppy conditions');
-      } else if (forecastWavePeriod > 8) {
-        forecastNotes.push('Long period — clean waves');
-      }
-      
-      // Add wind direction notes if available
-      if (currentConditions.wind.direction) {
-        const windCheck = checkWindDirection(spotId, currentConditions.wind.direction);
-        if (windCheck.isBlocked) {
-          forecastNotes.push('Unfavorable wind direction');
-        } else if (windCheck.isIdeal) {
-          forecastNotes.push('Ideal wind direction');
-        }
-      }
-      
-      const forecastConditions: SurfConditions = {
-        spotId,
-        timestamp: forecastTime.toISOString(),
-        waveHeight: {
-          min: Math.round(Math.max(0, currentConditions.waveHeight.min + waveVariation - 0.5) * 10) / 10,
-          max: Math.round((currentConditions.waveHeight.max + waveVariation + 0.5) * 10) / 10,
-          unit: 'ft',
-        },
-        wind: {
-          speed: Math.round(Math.max(0, currentConditions.wind.speed + windVariation) * 10) / 10,
-          direction: currentConditions.wind.direction,
-          unit: 'mph',
-        },
-        swell: currentConditions.swell.map(swell => ({
-          height: swell.height + waveVariation,
-          period: swell.period,
-          direction: swell.direction,
-        })),
-        weather: {
-          temperature: currentConditions.weather.temperature,
-          condition: 'partly-cloudy',
-          unit: 'F',
-        },
-        rating: Math.max(1, Math.min(10, currentConditions.rating + Math.round(waveVariation))),
-        source: 'forecast-estimate',
-        surferCount: day === 0 ? currentConditions.surferCount : undefined,
-        // Add surf likelihood and summary for forecast
-        surfLikelihood: forecastSurfLikelihood,
-        surfReport: forecastSummary,
-        notes: forecastNotes,
-      };
-      
-      forecast.push(forecastConditions);
-    }
-    
-    return forecast;
+    console.log('❌ No forecast data available');
+    return null;
   } catch (error) {
-    console.error('Error fetching surf forecast:', error);
+    console.error('❌ Error fetching surf forecast:', error);
     return null;
   }
 };

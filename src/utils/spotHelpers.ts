@@ -49,6 +49,13 @@ export const createSurfConditions = (
   aggregated: AggregatedConditions,
   surferCount: number = 0
 ): SurfConditions => {
+  console.log(`🔧 Creating SurfConditions for ${spotId}:`, {
+    waveHeight: aggregated.waveHeight,
+    wind: aggregated.wind,
+    waterTemp: aggregated.waterTemp,
+    sources: aggregated.waveHeight?.sources || []
+  });
+  
   return {
     spotId,
     timestamp: new Date().toISOString(),
@@ -56,12 +63,12 @@ export const createSurfConditions = (
     wind: aggregated.wind,
     swell: aggregated.swell,
     weather: {
-      temperature: aggregated.waterTemp.value,
+      temperature: aggregated.waterTemp?.value || 0,
       condition: 'partly-cloudy',
       unit: 'F'
     },
     rating: aggregated.rating,
-    source: aggregated.waveHeight.sources.join(','),
+    source: aggregated.waveHeight?.sources?.join(',') || aggregated.wind?.sources?.join(',') || 'unknown',
     surferCount,
     surfLikelihood: aggregated.surfLikelihood,
     surfReport: aggregated.surfReport,
