@@ -334,7 +334,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     return COLORS.error;
   };
 
-  const getSurfLikelihoodColor = (likelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing'): string => {
+  const getSurfLikelihoodColor = (likelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing' | 'Blown Out'): string => {
     switch (likelihood) {
       case 'Flat':
         return COLORS.gray;
@@ -344,6 +344,8 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
         return COLORS.success;
       case 'Firing':
         return COLORS.error; // Red for "firing" conditions
+      case 'Blown Out':
+        return COLORS.error; // Red for "blown out" conditions
       default:
         return COLORS.gray;
     }
@@ -356,18 +358,27 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     hasForecast: forecast && forecast.length > 0
   });
   
-  // Group forecast periods by actual calendar days
+  // For NOAA marine forecasts, preserve individual periods; for others, group by calendar day
   const groupedByDay = new Map();
   
   (forecast || []).forEach((item, index) => {
-    const date = new Date(item.timestamp);
-    // Use YYYY-MM-DD format for consistent day grouping
-    const dayKey = date.toISOString().split('T')[0]; // "2025-08-20"
-    
-    if (!groupedByDay.has(dayKey)) {
-      groupedByDay.set(dayKey, []);
+    if (item.periodName && item.periodName.trim()) {
+      // NOAA marine forecast - use period name as key to preserve individual periods
+      const periodKey = item.periodName.trim();
+      if (!groupedByDay.has(periodKey)) {
+        groupedByDay.set(periodKey, []);
+      }
+      groupedByDay.get(periodKey).push({ ...item, originalIndex: index });
+    } else {
+      // Other forecast types - group by calendar day
+      const date = new Date(item.timestamp);
+      const dayKey = date.toISOString().split('T')[0];
+      
+      if (!groupedByDay.has(dayKey)) {
+        groupedByDay.set(dayKey, []);
+      }
+      groupedByDay.get(dayKey).push({ ...item, originalIndex: index });
     }
-    groupedByDay.get(dayKey).push({ ...item, originalIndex: index });
   });
   
   console.log(`🔍 Grouped forecast data:`, Array.from(groupedByDay.entries()).map(([day, periods]) => 
@@ -380,22 +391,36 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     const representativeItem = periods[Math.min(1, periods.length - 1)] || periods[0];
     const date = new Date(dayKey);
     
-    // Calculate day names correctly for August 20, 2025
+    // Use NOAA period names if available, otherwise fall back to calendar dates
     let day;
-    const startDate = new Date('2025-08-20T00:00:00Z'); // Wednesday, August 20, 2025
-    const todayKey = startDate.toISOString().split('T')[0];
-    const tomorrowKey = new Date(startDate.getTime() + 24*60*60*1000).toISOString().split('T')[0];
-    
-    if (dayKey === todayKey) {
-      day = 'Today (Wed)';
-    } else if (dayKey === tomorrowKey) {
-      day = 'Tomorrow (Thu)';
+    if (representativeItem?.periodName && representativeItem.periodName.trim()) {
+      // Format NOAA period names naturally
+      const periodName = representativeItem.periodName.trim();
+      switch (periodName.toUpperCase()) {
+        case 'REST OF TODAY':
+          day = 'Early Evening';
+          break;
+        case 'TONIGHT':
+          day = 'Tonight';
+          break;
+        case 'FRIDAY':
+          day = 'Friday';
+          break;
+        case 'FRIDAY NIGHT':
+          day = 'Friday Night';
+          break;
+        case 'SATURDAY':
+          day = 'Saturday';
+          break;
+        case 'SATURDAY NIGHT':
+          day = 'Saturday Night';
+          break;
+        default:
+          day = periodName;
+      }
     } else {
-      // Calculate days from start date
-      const dayDiff = Math.floor((date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
-      const dayNames = ['Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue'];
-      const dayName = dayNames[dayDiff % 7];
-      day = `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${dayName})`;
+      // Fallback to calendar dates
+      day = `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
     }
     
     // Show aggregated data sources

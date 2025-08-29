@@ -105,7 +105,7 @@ export const isDevelopment = (): boolean => {
 export const safeJsonParse = <T>(json: string, fallback: T): T => {
   try {
     return JSON.parse(json);
-  } catch (error) {
+  } catch {
     return fallback;
   }
 }; 

@@ -87,9 +87,10 @@ export interface SurfConditions {
   source: string; // 'windy', 'noaa', 'buoy', etc.
   surferCount?: number; // Number of current surfers at the spot
   // New Lake Superior surf report fields
-  surfLikelihood?: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing';
+  surfLikelihood?: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing' | 'Blown Out';
   surfReport?: string;
   notes?: string[];
+  periodName?: string; // NOAA period name (e.g., "TONIGHT", "FRIDAY", "FRIDAY NIGHT")
 }
 
 // User check-ins at surf spots
@@ -238,13 +239,14 @@ export interface WindData {
   waveDirection?: string;
   source: string;
   timestamp?: string;
+  periodName?: string; // NOAA period name (e.g., "TONIGHT", "FRIDAY", "FRIDAY NIGHT")
 }
 
 export interface NoaaWaterLevelResponse {
-  data: Array<{
+  data: {
     t: string; // time
     v: string; // value (water level)
-  }>;
+  }[];
   error?: string;
 }
 
@@ -278,8 +280,9 @@ export interface AggregatedConditions {
   rating: number;
   conditions: string; // Human-readable description
   recommendations: string[]; // Surf recommendations
-  surfLikelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing';
+  surfLikelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing' | 'Blown Out';
   surfReport?: string;
   notes: string[];
   timestamp?: string;
+  periodName?: string; // NOAA period name (e.g., "TONIGHT", "FRIDAY", "FRIDAY NIGHT")
 } 

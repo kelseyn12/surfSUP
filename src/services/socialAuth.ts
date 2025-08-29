@@ -30,7 +30,7 @@ export class SocialAuthService {
       await GoogleSignin.hasPlayServices();
       
       // Get the users ID token
-      const userInfo = await GoogleSignin.signIn();
+      await GoogleSignin.signIn();
       const tokens = await GoogleSignin.getTokens();
       
       // Create a Google credential with the token

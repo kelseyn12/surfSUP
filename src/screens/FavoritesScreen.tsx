@@ -116,7 +116,7 @@ const FavoritesScreen: React.FC = () => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="heart-outline" size={64} color={COLORS.gray} />
-            <Text style={styles.emptyText}>You haven't added any favorites yet</Text>
+            <Text style={styles.emptyText}>You haven&apos;t added any favorites yet</Text>
             <Text style={styles.emptySubText}>
               Add spots to your favorites to see them here
             </Text>

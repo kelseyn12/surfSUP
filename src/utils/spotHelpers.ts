@@ -68,6 +68,7 @@ export const createSurfConditions = (
     surfLikelihood: aggregated.surfLikelihood,
     surfReport: aggregated.surfReport,
     notes: aggregated.notes,
+    periodName: (aggregated as any).periodName, // Preserve NOAA period name if available
   };
 };
 

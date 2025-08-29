@@ -10,10 +10,6 @@ import { SocialAuthService } from './socialAuth';
 import { reload, getIdToken, updateProfile, onAuthStateChanged } from '@react-native-firebase/auth';
 
 // Constants
-const MAX_LOGIN_ATTEMPTS = 5;
-const LOGIN_ATTEMPT_WINDOW = 15 * 60 * 1000;
-const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
-const TOKEN_REFRESH_INTERVAL = 12 * 60 * 60 * 1000;
 const PASSWORD_MIN_LENGTH = 8;
 const STORAGE_KEY = 'auth-storage';
 

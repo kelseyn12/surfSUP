@@ -16,7 +16,7 @@ export type RootStackParamList = {
   Settings: undefined;
   EditProfile: undefined;
   OnBoarding: undefined;
-  Debug: undefined;
+
   ForgotPassword: undefined;
   PasswordResetSuccess: undefined;
   StatsDashboard: undefined;

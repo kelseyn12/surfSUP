@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants';
-import { User, SurfSpot, SurfSession, CheckIn } from '../types';
+import { User, SurfSpot, SurfSession } from '../types';
 
 /**
  * Storage Service

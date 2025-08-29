@@ -1,4 +1,4 @@
-import { CheckIn, SurfSpot } from '../types';
+import { CheckIn } from '../types';
 import { 
   globalSurferCounts, 
   updateGlobalSurferCount, 

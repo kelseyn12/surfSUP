@@ -1,6 +1,6 @@
 import { TIMEOUTS , API_BASE_URL } from '../constants';
 import { SurfConditions, SurfSpot, CheckIn , SurfSession } from '../types';
-import { SurfLikelihood, DEFAULT_SURF_THRESHOLDS, SPOT_SURF_THRESHOLDS } from '../types/surfLikelihood';
+// REMOVED: Unused imports that were only needed for the duplicate surf likelihood function
 import axios from 'axios';
 import { addUserSession } from './storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,84 +10,15 @@ import {
   getSurferCount,
   initializeMockBackend
 } from './mockBackend';
-import { 
-  checkWindDirection
-} from '../config/surfConfig';
+// REMOVED: Unused import that was only needed for the duplicate surf likelihood function
 
 
 
-const calculateSurfLikelihood = (
-  waveHeight: number,
-  wavePeriod: number,
-  windSpeed: number,
-  windDirection?: string,
-  spotId: string = 'duluth'
-): SurfLikelihood => {
-  // Check wind direction first - surf is only possible if wind is from ideal direction
-  const windCheck = checkWindDirection(spotId, windDirection || '');
-  
-  // If wind is blocked, return Flat
-  if (windCheck.isBlocked) {
-    return SurfLikelihood.FLAT;
-  }
-  
-  // Get spot-specific thresholds or use defaults
-  const thresholds = SPOT_SURF_THRESHOLDS[spotId] || {};
-  const finalThresholds = { ...DEFAULT_SURF_THRESHOLDS, ...thresholds };
-  
-  // Handle missing wave period (0 or undefined)
-  const hasValidPeriod = wavePeriod > 0;
-  
-  // If no valid period data, return Flat (can't determine surf quality)
-  if (!hasValidPeriod) {
-    return SurfLikelihood.FLAT;
-  }
-  
-  // Apply spot-specific thresholds
-  if (waveHeight < finalThresholds.flatMax) {
-    return SurfLikelihood.FLAT;
-  }
-  
-  if (waveHeight < finalThresholds.maybeMin && wavePeriod >= finalThresholds.maybePeriodMin) {
-    return SurfLikelihood.MAYBE_SURF;
-  }
-  
-  if (waveHeight < finalThresholds.goodMin && wavePeriod >= finalThresholds.goodPeriodMin && windSpeed < finalThresholds.goodWindMax) {
-    return SurfLikelihood.GOOD;
-  }
-  
-  if (waveHeight >= finalThresholds.firingMin && wavePeriod >= finalThresholds.firingPeriodMin && windSpeed < finalThresholds.firingWindMax) {
-    return SurfLikelihood.FIRING;
-  }
-  
-  // If wave height is good but period is too short
-  return SurfLikelihood.FLAT;
-};
+// REMOVED: Duplicate calculateSurfLikelihood function that was causing inconsistent surf likelihood calculations
+// The correct function is now in greatLakesApi.ts and handles all surf likelihood calculations consistently
 
-const generateForecastSummary = (
-  surfLikelihood: SurfLikelihood,
-  dayOffset: number
-): string => {
-  const dayNames = [
-    'today', 'tomorrow', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
-  ];
-  
-  const dayName = dayOffset < dayNames.length ? dayNames[dayOffset] : `day ${dayOffset + 1}`;
-  
-  switch (surfLikelihood) {
-    case SurfLikelihood.FLAT:
-      return `Flat conditions ${dayName}. No surf expected.`;
-    case SurfLikelihood.MAYBE_SURF:
-      return `Maybe surf ${dayName}. Watch for a bump.`;
-    case SurfLikelihood.GOOD:
-      return `Good conditions ${dayName} — grab your board.`;
-    case SurfLikelihood.FIRING:
-      return `Firing ${dayName}! Best window early.`;
-    default:
-      return `Check conditions ${dayName}.`;
-  }
-};
+// REMOVED: generateForecastSummary function that was using the old surf likelihood logic
+// This functionality is now handled by the surf report generation in greatLakesApi.ts
 
 
 // Create axios instance with base configuration
@@ -232,42 +163,7 @@ const handleApiError = (error: unknown) => {
  * Handles all external API calls for surf conditions data
  */
 
-const ENDPOINTS = {
-  WINDY: {
-    FORECAST: '/forecast',
-  },
-  NOAA: {
-    FORECAST: '/forecasts/point',
-  },
-  NDBC: {
-    REALTIME: '/realtime2',
-  },
-};
-
-// Helper function to handle fetch requests with timeout
-const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = TIMEOUTS.API_CALL) => {
-  const controller = new AbortController();
-  const { signal } = controller;
-  
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-  
-  try {
-    const response = await fetch(url, { ...options, signal });
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Request timed out');
-    }
-    throw error;
-  }
-};
+// Removed unused ENDPOINTS and fetchWithTimeout
 
 // Initialize mock backend
 initializeMockBackend();
@@ -300,12 +196,20 @@ export const fetchSurfConditions = async (spotId: string): Promise<SurfCondition
     );
     
     if (aggregated) {
-      // Received aggregated data
+      console.log('📊 Aggregated data received:', {
+        waveHeight: aggregated.waveHeight,
+        swell: aggregated.swell,
+        surfLikelihood: aggregated.surfLikelihood
+      });
       
       // Use the new helper function to create SurfConditions
       const conditions = createSurfConditions(spotId, aggregated, surferCount);
       
-      // Final conditions
+      console.log('🏄 Final SurfConditions:', {
+        waveHeight: conditions.waveHeight,
+        swell: conditions.swell,
+        surfLikelihood: conditions.surfLikelihood
+      });
       
       return conditions;
     }
@@ -382,16 +286,7 @@ export const fetchNearbySurfSpots = async (
     // Use real data from spots.json
     const toRad = (value: number) => (value * Math.PI) / 180;
     const earthRadius = 6371; // km
-    const isWithinRadius = (lat1: number, lon1: number, lat2: number, lon2: number, r: number) => {
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return earthRadius * c <= r;
-    };
+    // Removed unused isWithinRadius function
 
     const nearbySpots = findNearbySpots(latitude, longitude, radius);
 
