@@ -555,7 +555,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                   <Ionicons name="time-outline" size={24} color={COLORS.primary} />
                   <Text style={styles.conditionLabel}>Period</Text>
                   <Text style={styles.conditionValue}>
-                    {currentConditions?.swell && currentConditions.swell.length > 0 && currentConditions.swell[0]?.period > 0 
+                    {currentConditions?.swell && currentConditions.swell.length > 0 && currentConditions.swell[0]?.period && currentConditions.swell[0].period > 0 
                       ? `${currentConditions.swell[0].period}s` 
                       : 'N/A'}
                   </Text>
@@ -694,6 +694,8 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
             <Text style={[styles.actionButtonText, styles.secondaryButtonText]}>Log Session</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Debug button - remove in production */}
       </ScrollView>
 
       {/* Notes Modal */}

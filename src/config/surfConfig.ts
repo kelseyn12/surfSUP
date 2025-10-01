@@ -160,8 +160,8 @@ export const getWindDirectionFromDegrees = (degrees: number): string => {
  * Check if wind direction creates favorable swell for a spot
  */
 export const checkSwellDirections = (spotId: string, windDegrees: number): boolean => {
-  // North Shore (MN spots)
-  if (['duluth', 'parkpoint', 'lester', 'stoney', 'brighton'].includes(spotId.toLowerCase())) {
+  // North Shore (MN spots) - include variations of park point
+  if (['duluth', 'parkpoint', 'park-point', 'park_point', 'lester', 'stoney', 'brighton'].includes(spotId.toLowerCase())) {
     // NE–E (30°–100°) creates swell across the lake
     return windDegrees >= 30 && windDegrees <= 100;
   }
@@ -180,8 +180,8 @@ export const checkSwellDirections = (spotId: string, windDegrees: number): boole
  * Check local wind quality for a spot
  */
 export const checkLocalWindQuality = (spotId: string, windDegrees: number, windSpeed: number): 'clean' | 'onshore' | 'strong' => {
-  // North Shore (MN spots)
-  if (['duluth', 'parkpoint', 'lester', 'brighton'].includes(spotId.toLowerCase())) {
+  // North Shore (MN spots) - include variations of park point
+  if (['duluth', 'parkpoint', 'park-point', 'park_point', 'lester', 'brighton'].includes(spotId.toLowerCase())) {
     // Clean local winds: W–SW (220°–260°)
     if (windDegrees >= 220 && windDegrees <= 260) {
       return 'clean';

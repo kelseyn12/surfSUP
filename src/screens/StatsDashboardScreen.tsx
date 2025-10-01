@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/colors';
-import { getUserSessions } from '../services/storage';
+import { getUserSessions, storeUserSessions } from '../services/storage';
 import { SurfSession } from '../types';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../services/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -312,7 +313,7 @@ const StatsDashboardScreen: React.FC = () => {
     // Sort days ascending
     const sortedDays = Array.from(days).sort((a, b) => a - b);
     // Calculate longest and current streak
-    let longest = 0, temp = 1;
+    let longest = 0, current = 0, temp = 1;
     for (let i = 1; i < sortedDays.length; i++) {
       const diff = (sortedDays[i] - sortedDays[i - 1]) / (1000 * 60 * 60 * 24);
       if (diff === 1) {
@@ -532,7 +533,12 @@ const StatsDashboardScreen: React.FC = () => {
     return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
   }
 
-  // Helper to get the date label for 13 days ago (not currently used)
+  // Helper to get the date label for 13 days ago
+  function getStreakStartDateLabel() {
+    const d = new Date();
+    d.setDate(d.getDate() - 13);
+    return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+  }
 
   // Helper to format time in 12-hour format
   function formatTime12h(time: string) {

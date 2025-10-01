@@ -243,10 +243,10 @@ export interface WindData {
 }
 
 export interface NoaaWaterLevelResponse {
-  data: {
+  data: Array<{
     t: string; // time
     v: string; // value (water level)
-  }[];
+  }>;
   error?: string;
 }
 

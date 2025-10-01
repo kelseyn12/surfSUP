@@ -25,12 +25,12 @@ const LAKE_SUPERIOR_BUOYS = {
   // Wave Buoys (report wave height, period, direction)
   '45001': { 
     name: 'MID SUPERIOR Wave Buoy', 
-    lat: 47.345, 
-    lon: -87.323, 
-    description: 'Forecasts waves coming to Duluth in 12 hours',
+    lat: 48.061, 
+    lon: -87.793, 
+    description: 'Central Lake Superior - waves coming to North Shore in 8-12 hours',
     direction: 'N/NE',
-    travelTime: 12,
-    forecastHours: [12, 18, 24],
+    travelTime: 10,
+    forecastHours: [8, 12, 16],
     type: 'wave'
   },
   '45027': { 
@@ -432,7 +432,7 @@ const fetchWindyWindData = async (latitude: number, longitude: number): Promise<
         const pressure = windJson['pressure-surface'] ? windJson['pressure-surface'][currentIndex] : undefined;
         
         const windSpeed = Math.sqrt(windU * windU + windV * windV) * 2.23694; // Convert m/s to mph
-        const windDegrees = Math.atan2(windV, windU) * 180 / Math.PI;
+        const windDegrees = (Math.atan2(windV, windU) * 180 / Math.PI + 180) % 360; // Convert to meteorological convention (where wind is coming FROM)
         const windDirection = getWindDirectionFromDegrees(windDegrees);
         
         windData = {
@@ -913,6 +913,7 @@ interface WaveDataPoint {
   source: string;
   confidence: number;
   timestamp?: string;
+  distance?: number;
 }
 
 interface BlendedWaveData {
@@ -938,13 +939,35 @@ const aggregateWaveData = (buoyData: BuoyData[], windData: WindData | null): Ble
   const wavePeriodPoints: WaveDataPoint[] = [];
   
   // Collect all wave height data points with source info
-  buoyData.forEach(buoy => {
+  // Use ALL buoy data - close buoys for current conditions, distant buoys for forecasting
+  console.log('🌊 Wave data sources:');
+  buoyData.forEach((buoy, index) => {
     if (buoy.waveHeight > 0) {
+      console.log(`${index + 1}. ${buoy.source}: ${buoy.waveHeight}ft waves (${buoy.distance || 0} miles)`);
+    }
+  });
+  
+  buoyData.forEach((buoy, index) => {
+    if (buoy.waveHeight > 0) {
+      // All buoy data gets high confidence - we use ALL data for comprehensive analysis
+      const distance = buoy.distance || 999;
+      let confidence = 0.9; // High confidence for all buoy data
+      
+      // Slightly higher confidence for local conditions, but still use distant data
+      if (distance < 1) {
+        confidence = 0.95; // Local conditions get slightly higher confidence
+      } else if (distance < 50) {
+        confidence = 0.9; // Regional conditions
+      } else {
+        confidence = 0.85; // Distant buoys for forecasting - still important!
+      }
+      
       waveHeightPoints.push({
         value: buoy.waveHeight,
         source: `ndbc-${buoy.source}`,
-        confidence: 0.9, // High confidence for buoy data
-        timestamp: buoy.timestamp
+        confidence: confidence,
+        timestamp: buoy.timestamp,
+        distance: distance
       });
     }
   });
@@ -967,13 +990,27 @@ const aggregateWaveData = (buoyData: BuoyData[], windData: WindData | null): Ble
     });
   }
   
-  // Collect wave period data
-  buoyData.forEach(buoy => {
+  // Collect wave period data - use ALL buoy data
+  buoyData.forEach((buoy, index) => {
     if (buoy.wavePeriod > 0) {
+      // All buoy data gets high confidence - we use ALL data for comprehensive analysis
+      const distance = buoy.distance || 999;
+      let confidence = 0.9; // High confidence for all buoy data
+      
+      // Slightly higher confidence for local conditions, but still use distant data
+      if (distance < 1) {
+        confidence = 0.95; // Local conditions get slightly higher confidence
+      } else if (distance < 50) {
+        confidence = 0.9; // Regional conditions
+      } else {
+        confidence = 0.85; // Distant buoys for forecasting - still important!
+      }
+      
       wavePeriodPoints.push({
         value: buoy.wavePeriod,
         source: `ndbc-${buoy.source}`,
-        confidence: 0.9
+        confidence: confidence,
+        distance: distance
       });
     }
   });
@@ -1079,6 +1116,7 @@ interface WindDataPoint {
   source: string;
   confidence: number;
   timestamp?: string;
+  distance?: number;
 }
 
 interface BlendedWindData {
@@ -1098,19 +1136,41 @@ const aggregateWindData = (buoyData: BuoyData[], windData: WindData | null): Ble
   const windSpeedPoints: WindDataPoint[] = [];
   
   // Collect all wind speed data points with source info
-  buoyData.forEach(buoy => {
+  // Use ALL buoy data - close buoys for current conditions, distant buoys for forecasting
+  console.log('🌬️ Wind data sources:');
+  buoyData.forEach((buoy, index) => {
+    if (buoy.windSpeed > 0) {
+      console.log(`${index + 1}. ${buoy.source}: ${buoy.windSpeed}mph ${buoy.windDirection} (${buoy.distance || 0} miles)`);
+    }
+  });
+  
+  buoyData.forEach((buoy, index) => {
     if (buoy.windSpeed > 0) {
       // Convert wind direction from degrees to compass direction if it's a number
       const formattedDirection = typeof buoy.windDirection === 'number' 
         ? getWindDirectionFromDegrees(buoy.windDirection)
         : buoy.windDirection;
       
+      // All buoy data gets equal confidence - all sources work together
+      const distance = buoy.distance || 999;
+      let confidence = 0.9; // High confidence for all buoy data
+      
+      // Slightly higher confidence for local conditions, but all data is valuable
+      if (distance < 1) {
+        confidence = 0.95; // Local conditions get slightly higher confidence
+      } else if (distance < 50) {
+        confidence = 0.9; // Regional conditions
+      } else {
+        confidence = 0.85; // Distant buoys for comprehensive analysis
+      }
+      
       windSpeedPoints.push({
         speed: buoy.windSpeed,
         direction: formattedDirection,
         source: `ndbc-${buoy.source}`,
-        confidence: 0.9, // High confidence for buoy data
-        timestamp: buoy.timestamp
+        confidence: confidence,
+        timestamp: buoy.timestamp,
+        distance: distance
       });
     }
   });
@@ -1493,17 +1553,17 @@ const calculateSurfLikelihood = (
   // Apply wave size/period thresholds with wind quality adjustment
   let baseRating: 'Maybe Surf' | 'Good' | 'Firing' | 'Blown Out';
   
-  // Maybe Surf: 1.0–1.5 ft with period ≥ 4s and wind ≤ 18 mph
-  if (avgWaveHeight >= 1.0 && avgWaveHeight < 1.6 && wavePeriod >= 4 && windSpeed <= 18) {
+  // Maybe Surf: 1.0–2.0 ft with period ≥ 4s and wind ≤ 12 mph
+  if (avgWaveHeight >= 1.0 && avgWaveHeight < 2.0 && wavePeriod >= 4 && windSpeed <= 12) {
     baseRating = 'Maybe Surf';
   }
-  // Good: 1.6–3.0 ft with period ≥ 4s and wind ≤ 15 mph
-  else if (avgWaveHeight >= 1.6 && avgWaveHeight < 3.0 && wavePeriod >= 4 && windSpeed <= 15) {
+  // Good: 2.0–4.0 ft with period ≥ 4s and wind ≤ 10 mph
+  else if (avgWaveHeight >= 2.0 && avgWaveHeight < 4.0 && wavePeriod >= 4 && windSpeed <= 10) {
     baseRating = 'Good';
   }
-  // Firing: ≥ 3.0 ft & ≥ 6s with wind ≤ 18 mph, or ≥ 4.0 ft & ≥ 5s with wind ≤ 18 mph
-  else if ((avgWaveHeight >= 3.0 && wavePeriod >= 6 && windSpeed <= 18) ||
-           (avgWaveHeight >= 4.0 && wavePeriod >= 5 && windSpeed <= 18)) {
+  // Firing: ≥ 4.0 ft & ≥ 6s with wind ≤ 12 mph, or ≥ 5.0 ft & ≥ 5s with wind ≤ 12 mph
+  else if ((avgWaveHeight >= 4.0 && wavePeriod >= 6 && windSpeed <= 12) ||
+           (avgWaveHeight >= 5.0 && wavePeriod >= 5 && windSpeed <= 12)) {
     baseRating = 'Firing';
   }
   // Otherwise return Blown Out
@@ -1978,7 +2038,7 @@ export const fetchWindyForecastData = async (latitude: number, longitude: number
         const windU = windForecastData.windU[i] || 0;
         const windV = windForecastData.windV[i] || 0;
         windSpeed = Math.sqrt(windU * windU + windV * windV) * 2.23694; // Convert m/s to mph
-        const windDegrees = Math.atan2(windV, windU) * 180 / Math.PI;
+        const windDegrees = (Math.atan2(windV, windU) * 180 / Math.PI + 180) % 360; // Convert to meteorological convention (where wind is coming FROM)
         windDirection = getWindDirectionFromDegrees(windDegrees);
         temperature = windForecastData.temperature[i] || 50;
         pressure = windForecastData.pressure[i] || 1013;
@@ -2047,35 +2107,24 @@ export const fetchAllGreatLakesForecastData = async (
     
     console.log(`🌊 Forecast time range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
     
-    // Fetch forecast data from all sources including buoy data for trends
+    // Fetch forecast data from NOAA ONLY (as requested)
     const [
-      windyForecastData,
       noaaForecastData,
       buoyData
     ] = await Promise.allSettled([
-      fetchWindyForecastData(latitude, longitude, hours),
       fetchNOAAForecastData(latitude, longitude, hours),
       fetchAllBuoyData(latitude, longitude) // Include buoy data for trend analysis
     ]);
     
-    console.log(`🌊 Forecast data sources status - Windy: ${windyForecastData.status}, NOAA: ${noaaForecastData.status}, Buoy: ${buoyData.status}`);
+    console.log(`🌊 Forecast data sources status - NOAA: ${noaaForecastData.status}, Buoy: ${buoyData.status}`);
     
     // Extract successful results
-    const successfulWindyData = windyForecastData.status === 'fulfilled' ? windyForecastData.value : [];
     const successfulNOAAData = noaaForecastData.status === 'fulfilled' ? noaaForecastData.value : [];
     const successfulBuoyData = buoyData.status === 'fulfilled' ? buoyData.value : [];
     
-    console.log(`🌊 Data sources results - Windy: ${successfulWindyData?.length || 0} points, NOAA: ${successfulNOAAData?.length || 0} points, Buoy: ${successfulBuoyData?.length || 0} points`);
+    console.log(`🌊 Data sources results - NOAA: ${successfulNOAAData?.length || 0} points, Buoy: ${successfulBuoyData?.length || 0} points`);
     
     // Log errors with context
-    if (windyForecastData.status === 'rejected') {
-      const error = windyForecastData.reason;
-      if (error && error.toString().includes('429')) {
-        console.log('🌊 Windy forecast API rate limited - using NOAA data only');
-      } else {
-        console.error('🌊 Windy forecast data error:', error);
-      }
-    }
     if (noaaForecastData.status === 'rejected') {
       console.error('🌊 NOAA forecast data error:', noaaForecastData.reason);
     }
@@ -2083,9 +2132,8 @@ export const fetchAllGreatLakesForecastData = async (
       console.error('🌊 Buoy data error:', buoyData.reason);
     }
     
-    // Combine all forecast data sources
+    // Combine forecast data sources (NOAA ONLY)
     const allForecastData = [
-      ...(successfulWindyData || []),
       ...(successfulNOAAData || [])
     ];
     
@@ -2103,7 +2151,6 @@ export const fetchAllGreatLakesForecastData = async (
     if (daysCovered < 7) {
       console.log(`🌊 Forecast coverage: ${daysCovered} days (${totalHours} hours)`);
       console.log('🌊 This is normal - NOAA Marine API typically provides 2-4 days of detailed forecasts');
-      console.log('🌊 Windy API can extend coverage when not rate-limited');
     } else {
       console.log(`🌊 Full 7-day forecast coverage: ${daysCovered} days (${totalHours} hours)`);
     }
@@ -2421,7 +2468,7 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
             console.log(`🌊 Marine forecast text length: ${forecastText.length} characters`);
             
             // Extract forecast data from the text
-            const extractedData = parseNOAAMarineForecastText(forecastText, startDate, endDate);
+            const extractedData = parseNOAAMarineForecastText(forecastText, startDate, endDate, marineZone);
             forecastData.push(...extractedData);
             
             // NOAA Marine forecast points extracted
@@ -2742,25 +2789,44 @@ const extractWindDirectionFromNOAA = (forecastText: string): string => {
  */
 const getMarineForecastZone = (latitude: number, longitude: number): { id: string; name: string } => {
   // Lake Superior marine forecast zones - using actual NOAA zone IDs from the official table
-  if (latitude >= 46.5 && latitude <= 47.5 && longitude >= -92.5 && longitude <= -91.5) {
-    // Duluth area (Park Point)
-    return { id: 'LSZ144', name: 'Two Harbors to Duluth, MN' };
-  } else if (latitude >= 47.5 && latitude <= 48.5 && longitude >= -91.5 && longitude <= -90.5) {
-    // Grand Marais area
-    return { id: 'LSZ141', name: 'Grand Marais to Taconite Harbor, MN' };
-  } else if (latitude >= 48.0 && latitude <= 49.0 && longitude >= -90.5 && longitude <= -89.5) {
-    // Grand Portage area
-    return { id: 'LSZ140', name: 'Grand Portage to Grand Marais, MN' };
-  } else if (latitude >= 46.5 && latitude <= 47.5 && longitude >= -91.5 && longitude <= -90.5) {
-    // Two Harbors area
-    return { id: 'LSZ143', name: 'Silver Bay Harbor to Two Harbors, MN' };
-  } else if (latitude >= 46.5 && latitude <= 47.5 && longitude >= -92.5 && longitude <= -91.5) {
-    // Wisconsin side - Duluth to Port Wing
+  
+  // Michigan Upper Peninsula (Marquette area) - expanded range
+  if (latitude >= 46.0 && latitude <= 47.0 && longitude >= -88.0 && longitude <= -85.0) {
+    return { id: 'LSZ146', name: 'Port Wing to Sand Island, WI' };
+  }
+  
+  // Wisconsin North Shore (Ashland, Cornucopia area)
+  if (latitude >= 46.5 && latitude <= 47.0 && longitude >= -91.5 && longitude <= -90.5) {
     return { id: 'LSZ145', name: 'Duluth, MN to Port Wing, WI' };
-  } else {
-    // Default to Duluth zone for other Lake Superior locations
+  }
+  
+  // Minnesota North Shore - Grand Portage area
+  if (latitude >= 48.0 && latitude <= 49.0 && longitude >= -90.5 && longitude <= -89.5) {
+    return { id: 'LSZ140', name: 'Grand Portage to Grand Marais, MN' };
+  }
+  
+  // Minnesota North Shore - Grand Marais area
+  if (latitude >= 47.5 && latitude <= 48.5 && longitude >= -91.0 && longitude <= -90.0) {
+    return { id: 'LSZ141', name: 'Grand Marais to Taconite Harbor, MN' };
+  }
+  
+  // Minnesota North Shore - Silver Bay to Two Harbors
+  if (latitude >= 47.0 && latitude <= 47.5 && longitude >= -91.5 && longitude <= -91.0) {
+    return { id: 'LSZ142', name: 'Taconite Harbor to Silver Bay Harbor, MN' };
+  }
+  
+  // Minnesota North Shore - Two Harbors to Duluth
+  if (latitude >= 46.5 && latitude <= 47.0 && longitude >= -92.0 && longitude <= -91.5) {
+    return { id: 'LSZ143', name: 'Silver Bay Harbor to Two Harbors, MN' };
+  }
+  
+  // Duluth area (Park Point, Stoney Point, etc.) - expanded range
+  if (latitude >= 46.5 && latitude <= 47.0 && longitude >= -92.5 && longitude <= -91.5) {
     return { id: 'LSZ144', name: 'Two Harbors to Duluth, MN' };
   }
+  
+  // Default to Duluth zone for other Lake Superior locations
+  return { id: 'LSZ144', name: 'Two Harbors to Duluth, MN' };
 };
 
 // Buoy forecast function removed - buoys provide real-time data, not forecasts
@@ -2768,19 +2834,20 @@ const getMarineForecastZone = (latitude: number, longitude: number): { id: strin
 /**
  * Parse NOAA Marine forecast text and extract forecast data
  */
-const parseNOAAMarineForecastText = (forecastText: string, startDate: Date, endDate: Date): WindData[] => {
+const parseNOAAMarineForecastText = (forecastText: string, startDate: Date, endDate: Date, marineZone: { id: string; name: string }): WindData[] => {
   const forecastData: WindData[] = [];
   
   if (!forecastText) return forecastData;
   
-  console.log(`🌊 Parsing NOAA marine forecast text (${forecastText.length} chars)`);
+  console.log(`🌊 Parsing NOAA marine forecast text (${forecastText.length} chars) for zone: ${marineZone.name}`);
   
   // Split the text into sections by zone
   const sections = forecastText.split('LSZ');
   console.log(`🌊 Found ${sections.length} marine zone sections`);
   
   for (const section of sections) {
-    if (!section.includes('Duluth') && !section.includes('Two Harbors')) continue;
+    // Look for the specific marine zone section based on the determined zone
+    if (!section.includes(marineZone.name.split(',')[0]) && !section.includes(marineZone.id)) continue;
     
     console.log(`🌊 Processing section: ${section.substring(0, 100)}...`);
     
@@ -2867,18 +2934,38 @@ const createTimestampFromPeriodName = (periodName: string, baseDate: Date): Date
   
   switch (periodName.toUpperCase()) {
     case 'REST OF TODAY':
-      return new Date(today.getTime() + (12 * 60 * 60 * 1000)); // 12 PM today (Thursday)
+      // Use current time + 1 hour to ensure it's not filtered out as "past"
+      return new Date(Date.now() + (1 * 60 * 60 * 1000)); // 1 hour from now
     case 'TONIGHT':
-      return new Date(today.getTime() + (20 * 60 * 60 * 1000)); // 8 PM today (Thursday)
+      return new Date(today.getTime() + (20 * 60 * 60 * 1000)); // 8 PM today
+    case 'THURSDAY':
+      return new Date(today.getTime() + (24 * 60 * 60 * 1000) + (12 * 60 * 60 * 1000)); // 12 PM Thursday
+    case 'THURSDAY NIGHT':
+      return new Date(today.getTime() + (24 * 60 * 60 * 1000) + (20 * 60 * 60 * 1000)); // 8 PM Thursday
     case 'FRIDAY':
-      // NOAA "FRIDAY" refers to tomorrow (Friday), not today
-      return new Date(today.getTime() + (24 * 60 * 60 * 1000) + (12 * 60 * 60 * 1000)); // 12 PM Friday
+      return new Date(today.getTime() + (48 * 60 * 60 * 1000) + (12 * 60 * 60 * 1000)); // 12 PM Friday
     case 'FRIDAY NIGHT':
-      return new Date(today.getTime() + (24 * 60 * 60 * 1000) + (20 * 60 * 60 * 1000)); // 8 PM Friday
+      return new Date(today.getTime() + (48 * 60 * 60 * 1000) + (20 * 60 * 60 * 1000)); // 8 PM Friday
     case 'SATURDAY':
-      return new Date(today.getTime() + (48 * 60 * 60 * 1000) + (12 * 60 * 60 * 1000)); // 12 PM Saturday
+      return new Date(today.getTime() + (72 * 60 * 60 * 1000) + (12 * 60 * 60 * 1000)); // 12 PM Saturday
     case 'SATURDAY NIGHT':
-      return new Date(today.getTime() + (48 * 60 * 60 * 1000) + (20 * 60 * 60 * 1000)); // 8 PM Saturday
+      return new Date(today.getTime() + (72 * 60 * 60 * 1000) + (20 * 60 * 60 * 1000)); // 8 PM Saturday
+    case 'SUNDAY':
+      return new Date(today.getTime() + (96 * 60 * 60 * 1000) + (12 * 60 * 60 * 1000)); // 12 PM Sunday
+    case 'SUNDAY NIGHT':
+      return new Date(today.getTime() + (96 * 60 * 60 * 1000) + (20 * 60 * 60 * 1000)); // 8 PM Sunday
+    case 'MONDAY':
+      return new Date(today.getTime() + (120 * 60 * 60 * 1000) + (12 * 60 * 60 * 1000)); // 12 PM Monday
+    case 'MONDAY NIGHT':
+      return new Date(today.getTime() + (120 * 60 * 60 * 1000) + (20 * 60 * 60 * 1000)); // 8 PM Monday
+    case 'TUESDAY':
+      return new Date(today.getTime() + (144 * 60 * 60 * 1000) + (12 * 60 * 60 * 1000)); // 12 PM Tuesday
+    case 'TUESDAY NIGHT':
+      return new Date(today.getTime() + (144 * 60 * 60 * 1000) + (20 * 60 * 60 * 1000)); // 8 PM Tuesday
+    case 'WEDNESDAY':
+      return new Date(today.getTime() + (168 * 60 * 60 * 1000) + (12 * 60 * 60 * 1000)); // 12 PM Wednesday
+    case 'WEDNESDAY NIGHT':
+      return new Date(today.getTime() + (168 * 60 * 60 * 1000) + (20 * 60 * 60 * 1000)); // 8 PM Wednesday
     default:
       return now;
   }

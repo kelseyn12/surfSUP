@@ -5,7 +5,7 @@
  * In a production app, this would connect to a real WebSocket server.
  */
 
-import { updateGlobalSurferCount, updateUserCheckedInStatus } from './globalState';
+import { globalSurferCounts, updateGlobalSurferCount, updateUserCheckedInStatus } from './globalState';
 import { emitSurferCountUpdated, emitCheckInStatusChanged } from './events';
 
 // Types for the messages

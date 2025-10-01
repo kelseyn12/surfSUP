@@ -10,6 +10,7 @@ import {
   getSurferCount,
   initializeMockBackend
 } from './mockBackend';
+import { cacheForecastData, getCachedForecast } from '../utils/storage';
 // REMOVED: Unused import that was only needed for the duplicate surf likelihood function
 
 
@@ -163,7 +164,42 @@ const handleApiError = (error: unknown) => {
  * Handles all external API calls for surf conditions data
  */
 
-// Removed unused ENDPOINTS and fetchWithTimeout
+const ENDPOINTS = {
+  WINDY: {
+    FORECAST: '/forecast',
+  },
+  NOAA: {
+    FORECAST: '/forecasts/point',
+  },
+  NDBC: {
+    REALTIME: '/realtime2',
+  },
+};
+
+// Helper function to handle fetch requests with timeout
+const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = TIMEOUTS.API_CALL) => {
+  const controller = new AbortController();
+  const { signal } = controller;
+  
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, { ...options, signal });
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timed out');
+    }
+    throw error;
+  }
+};
 
 // Initialize mock backend
 initializeMockBackend();
@@ -174,6 +210,13 @@ initializeMockBackend();
  */
 export const fetchSurfConditions = async (spotId: string): Promise<SurfConditions | null> => {
   try {
+    // Check cache first (5 minute cache for current conditions) - TEMPORARILY DISABLED FOR TESTING
+    // const cached = await getCachedForecast(spotId, 5 * 60 * 1000); // 5 minutes
+    // if (cached) {
+    //   console.log('📦 Using cached conditions for', spotId);
+    //   return cached;
+    // }
+    
     // Fetching current conditions
     
     // Get current surfer count
@@ -210,6 +253,9 @@ export const fetchSurfConditions = async (spotId: string): Promise<SurfCondition
         swell: conditions.swell,
         surfLikelihood: conditions.surfLikelihood
       });
+      
+      // Cache the conditions for 5 minutes - TEMPORARILY DISABLED FOR TESTING
+      // await cacheForecastData(spotId, conditions);
       
       return conditions;
     }
@@ -286,7 +332,16 @@ export const fetchNearbySurfSpots = async (
     // Use real data from spots.json
     const toRad = (value: number) => (value * Math.PI) / 180;
     const earthRadius = 6371; // km
-    // Removed unused isWithinRadius function
+    const isWithinRadius = (lat1: number, lon1: number, lat2: number, lon2: number, r: number) => {
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return earthRadius * c <= r;
+    };
 
     const nearbySpots = findNearbySpots(latitude, longitude, radius);
 

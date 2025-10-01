@@ -5,7 +5,7 @@ import {
   getDirectionBetweenPoints,
   getRegionForCoordinates
 } from './location';
-// Removed unused SurfSpot import
+import type { SurfSpot } from '../types';
 
 describe('Location Utilities', () => {
   describe('degreesToRadians', () => {
