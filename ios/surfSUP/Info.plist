@@ -27,7 +27,7 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-				<string>com.surfSUP.com</string>
+				<string>com.kelseyn12.surfsupnative</string>
 			</array>
 		</dict>
 		<dict>
