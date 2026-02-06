@@ -69,7 +69,9 @@ We have successfully implemented a comprehensive, production-ready surf forecast
 - [X] Create surf spot list component
 - [X] Implement surf spot detail screen
 - [X] Add map view of surf spots (mock only)
-- [ ] Implement interactive MapView for surf spots (replace mock with real map component showing surf spots)
+- [X] Implement interactive MapView for surf spots (replace mock with real map component showing surf spots)
+- [ ] Improve map performance (e.g. memoization, avoid unnecessary re-renders)
+- [ ] Add marker clustering when zoomed out (optional)
 - [X] Implement search and filtering for spots
   - X Created comprehensive SearchScreen with text search and multiple filter options
   - X Added difficulty, wave type, and amenities filters with visual chips
@@ -226,6 +228,13 @@ We have successfully implemented a comprehensive, production-ready surf forecast
 - [X] Add navigation integration for profile editing
 - [X] Update SettingsScreen to link to EditProfileScreen
 
+## Recently Completed (Map & Pins)
+- [X] Replace mock map with real MapView (react-native-maps, iOS/Android)
+- [X] Show surf spot pins with surfer-count colors (gray/green/orange/red)
+- [X] Custom callout: spot name, surfer count, Low/Active/Crowded, "Go to details" button
+- [X] Fix surfer count on map (globalSurferCounts sync on check-in/check-out; getSurferCount export from api)
+- [X] iOS: location permissions, legacy pin view for colors, scripts for dev build
+
 ## Recently Completed (Password Reset Implementation)
 - [X] Implement Firebase password reset functionality
 - [X] Add email validation and error handling
@@ -308,7 +317,7 @@ X Core Components
 
 Real-Time Surfer Count Feature
   X Implement check-in mechanism in SpotDetailsScreen.
-  X Add surfer activity indicator to map pins.
+  X Add surfer activity indicator to map pins (colored pins + callout surfer count).
   X Create check-out functionality with auto-expiration timer.
   □ Add privacy settings for check-ins.
   □ Implement surfer count history.
