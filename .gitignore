@@ -33,6 +33,9 @@ yarn-error.*
 # local env files
 .env*.local
 
+# optional: enables abort() in Fabric patch for proof (do not commit)
+scripts/.prove-patch
+
 # typescript
 *.tsbuildinfo
 

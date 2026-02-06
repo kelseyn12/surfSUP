@@ -96,13 +96,13 @@ export const getSurferCount = async (spotId: string): Promise<number> => {
   try {
     // Simulate API latency
     await new Promise(resolve => setTimeout(resolve, 300));
-    
-    // Make sure we're returning the most current count from global state
-    const currentCount = globalSurferCounts[spotId] || 0;
-    
-    // Also update the local state to ensure it's in sync
-    activeSurferCounts[spotId] = currentCount;
-    
+    // Use global state (updated on check-in/out); fallback to activeSurferCounts if ahead (e.g. race)
+    const fromGlobal = globalSurferCounts[spotId] ?? 0;
+    const fromActive = activeSurferCounts[spotId] ?? 0;
+    const currentCount = Math.max(fromGlobal, fromActive);
+    if (fromActive !== fromGlobal) {
+      updateGlobalSurferCount(spotId, currentCount);
+    }
     return currentCount;
   } catch (error) {
     console.error('Error getting surfer count:', error);
@@ -149,7 +149,8 @@ export const checkInToSpot = async (
       activeSurferCounts[spotId] = 0;
     }
     activeSurferCounts[spotId]++;
-    
+    updateGlobalSurferCount(spotId, activeSurferCounts[spotId]);
+
     // Update the global user check-in status
     updateUserCheckedInStatus(spotId, true);
     
@@ -220,7 +221,8 @@ export const checkOutFromSpot = async (checkInId: string): Promise<boolean> => {
       if (activeSurferCounts[foundSpotId] > 0) {
         activeSurferCounts[foundSpotId]--;
       }
-      
+      updateGlobalSurferCount(foundSpotId, activeSurferCounts[foundSpotId]);
+
       const now = new Date();
       
       // Create WebSocket messages

@@ -65,6 +65,8 @@ target 'surfSUP' do
     :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
     :app_path => "#{Pod::Config.instance.installation_root}/..",
     :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] != 'false',
+    :new_arch_enabled => false,
+    :fabric_enabled => false,
   )
 
   # ✅ Ensure RNFBApp native module is linked
@@ -86,12 +88,41 @@ target 'surfSUP' do
   pod 'GoogleDataTransport'
 
   post_install do |installer|
+    # Apply patch to RCTThirdPartyComponentsProvider (empty registry when New Arch OFF so we don't crash)
+    script_path = File.expand_path(File.join(Pod::Config.instance.installation_root, '..', 'scripts', 'patch-third-party-provider.rb'))
+    system('ruby', script_path)
+
     react_native_post_install(
       installer,
       config[:reactNativePath],
       :mac_catalyst_enabled => false,
       :ccache_enabled => podfile_properties['apple.ccacheEnabled'] == 'true',
     )
+
+    # Patch RCTThirdPartyComponentsProvider: ensure phase is in ReactCodegen target (after codegen, before Compile Sources).
+    project = installer.pods_project
+    target = project.targets.find { |t| t.name == 'ReactCodegen' }
+    if target
+      # Find existing phase by name or UUID, or create a new one
+      patch_phase = target.build_phases.find { |p| p.respond_to?(:name) && p.name.to_s == 'Patch RCTThirdPartyComponentsProvider' }
+      patch_phase ||= target.build_phases.find { |p| p.respond_to?(:display_name) && p.display_name.to_s == 'Patch RCTThirdPartyComponentsProvider' }
+      patch_phase ||= project.build_phases.find { |p| p.respond_to?(:display_name) && p.display_name.to_s == 'Patch RCTThirdPartyComponentsProvider' } if project.respond_to?(:build_phases)
+      patch_phase ||= target.new_shell_script_build_phase('Patch RCTThirdPartyComponentsProvider')
+
+      # Attach to ReactCodegen and order: after Generate Specs, before Sources.
+      target.build_phases.delete(patch_phase)
+      sources_idx = target.build_phases.index { |p| p.respond_to?(:display_name) && p.display_name.to_s.include?('Sources') }
+      sources_idx ||= target.build_phases.index { |p| p.respond_to?(:name) && p.name.to_s == 'Sources' }
+      if sources_idx && sources_idx > 0
+        target.build_phases.insert(sources_idx, patch_phase)
+      else
+        target.build_phases << patch_phase
+      end
+
+      # Hard proof line so we can grep xcodebuild.log for phase execution.
+      patch_phase.shell_script = "echo \"[patch-third-party-provider] PHASE RAN target=\$TARGET_NAME config=\$CONFIGURATION\"\nruby \"#{script_path}\" \"$BUILD_DIR\" \"$OBJROOT\" \"$PROJECT_DIR\" \"$PODS_ROOT\" \"$DERIVED_DATA_DIR\"\n"
+    end
+    installer.pods_project.save
 
     # ✅ Fix Swift import + code signing issues
     installer.pods_project.targets.each do |target|

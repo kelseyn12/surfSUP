@@ -6,10 +6,13 @@ import { addUserSession } from './storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchAllGreatLakesData, fetchAllGreatLakesForecastData } from './greatLakesApi';
 import { getSpotById, createSurfConditions, findNearbySpots } from '../utils/spotHelpers';
-import { 
-  getSurferCount,
+import {
+  getSurferCount as getSurferCountFromBackend,
   initializeMockBackend
 } from './mockBackend';
+
+// Re-export for screens that use api for surf spot + count
+export const getSurferCount = getSurferCountFromBackend;
 import { cacheForecastData, getCachedForecast } from '../utils/storage';
 // REMOVED: Unused import that was only needed for the duplicate surf likelihood function
 
@@ -220,7 +223,7 @@ export const fetchSurfConditions = async (spotId: string): Promise<SurfCondition
     // Fetching current conditions
     
     // Get current surfer count
-    const surferCount = await getSurferCount(spotId);
+    const surferCount = await getSurferCountFromBackend(spotId);
     
     // Get spot coordinates for Great Lakes data
     const spot = getSpotById(spotId);
