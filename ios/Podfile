@@ -120,7 +120,8 @@ target 'surfSUP' do
       end
 
       # Hard proof line so we can grep xcodebuild.log for phase execution.
-      patch_phase.shell_script = "echo \"[patch-third-party-provider] PHASE RAN target=\$TARGET_NAME config=\$CONFIGURATION\"\nruby \"#{script_path}\" \"$BUILD_DIR\" \"$OBJROOT\" \"$PROJECT_DIR\" \"$PODS_ROOT\" \"$DERIVED_DATA_DIR\"\n"
+      # Pass TARGET_TEMP_DIR (codegen often writes .mm here), OBJROOT, BUILD_DIR, etc.
+      patch_phase.shell_script = "echo \"[patch-third-party-provider] PHASE RAN target=\$TARGET_NAME config=\$CONFIGURATION\"\nruby \"#{script_path}\" \"\$TARGET_TEMP_DIR\" \"\$BUILD_DIR\" \"\$OBJROOT\" \"\$PROJECT_DIR\" \"\$PODS_ROOT\" \"\$DERIVED_DATA_DIR\" \"\$SRCROOT\"\n"
     end
     installer.pods_project.save
 

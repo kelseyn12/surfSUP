@@ -1,11 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { APP_CONFIG } from '../constants';
 
+// Single permission request per app lifecycle (avoids duplicate TCC prompts and CLLocationManager churn).
+let hasRequestedAppPermission = false;
+
 /**
- * Custom hook for getting and tracking user location
- * @param options Configuration options
- * @returns Location state and methods
+ * Request foreground location permission once per app session.
+ * Subsequent calls only check status (getForegroundPermissionsAsync).
+ */
+async function requestPermissionOnce(): Promise<Location.PermissionStatus> {
+  if (hasRequestedAppPermission) {
+    const { status } = await Location.getForegroundPermissionsAsync();
+    return status;
+  }
+  hasRequestedAppPermission = true;
+  const { status } = await Location.requestForegroundPermissionsAsync();
+  return status;
+}
+
+/**
+ * useLocation: single source for permission + location.
+ * - Permission is requested at most once per app (guarded by module ref).
+ * - Watch subscription is created once when watchPosition is true and removed on cleanup.
+ * - onLocationChange is stored in a ref so the watch effect does not re-run on every render.
  */
 export const useLocation = ({
   enableHighAccuracy = true,
@@ -35,37 +53,31 @@ export const useLocation = ({
     Location.PermissionStatus | null
   >(null);
 
-  // Request location permissions and get initial location
-  const requestLocationPermission = async () => {
+  const onLocationChangeRef = useRef(onLocationChange);
+  onLocationChangeRef.current = onLocationChange;
+
+  /** Request permission once and get initial position. Safe to call from useEffect(() => {}, []). */
+  const requestLocationPermission = useCallback(async (): Promise<boolean> => {
     setIsLoading(true);
     setErrorMsg(null);
-
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      const status = await requestPermissionOnce();
       setPermissionStatus(status);
-
       if (status !== 'granted') {
         setErrorMsg('Permission to access location was denied');
         setIsLoading(false);
         return false;
       }
-
-      // Get current position
       const currentLocation = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-
       const locationData = {
         latitude: currentLocation.coords.latitude,
         longitude: currentLocation.coords.longitude,
-        accuracy: currentLocation.coords.accuracy || undefined,
+        accuracy: currentLocation.coords.accuracy ?? undefined,
       };
-
       setLocation(locationData);
-      if (onLocationChange) {
-        onLocationChange(locationData);
-      }
-
+      onLocationChangeRef.current?.(locationData);
       setIsLoading(false);
       return true;
     } catch (error) {
@@ -73,92 +85,81 @@ export const useLocation = ({
       setIsLoading(false);
       return false;
     }
-  };
+  }, []);
 
-  // Start watching position if requested
+  // Watch: only depends on watchPosition. Callback via ref so no re-subscribe on parent re-render.
   useEffect(() => {
     let watchId: Location.LocationSubscription | null = null;
+    if (!watchPosition) return;
 
-    const startWatchingPosition = async () => {
-      if (!watchPosition) return;
-
-      const { status } = await Location.requestForegroundPermissionsAsync();
+    const start = async () => {
+      const status = await requestPermissionOnce();
       setPermissionStatus(status);
-
       if (status !== 'granted') {
         setErrorMsg('Permission to access location was denied');
         return;
       }
-
       watchId = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.Balanced,
-          timeInterval: APP_CONFIG.LOCATION_REFRESH_INTERVAL * 60 * 1000, // convert minutes to ms
-          distanceInterval: 10, // minimum movement in meters
+          timeInterval: APP_CONFIG.LOCATION_REFRESH_INTERVAL * 60 * 1000,
+          distanceInterval: 10,
         },
         (newLocation) => {
           const locationData = {
             latitude: newLocation.coords.latitude,
             longitude: newLocation.coords.longitude,
-            accuracy: newLocation.coords.accuracy || undefined,
+            accuracy: newLocation.coords.accuracy ?? undefined,
           };
-
           setLocation(locationData);
-          if (onLocationChange) {
-            onLocationChange(locationData);
-          }
+          onLocationChangeRef.current?.(locationData);
         }
       );
     };
+    start();
 
-    if (watchPosition) {
-      startWatchingPosition();
-    }
-
-    // Cleanup function
     return () => {
       if (watchId) {
         watchId.remove();
+        watchId = null;
       }
     };
-  }, [watchPosition, onLocationChange]);
+  }, [watchPosition]);
 
-  // Get current location on demand
-  const getCurrentLocation = async () => {
+  /** Get current position on demand. Uses existing permission; requests only if not yet granted. Returns location or null. */
+  const getCurrentLocation = useCallback(async (): Promise<{
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+  } | null> => {
     setIsLoading(true);
     setErrorMsg(null);
-
     try {
-      const { status } = await Location.getForegroundPermissionsAsync();
-      
+      const status = await requestPermissionOnce();
+      setPermissionStatus(status);
       if (status !== 'granted') {
-        // If permission is not granted, request it
-        return await requestLocationPermission();
+        setErrorMsg('Permission to access location was denied');
+        setIsLoading(false);
+        return null;
       }
-
       const currentLocation = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-
       const locationData = {
         latitude: currentLocation.coords.latitude,
         longitude: currentLocation.coords.longitude,
-        accuracy: currentLocation.coords.accuracy || undefined,
+        accuracy: currentLocation.coords.accuracy ?? undefined,
       };
-
       setLocation(locationData);
-      if (onLocationChange) {
-        onLocationChange(locationData);
-      }
-
+      onLocationChangeRef.current?.(locationData);
       setIsLoading(false);
-      return true;
+      return locationData;
     } catch (error) {
       setErrorMsg(`Error getting location: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setIsLoading(false);
-      return false;
+      return null;
     }
-  };
+  }, []);
 
   return {
     location,
@@ -168,4 +169,4 @@ export const useLocation = ({
     requestLocationPermission,
     getCurrentLocation,
   };
-}; 
+};

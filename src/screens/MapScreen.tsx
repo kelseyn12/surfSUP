@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Platform, NativeModules, UIManager } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
 import { MainTabScreenProps } from '../navigation/types';
+import { useLocation } from '../hooks/useLocation';
 import { COLORS } from '../constants/colors';
 import { SurfSpot } from '../types';
 import { fetchNearbySurfSpots, getSurferCount } from '../services/api';
@@ -67,10 +67,18 @@ const MapScreen: React.FC = () => {
     const timeout = setTimeout(checkMaps, 100);
     return () => clearTimeout(timeout);
   }, []);
-  const [isLoading, setIsLoading] = useState(false);
   const [surfSpots, setSurfSpots] = useState<SurfSpot[]>([]);
-  const [locationPermission, setLocationPermission] = useState<boolean>(false);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  // Single location source: permission requested once per app, location on demand / initial
+  const {
+    location: userLocation,
+    permissionStatus,
+    isLoading: locationLoading,
+    requestLocationPermission,
+    getCurrentLocation,
+  } = useLocation({ watchPosition: false });
+
+  const locationPermission = permissionStatus === 'granted';
 
   // Map region state - centered on Lake Superior near Duluth
   const [region, setRegion] = useState<Region>({
@@ -84,8 +92,9 @@ const MapScreen: React.FC = () => {
   const SPOTS_CENTER = { lat: 46.7867, lng: -92.0805 };
   const SPOTS_RADIUS_KM = 500;
 
+  const [spotsLoading, setSpotsLoading] = useState(false);
   const loadSurfSpots = React.useCallback(async () => {
-    setIsLoading(true);
+    setSpotsLoading(true);
     try {
       const spots = await fetchNearbySurfSpots(SPOTS_CENTER.lat, SPOTS_CENTER.lng, SPOTS_RADIUS_KM);
       const list = spots && spots.length > 0 ? spots : getAllSpots();
@@ -99,9 +108,10 @@ const MapScreen: React.FC = () => {
       console.warn('[MapScreen] loadSurfSpots failed:', err);
       setSurfSpots(getAllSpots());
     } finally {
-      setIsLoading(false);
+      setSpotsLoading(false);
     }
   }, []);
+  const isLoading = spotsLoading || locationLoading;
 
   // Initial load
   useEffect(() => {
@@ -138,72 +148,33 @@ const MapScreen: React.FC = () => {
     }, [loadSurfSpots])
   );
 
-  // Request location permissions
+  // Request location permission and initial position once on mount (single TCC request per app).
   useEffect(() => {
-    const requestLocationPermission = async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          setLocationPermission(true);
-          // Get initial location
-          const location = await Location.getCurrentPositionAsync({});
-          setUserLocation({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-          });
-        }
-      } catch (error) {
-        console.error('Error requesting location permission:', error);
-      }
-    };
     requestLocationPermission();
-  }, []);
+  }, [requestLocationPermission]);
 
-  // Function for finding user's location
+  // Move map to user location and optionally refresh spots. Uses hook's getCurrentLocation (no duplicate permission request).
   const findMyLocation = async () => {
-    setIsLoading(true);
-    try {
-      if (!locationPermission) {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          alert('Location permission is required to find your location');
-          setIsLoading(false);
-          return;
-        }
-        setLocationPermission(true);
+    const coords = await getCurrentLocation();
+    if (!coords) {
+      if (!permissionStatus || permissionStatus === 'denied') {
+        alert('Location permission is required to find your location');
+      } else {
+        alert('Unable to find your location. Please try again.');
       }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      const newRegion: Region = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.1,
-        longitudeDelta: 0.1,
-      };
-
-      setUserLocation({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-
-      setRegion(newRegion);
-      
-      // Animate map to user location
-      if (mapRef.current) {
-        mapRef.current.animateToRegion(newRegion, 1000);
-      }
-
-      // Reload surf spots with new location
-      await loadSurfSpots();
-    } catch (error) {
-      console.error('Error finding location:', error);
-      alert('Unable to find your location. Please try again.');
-    } finally {
-      setIsLoading(false);
+      return;
     }
+    const newRegion: Region = {
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      latitudeDelta: 0.1,
+      longitudeDelta: 0.1,
+    };
+    setRegion(newRegion);
+    if (mapRef.current) {
+      mapRef.current.animateToRegion(newRegion, 1000);
+    }
+    await loadSurfSpots();
   };
 
   // Function to center map on Lake Superior

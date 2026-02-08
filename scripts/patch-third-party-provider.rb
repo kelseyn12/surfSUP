@@ -12,22 +12,27 @@ require 'json'
 # Explicitly globs ReactCodegen DerivedSources so we patch the file that is actually compiled.
 
 ios_root = File.expand_path(File.join(__dir__, '..', 'ios'))
+project_root = File.expand_path(File.join(__dir__, '..'))
 props_path = File.join(ios_root, 'Podfile.properties.json')
 
-search_dirs = [ios_root]
+# ios/, project root (build/generated/ios), and any build-phase args
+search_dirs = [ios_root, project_root]
 ARGV.each do |arg|
   next if arg.to_s.strip.empty?
   expanded = File.expand_path(arg)
   search_dirs << expanded if Dir.exist?(expanded)
 end
-# So we patch the file Xcode actually compiles (may live under DerivedData).
-if ENV['DERIVED_DATA_DIR'].to_s.strip != '' && Dir.exist?(ENV['DERIVED_DATA_DIR'])
-  search_dirs << File.expand_path(ENV['DERIVED_DATA_DIR'])
+# Add Xcode env dirs that might contain the generated .mm (ReactCodegen often uses TARGET_TEMP_DIR).
+%w[TARGET_TEMP_DIR TARGET_BUILD_DIR DERIVED_DATA_DIR].each do |k|
+  v = ENV[k].to_s.strip
+  next if v.empty?
+  expanded = File.expand_path(v)
+  search_dirs << expanded if Dir.exist?(expanded)
 end
 
 # Log search dirs and key env (helps debug when DerivedSources copy isn't found)
 puts "[patch-third-party-provider] Search dirs: #{search_dirs.join(', ')}"
-%w[BUILD_DIR OBJROOT PROJECT_DIR PODS_ROOT DERIVED_DATA_DIR].each do |k|
+%w[TARGET_TEMP_DIR BUILD_DIR OBJROOT PROJECT_DIR PODS_ROOT DERIVED_DATA_DIR SRCROOT].each do |k|
   puts "[patch-third-party-provider]   #{k}=#{ENV[k] || '(not set)'}"
 end
 
@@ -65,26 +70,14 @@ already_ok_regex = /(thirdPartyComponents\s*=\s*@\s*\{\s*\}\s*;|return\s*@\s*\{\
 # Proof mode: scripts/.prove-patch or SURFSUP_PROVE_PATCH=1 adds abort() so we can confirm which dylib is linked.
 prove_patch = ENV['SURFSUP_PROVE_PATCH'] == '1' || File.exist?(File.join(__dir__, '.prove-patch'))
 
-MARKER_LINE = '    NSLog(@"[SURFSUP_PATCH] provider running");'
-# Insert marker at top of dispatch_once block; match any token name so we can add marker to all variants.
-MARKER_INSERT_REGEX = /(dispatch_once\s*\(\s*&)(\w+)(\s*,\s*\^\s*\{\s*)\n(\s*)/m
-
 def patch_one(path, block_regex, already_ok_regex, unsafe_literal_regex, unsafe_dict_method_regex, prove_patch)
   content = File.read(path)
-  marker_present = content.include?('SURFSUP_PATCH')
   has_unsafe_literal = unsafe_literal_regex.match?(content)
   has_unsafe_dict_method = unsafe_dict_method_regex.match?(content)
   has_bad = has_unsafe_literal || has_unsafe_dict_method
-  puts "[patch-third-party-provider] SCAN path=#{path} has_bad=#{has_bad} has_marker=#{marker_present}"
-  # Only treat as already_ok when marker is present, nil-safe, AND no unsafe patterns remain.
-  return :already_ok if marker_present && already_ok_regex.match?(content) && !has_bad
-  # Nil-safe but no marker → insert marker only so we can verify the dylib.
-  if already_ok_regex.match?(content) && !marker_present && !has_bad
-    new_content = content.sub(MARKER_INSERT_REGEX, "\\1\\2\\3\n#{MARKER_LINE}\n\\4")
-    return :could_not_patch if new_content == content
-    File.write(path, new_content)
-    return :patched
-  end
+  puts "[patch-third-party-provider] SCAN path=#{path} has_bad=#{has_bad}"
+  # Treat as already_ok when nil-safe and no unsafe patterns remain.
+  return :already_ok if already_ok_regex.match?(content) && !has_bad
   block_match = content.match(block_regex)
   return :could_not_patch unless block_match
   token_name = block_match[1]
@@ -93,9 +86,7 @@ def patch_one(path, block_regex, already_ok_regex, unsafe_literal_regex, unsafe_
   pairs = content.scan(/@"([^"]+)":\s*NSClassFromString\s*\(\s*@"([^"]+)"\s*\)/).uniq
   pairs = content.scan(/_c = NSClassFromString\(@"([^"]+)"\); if \(_c\) \[dict setObject:_c forKey:@"([^"]+)"/).map { |cls, key| [key, cls] }.uniq if pairs.empty?
 
-  # Unique string for verification: strings -a <dylib> | grep SURFSUP_PATCH confirms this .mm was compiled in.
   lines = [
-    '    NSLog(@"[SURFSUP_PATCH] provider running");',
     '    NSMutableDictionary<NSString *, Class<RCTComponentViewProtocol> > *dict = [NSMutableDictionary new];',
     '    Class _c = nil;'
   ]
