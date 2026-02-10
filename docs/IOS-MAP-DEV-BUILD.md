@@ -26,7 +26,3 @@ This will:
 2. In the project root: `npx expo run:ios`.
 
 Ensure you **run the app from the terminal/Xcode run** after the build, not by tapping an old icon. The build that includes react-native-maps is the one produced by `npx expo run:ios` (or by opening `ios/surfSUP.xcworkspace` in Xcode and building the **surfSUP** scheme).
-
-## Provider patch (separate)
-
-RCTThirdPartyComponentsProvider is patched in the Podfile post-install; the compiled provider .o is verified with `./scripts/verify-provider-in-dylib.sh`. That is unrelated to the map module; the map simply requires a correct, up-to-date dev build.

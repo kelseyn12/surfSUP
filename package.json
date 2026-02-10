@@ -9,7 +9,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "postinstall": "node scripts/patch-react-native-provider-template.js"
+    "postinstall": "node scripts/patch-react-native-provider-template.js && node scripts/patch-codegen-executor.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
