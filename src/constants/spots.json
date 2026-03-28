@@ -60,8 +60,8 @@
     "id": "boulders",
     "name": "Boulders",
     "location": {
-      "latitude": 46.8500,
-      "longitude": -91.9500,
+      "latitude": 46.927179,
+      "longitude": -91.826799,
       "city": "Duluth",
       "state": "MN",
       "country": "USA"
@@ -79,8 +79,8 @@
     "id": "guardrails",
     "name": "Guardrails",
     "location": {
-      "latitude": 46.8700,
-      "longitude": -91.9200,
+      "latitude": 46.908371,
+      "longitude": -91.868387,
       "city": "Duluth",
       "state": "MN",
       "country": "USA"
@@ -98,8 +98,8 @@
     "id": "brightonbeach",
     "name": "Brighton Beach",
     "location": {
-      "latitude": 46.8200,
-      "longitude": -92.0000,
+      "latitude": 46.836789,
+      "longitude": -92.003819,
       "city": "Duluth",
       "state": "MN",
       "country": "USA"
@@ -117,8 +117,8 @@
     "id": "frenchriver",
     "name": "French River",
     "location": {
-      "latitude": 46.8900,
-      "longitude": -91.8800,
+      "latitude": 46.899342,
+      "longitude": -91.891327,
       "city": "Two Harbors",
       "state": "MN",
       "country": "USA"
@@ -136,8 +136,8 @@
     "id": "floodbay",
     "name": "Flood Bay",
     "location": {
-      "latitude": 47.0200,
-      "longitude": -91.7500,
+      "latitude": 47.038056,
+      "longitude": -91.641349,
       "city": "Two Harbors",
       "state": "MN",
       "country": "USA"
@@ -155,8 +155,8 @@
     "id": "beaverbay",
     "name": "Beaver Bay",
     "location": {
-      "latitude": 47.0500,
-      "longitude": -91.7000,
+      "latitude": 47.263578,
+      "longitude": -91.288471,
       "city": "Beaver Bay",
       "state": "MN",
       "country": "USA"

@@ -23,7 +23,7 @@ import { addSession } from '../services/sessions';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../services/auth';
-import { formatShortDate, formatTime } from '../utils/dateTime';
+import { formatShortDate, formatTime } from '../utils/formatters';
 
 const LogSessionScreen: React.FC<any> = (props) => {
   const navigation = useNavigation();
@@ -43,10 +43,10 @@ const LogSessionScreen: React.FC<any> = (props) => {
   const [endTime, setEndTime] = useState<Date>(new Date());
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
-  const [boardType, setBoardType] = useState<SurfSession['board']['type']>('shortboard');
+  const [boardType, setBoardType] = useState<NonNullable<SurfSession['board']>['type']>('shortboard');
   const [boardDetails, setBoardDetails] = useState<string>('');
   const [waveHeight, setWaveHeight] = useState<string>('');
-  const [quality, setQuality] = useState<SurfSession['conditions']['quality']>('good');
+  const [quality, setQuality] = useState<NonNullable<SurfSession['conditions']>['quality']>('good');
   const [wavesRidden, setWavesRidden] = useState<string>('');
   const [longestRide, setLongestRide] = useState<string>('');
   const [bestWave, setBestWave] = useState<string>('');
@@ -63,8 +63,8 @@ const LogSessionScreen: React.FC<any> = (props) => {
     const loadSpotDetails = async () => {
       setIsLoading(true);
       try {
-        // Using hard-coded coordinates for Lake Superior for demo
-        const spots = await fetchNearbySurfSpots(46.7825, -92.0856);
+        // Large radius to get all Lake Superior spots regardless of user location
+        const spots = await fetchNearbySurfSpots(46.7825, -92.0856, 500);
         if (spots) {
           const foundSpot = spots.find(s => s.id === spotId);
           if (foundSpot) {
@@ -87,8 +87,8 @@ const LogSessionScreen: React.FC<any> = (props) => {
   useEffect(() => {
     const loadSpots = async () => {
       try {
-        // Using hard-coded coordinates for Lake Superior for demo
-        const spots = await fetchNearbySurfSpots(46.7825, -92.0856);
+        // Large radius to get all Lake Superior spots for the spot picker
+        const spots = await fetchNearbySurfSpots(46.7825, -92.0856, 500);
         if (spots) {
           setAvailableSpots(spots);
         }
@@ -114,11 +114,11 @@ const LogSessionScreen: React.FC<any> = (props) => {
     }
   };
 
-  const handleBoardTypeSelect = (type: SurfSession['board']['type']) => {
+  const handleBoardTypeSelect = (type: NonNullable<SurfSession['board']>['type']) => {
     setBoardType(type);
   };
 
-  const handleQualitySelect = (quality: SurfSession['conditions']['quality']) => {
+  const handleQualitySelect = (quality: NonNullable<SurfSession['conditions']>['quality']) => {
     setQuality(quality);
   };
 
@@ -378,7 +378,7 @@ const LogSessionScreen: React.FC<any> = (props) => {
                     styles.boardTypeButton,
                     boardType === type && styles.boardTypeButtonSelected
                   ]}
-                  onPress={() => handleBoardTypeSelect(type as SurfSession['board']['type'])}
+                  onPress={() => handleBoardTypeSelect(type as NonNullable<SurfSession['board']>['type'])}
                 >
                   <Text 
                     style={[
@@ -422,9 +422,9 @@ const LogSessionScreen: React.FC<any> = (props) => {
                   style={[
                     styles.qualityButton,
                     quality === q && styles.qualityButtonSelected,
-                    { backgroundColor: getQualityColor(q as SurfSession['conditions']['quality']) }
+                    { backgroundColor: getQualityColor(q as NonNullable<SurfSession['conditions']>['quality']) }
                   ]}
-                  onPress={() => handleQualitySelect(q as SurfSession['conditions']['quality'])}
+                  onPress={() => handleQualitySelect(q as NonNullable<SurfSession['conditions']>['quality'])}
                 >
                   <Text 
                     style={[
@@ -521,7 +521,7 @@ const LogSessionScreen: React.FC<any> = (props) => {
 };
 
 // Helper function to get color based on quality
-const getQualityColor = (quality: SurfSession['conditions']['quality']): string => {
+const getQualityColor = (quality: NonNullable<SurfSession['conditions']>['quality']): string => {
   switch (quality) {
     case 'poor': return COLORS.surfConditions.poor;
     case 'fair': return COLORS.surfConditions.fair;

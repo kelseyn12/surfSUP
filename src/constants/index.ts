@@ -64,7 +64,6 @@ export const ROUTES = {
 
 // API endpoints
 export const API = {
-  WINDY: 'https://api.windy.com',
   NOAA: 'https://api.weather.gov',
   NDBC: 'https://www.ndbc.noaa.gov/data/realtime2',
 };
@@ -122,12 +121,12 @@ export const CONDITION_THRESHOLDS = {
 
 // App configuration
 export const APP_CONFIG = {
-  // Default map region (San Diego area as an example)
+  // Default map region — Lake Superior / Duluth, MN
   DEFAULT_REGION: {
-    latitude: 32.7157,
-    longitude: -117.1611,
-    latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
+    latitude: 46.7825,
+    longitude: -92.0856,
+    latitudeDelta: 3.0,
+    longitudeDelta: 6.0,
   },
   
   // Radius in km to search for nearby spots
@@ -176,7 +175,8 @@ export const TIDE = {
   FALLING: { label: 'Falling Tide', color: COLORS.surfConditions.good },
 };
 
-// API Configuration
-export const API_BASE_URL = 'http://localhost:3000/api'; 
+// API Configuration — no local backend; all data comes from Firebase + NOAA/NDBC directly.
+// This constant is kept for compatibility but should not be used for real requests.
+export const API_BASE_URL = '';
 
 export * from './colors'; 

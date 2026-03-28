@@ -84,7 +84,7 @@ export interface SurfConditions {
     unit: 'F' | 'C';
   };
   rating: number; // 1-10 rating of overall conditions
-  source: string; // 'windy', 'noaa', 'buoy', etc.
+  source: string; // 'noaa', 'buoy', etc.
   surferCount?: number; // Number of current surfers at the spot
   // New Lake Superior surf report fields
   surfLikelihood?: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing' | 'Blown Out';
@@ -166,22 +166,6 @@ export interface CoordinateRegion {
 }
 
 // API response types
-export interface WindyApiResponse {
-  data: {
-    waves: {
-      height: number;
-      period: number;
-      direction: number;
-    };
-    wind: {
-      speed: number;
-      direction: number;
-      gusts: number;
-    };
-    timestamp: number;
-  }[];
-}
-
 export interface NoaaApiResponse {
   properties: {
     periods: {

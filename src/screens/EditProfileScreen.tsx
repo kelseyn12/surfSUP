@@ -40,8 +40,8 @@ const EditProfileScreen: React.FC = () => {
       };
 
       if (Platform.OS === 'android') {
-        BackHandler.addEventListener('hardwareBackPress', onBackPress);
-        return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+        const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => sub.remove();
       }
     }, [navigation])
   );
@@ -59,7 +59,9 @@ const EditProfileScreen: React.FC = () => {
         username: username.trim() || undefined,
         profileImageUrl: profileImageUrl.trim() || undefined,
         preferences: {
-          ...user?.preferences,
+          favoriteSpots: user?.preferences?.favoriteSpots ?? [],
+          notifications: user?.preferences?.notifications ?? true,
+          privacyMode: user?.preferences?.privacyMode ?? 'friends',
           preferredBoard: preferredBoard as any,
           units: units as any,
           homeSpot: homeSpot.trim() || undefined,

@@ -76,11 +76,11 @@ export class SocialAuthService {
         };
       }
 
-      console.log('Starting Apple Sign-In process...');
+      if (__DEV__) console.log('Starting Apple Sign-In process...');
 
       // Check if Apple Sign-In is available on this device
       const isAvailable = await appleAuth.isSupported;
-      console.log('Apple Sign-In supported:', isAvailable);
+      if (__DEV__) console.log('Apple Sign-In supported:', isAvailable);
       
       if (!isAvailable) {
         return {
@@ -91,24 +91,18 @@ export class SocialAuthService {
 
       // Generate a random nonce for Apple Sign-In
       const nonce = Crypto.randomUUID();
-      console.log('Generated nonce:', nonce);
 
       // Request Apple Sign-In
-      console.log('Requesting Apple Sign-In...');
       const appleAuthRequestResponse = await appleAuth.performRequest({
         requestedOperation: appleAuth.Operation.LOGIN,
         requestedScopes: [appleAuth.Scope.EMAIL, appleAuth.Scope.FULL_NAME],
         nonce: nonce,
       });
 
-      console.log('Apple Sign-In response received:', !!appleAuthRequestResponse);
-
       // Ensure Apple returned a user identityToken
       if (!appleAuthRequestResponse.identityToken) {
-        throw new Error('Apple Sign-In failed - no identify token returned');
+        throw new Error('Apple Sign-In failed - no identity token returned');
       }
-
-      console.log('Identity token received, creating Firebase credential...');
 
       // Create a credential with the Apple ID token
       const { identityToken } = appleAuthRequestResponse;
@@ -117,8 +111,6 @@ export class SocialAuthService {
       // Sign-in the user with the credential
       const userCredential = await auth().signInWithCredential(appleCredential);
       
-      console.log('Firebase sign-in successful');
-      
       // If we got the user's name from Apple, update the Firebase user profile
       if (appleAuthRequestResponse.fullName?.givenName || appleAuthRequestResponse.fullName?.familyName) {
         const fullName = `${appleAuthRequestResponse.fullName?.givenName || ''} ${appleAuthRequestResponse.fullName?.familyName || ''}`.trim();
@@ -126,7 +118,6 @@ export class SocialAuthService {
           await userCredential.user.updateProfile({
             displayName: fullName,
           });
-          console.log('Updated user profile with name:', fullName);
         }
       }
       
@@ -141,9 +132,6 @@ export class SocialAuthService {
       };
     } catch (error: any) {
       console.error('Apple Sign-In Error:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
-      console.error('Error details:', JSON.stringify(error, null, 2));
       
       let errorMessage = 'Apple sign-in failed';
       

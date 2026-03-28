@@ -15,10 +15,12 @@ import {
   isFavorableWindDirection
 } from '../config/surfConfig';
 
+// Dev-only logger — stripped in production builds
+const dlog = (...args: any[]) => { if (__DEV__) console.log(...args); };
+
 // Multiple data source APIs for comprehensive Great Lakes forecasting
 const NOAA_WATER_LEVEL_BASE = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter';
 const NDBC_BASE = 'https://www.ndbc.noaa.gov/data/realtime2';
-const WINDY_API_BASE = 'https://api.windy.com/api/point-forecast/v2';
 
 // Lake Superior buoy stations (NDBC) - CORRECTED TYPES
 const LAKE_SUPERIOR_BUOYS = {
@@ -33,20 +35,20 @@ const LAKE_SUPERIOR_BUOYS = {
     forecastHours: [8, 12, 16],
     type: 'wave'
   },
-  '45027': { 
-    name: 'McQuade Harbor Wave Buoy', 
-    lat: 46.775, 
-    lon: -92.093, 
-    description: 'Current local wave conditions near Duluth',
+  '45027': {
+    name: 'McQuade Harbor Wave Buoy',
+    lat: 46.860,
+    lon: -91.930,
+    description: 'Current local wave conditions near Duluth (McQuade Harbor)',
     direction: 'local',
     travelTime: 0,
     forecastHours: [0],
     type: 'wave'
   },
-  '45028': { 
-    name: 'Western Lake Superior Wave Buoy', 
-    lat: 47.020, 
-    lon: -91.670, 
+  '45028': {
+    name: 'Western Lake Superior Wave Buoy',
+    lat: 46.814,
+    lon: -91.829,
     description: 'Western Lake Superior wave conditions',
     direction: 'W',
     travelTime: 2,
@@ -75,10 +77,10 @@ const LAKE_SUPERIOR_BUOYS = {
     forecastHours: [0],
     type: 'weather'
   },
-  'ROAM4': { 
-    name: 'Rock of Ages Wind Buoy', 
-    lat: 47.345, 
-    lon: -87.323, 
+  'ROAM4': {
+    name: 'Rock of Ages Wind Buoy',
+    lat: 47.867,
+    lon: -89.315,
     description: 'Wind conditions for forecasting waves to Duluth',
     direction: 'N/NE',
     travelTime: 12,
@@ -282,6 +284,9 @@ const fetchAllBuoyData = async (latitude: number, longitude: number): Promise<Bu
           buoyStatus[buoyId] = 'wave-no-data';
           // Wave buoy is offline
         }
+      } else if (response.status === 404) {
+        // 404 = buoy is seasonal and not currently deployed (typical Nov–May on Lake Superior)
+        buoyStatus[buoyId] = 'seasonal-offline';
       } else {
         buoyStatus[buoyId] = 'http-error';
         console.error(`🌊 Wave buoy ${buoyId} HTTP error:`, response.status);
@@ -291,9 +296,7 @@ const fetchAllBuoyData = async (latitude: number, longitude: number): Promise<Bu
       console.error(`🌊 Error fetching wave buoy ${buoyId}:`, error);
     }
   }
-  
-  // Total buoy data collected
-  
+
   return allBuoyData;
 };
 
@@ -301,207 +304,10 @@ const fetchAllBuoyData = async (latitude: number, longitude: number): Promise<Bu
  * Fetch wind data from multiple sources
  */
 const fetchAllWindData = async (latitude: number, longitude: number): Promise<WindData | null> => {
-  const windSources: WindData[] = [];
-  
   try {
-    // Fetch from all wind sources simultaneously
-    const [noaaWind, windyWind] = await Promise.allSettled([
-      fetchNOAAWindData(getNearestWaterLevelStation(latitude, longitude).id),
-      fetchWindyWindData(latitude, longitude)
-    ]);
-    
-    // Add successful results
-    if (noaaWind.status === 'fulfilled' && noaaWind.value) {
-      windSources.push(noaaWind.value);
-    }
-    
-    if (windyWind.status === 'fulfilled' && windyWind.value) {
-      windSources.push(windyWind.value);
-    }
-    
-    // Return the most reliable source or average if multiple
-    if (windSources.length === 0) {
-      return null;
-    }
-    
-    if (windSources.length === 1) {
-      return windSources[0];
-    }
-    
-    // Average multiple wind sources for better accuracy
-    const avgWindSpeed = windSources.reduce((sum, source) => sum + source.windSpeed, 0) / windSources.length;
-    const avgTemp = windSources.reduce((sum, source) => sum + (source.temperature || 0), 0) / windSources.length;
-    const avgPressure = windSources.reduce((sum, source) => sum + (source.pressure || 0), 0) / windSources.length;
-    
-    // Use most common direction or first available
-    const directions = windSources.map(s => s.windDirection).filter(d => d);
-    const mostCommonDirection = getMostCommonDirection(directions) || windSources[0].windDirection;
-    
-    return {
-      windSpeed: Math.round(avgWindSpeed * 10) / 10,
-      windDirection: mostCommonDirection,
-      temperature: Math.round(avgTemp * 10) / 10,
-      pressure: Math.round(avgPressure * 10) / 10,
-      source: windSources.map(s => s.source).join('+')
-    };
-    
+    return await fetchNOAAWindData(latitude, longitude);
   } catch (error) {
     console.error('🌊 Error fetching wind data:', error);
-    return null;
-  }
-};
-
-/**
- * Fetch Windy wind data
- * 
- * Model + Parameter Compatibility:
- * - gfs: wind, windGust, temp, pressure, dewpoint, rh, precip, etc.
- * - gfsWave: waves, swell1, swell2, windWaves (excludes Hudson Bay, Black Sea, Caspian Sea, Arctic Ocean)
- * - namConus: wind, windGust, temp, pressure, etc. (USA and surrounding areas)
- */
-const fetchWindyWindData = async (latitude: number, longitude: number): Promise<WindData | null> => {
-  try {
-    const WINDY_API_KEY = process.env.EXPO_PUBLIC_WINDY_API_KEY;
-    
-    // API key check logged only when debugging
-    
-    if (!WINDY_API_KEY) {
-      console.warn('🌊 Windy API key not found. Set EXPO_PUBLIC_WINDY_API_KEY in your environment variables.');
-      return null;
-    }
-    
-    // Add debouncing to prevent rate limiting
-    const lastCallTime = (globalThis as any).lastWindyCall || 0;
-    const timeSinceLastCall = Date.now() - lastCallTime;
-    const minInterval = 200; // 200ms between calls
-    
-    if (timeSinceLastCall < minInterval) {
-      await new Promise(resolve => setTimeout(resolve, minInterval - timeSinceLastCall));
-    }
-    
-    (globalThis as any).lastWindyCall = Date.now();
-    
-    const url = WINDY_API_BASE;
-    
-    // Make two separate requests: one for wind data, one for wave data
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
-    const [windResponse, waveResponse] = await Promise.allSettled([
-      // Request 1: Wind data using gfs model
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lat: latitude,
-          lon: longitude,
-          model: 'gfs',
-          parameters: ['wind', 'temp', 'pressure'],
-          levels: ['surface'],
-          key: WINDY_API_KEY
-        }),
-        signal: controller.signal
-      }),
-      // Request 2: Wave data using gfsWave model
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lat: latitude,
-          lon: longitude,
-          model: 'gfsWave',
-          parameters: ['waves'],
-          levels: ['surface'],
-          key: WINDY_API_KEY
-        }),
-        signal: controller.signal
-      })
-    ]);
-    
-    clearTimeout(timeoutId);
-    
-    // Process wind data
-    let windData = null;
-    if (windResponse.status === 'fulfilled' && windResponse.value.ok) {
-      const windJson = await windResponse.value.json();
-      if (windJson.ts && windJson['wind_u-surface'] && windJson['wind_v-surface']) {
-        const currentIndex = 0;
-        const windU = windJson['wind_u-surface'][currentIndex];
-        const windV = windJson['wind_v-surface'][currentIndex];
-        const temperature = windJson['temp-surface'] ? windJson['temp-surface'][currentIndex] : undefined;
-        const pressure = windJson['pressure-surface'] ? windJson['pressure-surface'][currentIndex] : undefined;
-        
-        const windSpeed = Math.sqrt(windU * windU + windV * windV) * 2.23694; // Convert m/s to mph
-        const windDegrees = (Math.atan2(windV, windU) * 180 / Math.PI + 180) % 360; // Convert to meteorological convention (where wind is coming FROM)
-        const windDirection = getWindDirectionFromDegrees(windDegrees);
-        
-        windData = {
-          windSpeed: windSpeed || 0,
-          windDirection: windDirection || 'N',
-                  temperature: temperature || undefined,
-        pressure: pressure || undefined,
-          source: 'windy'
-        };
-      }
-    } else {
-      const status = windResponse.status === 'rejected' ? windResponse.reason : windResponse.value?.status;
-      if (status === 429) {
-        // Rate limited - silent fail
-      } else {
-        console.error('🌊 Windy wind data request failed:', status);
-      }
-    }
-    
-    // Process wave data
-    let waveData = null;
-    if (waveResponse.status === 'fulfilled' && waveResponse.value.ok) {
-      const waveJson = await waveResponse.value.json();
-      if (waveJson.ts && waveJson['waves_height-surface']) {
-        const currentIndex = 0;
-        const waveHeight = waveJson['waves_height-surface'][currentIndex] * 3.28084; // Convert meters to feet
-        const wavePeriod = waveJson['waves_period-surface'] ? waveJson['waves_period-surface'][currentIndex] : null;
-        const waveDirection = waveJson['waves_direction-surface'] ? getWindDirectionFromDegrees(waveJson['waves_direction-surface'][currentIndex]) : null;
-        
-        waveData = {
-          waveHeight: waveHeight || 0,
-          wavePeriod: wavePeriod || 0,
-          waveDirection: waveDirection || 'N'
-        };
-      }
-    } else {
-      const status = waveResponse.status === 'rejected' ? waveResponse.reason : waveResponse.value?.status;
-      if (status === 429) {
-        // Rate limited - silent fail
-      } else {
-        console.error('🌊 Windy wave data request failed:', status);
-      }
-    }
-    
-    // Combine wind and wave data
-    const result = {
-      windSpeed: windData?.windSpeed || 0,
-      windDirection: windData?.windDirection || 'N',
-              temperature: windData?.temperature || undefined,
-        pressure: windData?.pressure || undefined,
-      waveHeight: waveData?.waveHeight || 0,
-      wavePeriod: waveData?.wavePeriod || 0,
-      waveDirection: waveData?.waveDirection || 'N',
-      source: windData || waveData ? 'windy' : 'windy-rate-limited'
-    };
-    
-    // Only log success if we actually got data
-    if (windData || waveData) {
-      // Windy API working - combined data
-    }
-    
-    // Return null if no data available (let other sources handle it)
-    if (!windData && !waveData) {
-      return null;
-    }
-    
-    return result;
-  } catch (error) {
-    console.error('🌊 Error fetching Windy data:', error);
     return null;
   }
 };
@@ -511,10 +317,10 @@ const fetchWindyWindData = async (latitude: number, longitude: number): Promise<
 /**
  * Fetch NOAA wind data with improved parsing
  */
-const fetchNOAAWindData = async (stationId: string): Promise<WindData | null> => {
+const fetchNOAAWindData = async (latitude: number, longitude: number): Promise<WindData | null> => {
   try {
-    // Get the appropriate forecast zone based on location
-    const forecastZone = 'DLH'; // Duluth area
+    // MQT (Marquette) handles Michigan UP; DLH (Duluth) handles MN/WI
+    const forecastZone = (longitude >= -88.0 && latitude <= 47.0) ? 'MQT' : 'DLH';
     const url = `https://api.weather.gov/products/types/GLFLS/locations/${forecastZone}`;
     
     const response = await fetch(url);
@@ -940,10 +746,10 @@ const aggregateWaveData = (buoyData: BuoyData[], windData: WindData | null): Ble
   
   // Collect all wave height data points with source info
   // Use ALL buoy data - close buoys for current conditions, distant buoys for forecasting
-  console.log('🌊 Wave data sources:');
+  dlog('🌊 Wave data sources:');
   buoyData.forEach((buoy, index) => {
     if (buoy.waveHeight > 0) {
-      console.log(`${index + 1}. ${buoy.source}: ${buoy.waveHeight}ft waves (${buoy.distance || 0} miles)`);
+      dlog(`${index + 1}. ${buoy.source}: ${buoy.waveHeight}ft waves (${buoy.distance || 0} miles)`);
     }
   });
   
@@ -971,24 +777,6 @@ const aggregateWaveData = (buoyData: BuoyData[], windData: WindData | null): Ble
       });
     }
   });
-  
-  // Add Windy wave data if available
-  if (windData && windData.waveHeight) {
-    waveHeightPoints.push({
-      value: windData.waveHeight,
-      source: 'windy-gfsWave',
-      confidence: 0.7, // Medium confidence for model data
-      timestamp: new Date().toISOString()
-    });
-  }
-  
-  if (windData && windData.wavePeriod) {
-    wavePeriodPoints.push({
-      value: windData.wavePeriod,
-      source: 'windy-gfsWave',
-      confidence: 0.7
-    });
-  }
   
   // Collect wave period data - use ALL buoy data
   buoyData.forEach((buoy, index) => {
@@ -1137,10 +925,10 @@ const aggregateWindData = (buoyData: BuoyData[], windData: WindData | null): Ble
   
   // Collect all wind speed data points with source info
   // Use ALL buoy data - close buoys for current conditions, distant buoys for forecasting
-  console.log('🌬️ Wind data sources:');
+  dlog('🌬️ Wind data sources:');
   buoyData.forEach((buoy, index) => {
     if (buoy.windSpeed > 0) {
-      console.log(`${index + 1}. ${buoy.source}: ${buoy.windSpeed}mph ${buoy.windDirection} (${buoy.distance || 0} miles)`);
+      dlog(`${index + 1}. ${buoy.source}: ${buoy.windSpeed}mph ${buoy.windDirection} (${buoy.distance || 0} miles)`);
     }
   });
   
@@ -1175,18 +963,16 @@ const aggregateWindData = (buoyData: BuoyData[], windData: WindData | null): Ble
     }
   });
   
-  // Add Windy wind data if available
-  if (windData && windData.windSpeed > 0) {
-    // Convert wind direction from degrees to compass direction if it's a number
-    const formattedDirection = typeof windData.windDirection === 'number' 
+  // NOAA marine forecast wind (fills gaps when buoys are offline or sparse)
+  if (windData && windData.windSpeed > 0 && windData.source?.startsWith('noaa')) {
+    const formattedDirection = typeof windData.windDirection === 'number'
       ? getWindDirectionFromDegrees(windData.windDirection)
       : windData.windDirection;
-    
     windSpeedPoints.push({
       speed: windData.windSpeed,
-      direction: formattedDirection,
-      source: 'windy-gfs',
-      confidence: 0.7, // Medium confidence for model data
+      direction: formattedDirection || 'N',
+      source: windData.source,
+      confidence: 0.75,
       timestamp: new Date().toISOString()
     });
   }
@@ -1550,29 +1336,37 @@ const calculateSurfLikelihood = (
   // Swell exists, now check local wind quality
   const localWindQuality = checkLocalWindQuality(spotId, windDegrees, windSpeed);
   
-  // Apply wave size/period thresholds with wind quality adjustment
+  // Apply wave size/period thresholds.
+  // Lake Superior surf is wind-generated — people go out in 20-35mph NE gales.
+  // Wind speed limits here are intentionally generous; local wind quality
+  // (onshore vs offshore) is what degrades the rating via adjustRatingForLocalWinds.
   let baseRating: 'Maybe Surf' | 'Good' | 'Firing' | 'Blown Out';
-  
-  // Maybe Surf: 1.0–2.0 ft with period ≥ 4s and wind ≤ 12 mph
-  if (avgWaveHeight >= 1.0 && avgWaveHeight < 2.0 && wavePeriod >= 4 && windSpeed <= 12) {
+
+  // Blown Out: localWindQuality already returned 'strong' above for >35mph.
+  // Also blown out if there's wind but no meaningful wave period (pure chop).
+  if (windSpeed > 35 || (windSpeed > 20 && wavePeriod < 4)) {
+    return 'Blown Out';
+  }
+
+  // Maybe Surf: 1.0–2.5ft, period ≥ 4s
+  if (avgWaveHeight >= 1.0 && avgWaveHeight < 2.5 && wavePeriod >= 4) {
     baseRating = 'Maybe Surf';
   }
-  // Good: 2.0–4.0 ft with period ≥ 4s and wind ≤ 10 mph
-  else if (avgWaveHeight >= 2.0 && avgWaveHeight < 4.0 && wavePeriod >= 4 && windSpeed <= 10) {
+  // Good: 2.5–5.0ft, period ≥ 4s
+  else if (avgWaveHeight >= 2.5 && avgWaveHeight < 5.0 && wavePeriod >= 4) {
     baseRating = 'Good';
   }
-  // Firing: ≥ 4.0 ft & ≥ 6s with wind ≤ 12 mph, or ≥ 5.0 ft & ≥ 5s with wind ≤ 12 mph
-  else if ((avgWaveHeight >= 4.0 && wavePeriod >= 6 && windSpeed <= 12) ||
-           (avgWaveHeight >= 5.0 && wavePeriod >= 5 && windSpeed <= 12)) {
+  // Firing: ≥ 5.0ft, period ≥ 5s (gale-force Lake Superior surf)
+  else if (avgWaveHeight >= 5.0 && wavePeriod >= 5) {
     baseRating = 'Firing';
   }
-  // Otherwise return Blown Out
+  // Waves exist but period is too short (pure chop, not surfable)
   else {
     return 'Blown Out';
   }
   
-  // Apply local wind quality adjustment
-  return adjustRatingForLocalWinds(baseRating, localWindQuality);
+  // Apply local wind quality adjustment (pass windSpeed so mild onshore isn't over-penalized)
+  return adjustRatingForLocalWinds(baseRating, localWindQuality, windSpeed);
 };
 
 // Wind direction logic moved to surfConfig.ts
@@ -1707,10 +1501,11 @@ const generateConditionsDescription = (
   else description += " with very strong winds";
   
   description += ` from the ${windDirection}`;
-  
-  // Water temp
-  const waterTempF = (waterTemp * 9/5) + 32;
-  description += `. Water temperature ${Math.round(waterTempF)}°F`;
+
+  // waterTemp is already in Fahrenheit (passed from waterDataAggregated.waterTempF)
+  if (waterTemp > 0) {
+    description += `. Water ${Math.round(waterTemp)}°F`;
+  }
   
   return description;
 };
@@ -1748,10 +1543,9 @@ const generateSurfRecommendations = (
     recommendations.push("Strong winds - consider wind direction for spot selection");
   }
   
-  // Water temp recommendations
-  const waterTempF = (waterTemp * 9/5) + 32;
-  if (waterTempF < 45) {
-    recommendations.push("Cold water - wear proper wetsuit");
+  // waterTemp is already in Fahrenheit
+  if (waterTemp > 0 && waterTemp < 45) {
+    recommendations.push("Cold water — wear proper wetsuit");
   }
   
   return recommendations;
@@ -1857,238 +1651,7 @@ export const getNearestWaterLevelStation = (spotLat: number, spotLon: number) =>
 // Removed unused legacy function 
 
 /**
- * Fetch forecast data from Windy API for specific time periods
- */
-export const fetchWindyForecastData = async (latitude: number, longitude: number, hours: number = 168): Promise<WindData[] | null> => {
-  try {
-    const WINDY_API_KEY = process.env.EXPO_PUBLIC_WINDY_API_KEY;
-    
-    if (!WINDY_API_KEY) {
-      console.warn('🌊 Windy API key not found. Set EXPO_PUBLIC_WINDY_API_KEY in your environment variables.');
-      return null;
-    }
-    
-    // Add debouncing to prevent rate limiting
-    const lastCallTime = (globalThis as any).lastWindyCall || 0;
-    const timeSinceLastCall = Date.now() - lastCallTime;
-    const minInterval = 2000; // 2 seconds between forecast calls to prevent rate limiting
-    
-    if (timeSinceLastCall < minInterval) {
-      console.log('⏳ Windy API rate limiting - waiting...');
-      await new Promise(resolve => setTimeout(resolve, minInterval - timeSinceLastCall));
-    }
-    
-    (globalThis as any).lastWindyCall = Date.now();
-    
-    const url = WINDY_API_BASE;
-    
-    // Set start date to current time and fetch 7 days of forecast
-    const startDate = new Date();
-    const endDate = new Date(startDate.getTime() + (hours * 60 * 60 * 1000));
-    
-    console.log(`🌊 Windy forecast time range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-    
-    // Make two separate requests: one for wind data, one for wave data
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for forecast data
-    
-    const [windResponse, waveResponse] = await Promise.allSettled([
-      // Request 1: Wind forecast data using gfs model
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lat: latitude,
-          lon: longitude,
-          model: 'gfs',
-          parameters: ['wind', 'temp', 'pressure'],
-          levels: ['surface'],
-          key: WINDY_API_KEY
-        }),
-        signal: controller.signal
-      }),
-      // Request 2: Wave forecast data using gfsWave model
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lat: latitude,
-          lon: longitude,
-          model: 'gfsWave',
-          parameters: ['waves'],
-          levels: ['surface'],
-          key: WINDY_API_KEY
-        }),
-        signal: controller.signal
-      })
-    ]);
-    
-    clearTimeout(timeoutId);
-    
-    console.log(`🌊 Windy API responses - Wind: ${windResponse.status}, Wave: ${waveResponse.status}`);
-    
-    // Process wind forecast data
-    let windForecastData = null;
-    if (windResponse.status === 'fulfilled' && windResponse.value.ok) {
-      const windJson = await windResponse.value.json();
-
-      if (windJson.ts && windJson['wind_u-surface'] && windJson['wind_v-surface']) {
-        windForecastData = {
-          timestamps: windJson.ts,
-          windU: windJson['wind_u-surface'],
-          windV: windJson['wind_v-surface'],
-          temperature: windJson['temp-surface'] || [],
-          pressure: windJson['pressure-surface'] || []
-        };
-
-      }
-    } else {
-      const status = windResponse.status === 'rejected' ? windResponse.reason : windResponse.value?.status;
-      if (status === 429) {
-
-        return null; // Return null so we can use NOAA fallback
-      } else {
-        console.error('🌊 Windy wind forecast request failed:', status);
-      }
-    }
-    
-    // Process wave forecast data
-    let waveForecastData = null;
-    if (waveResponse.status === 'fulfilled' && waveResponse.value.ok) {
-      const waveJson = await waveResponse.value.json();
-
-      if (waveJson.ts && waveJson['waves_height-surface']) {
-        waveForecastData = {
-          timestamps: waveJson.ts,
-          waveHeight: waveJson['waves_height-surface'],
-          wavePeriod: waveJson['waves_period-surface'] || [],
-          waveDirection: waveJson['waves_direction-surface'] || []
-        };
-        console.log(`🌊 Windy wave data points: ${waveJson.ts.length}`);
-        console.log(`🌊 Windy wave data sample:`, {
-          firstTimestamp: waveJson.ts[0],
-          firstWaveHeight: waveJson['waves_height-surface'][0],
-          firstWavePeriod: waveJson['waves_period-surface']?.[0],
-          waveDataLength: waveJson['waves_height-surface']?.length || 0,
-          waveDataKeys: Object.keys(waveJson).filter(k => k.includes('waves'))
-        });
-      }
-    } else {
-      const status = waveResponse.status === 'rejected' ? waveResponse.reason : waveResponse.value?.status;
-      if (status === 429) {
-        console.log('🌊 Windy wave forecast API rate limited - will use NOAA fallback');
-        return null; // Return null so we can use NOAA fallback
-      } else {
-        console.error('🌊 Windy wave forecast request failed:', status);
-      }
-    }
-    
-    // Generate forecast data using exact timestamps from Windy API
-    const forecastData: WindData[] = [];
-    
-    // Use timestamps from wind data if available, otherwise from wave data
-    const timestamps = windForecastData?.timestamps || waveForecastData?.timestamps || [];
-    
-    console.log(`🌊 Windy timestamps array length: ${timestamps.length}`);
-    if (timestamps.length > 0) {
-      console.log(`🌊 First timestamp: ${timestamps[0]} -> ${new Date(timestamps[0] * 1000).toISOString()}`);
-      console.log(`🌊 Last timestamp: ${timestamps[timestamps.length - 1]} -> ${new Date(timestamps[timestamps.length - 1] * 1000).toISOString()}`);
-    }
-    
-    if (timestamps.length === 0) {
-      console.log('🌊 No timestamps available from Windy API');
-      return null;
-    }
-    
-    // Process each timestamp from the API
-    for (let i = 0; i < timestamps.length; i++) {
-      const timestamp = timestamps[i];
-      
-      // Validate timestamp - skip if it's clearly invalid (too far in future/past)
-      if (timestamp < 1000000000 || timestamp > 2000000000) {
-        console.log(`🌊 Skipping invalid Windy timestamp ${i}: ${timestamp} (expected range: 1000000000-2000000000)`);
-        continue;
-      }
-      
-      const forecastTime = new Date(timestamp * 1000); // Convert Unix timestamp to Date
-      
-      // Skip if too far in the past (more than 6 hours ago) or too far in the future
-      const now = new Date();
-      const hoursDiff = (forecastTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-      
-      // Debug logging for first few timestamps
-      if (i < 5) {
-        console.log(`🌊 Windy timestamp ${i}: ${forecastTime.toISOString()}, hours diff: ${hoursDiff.toFixed(1)}, endDate: ${endDate.toISOString()}`);
-      }
-      
-      if (hoursDiff < -6 || forecastTime > endDate) {
-        if (i < 5) {
-          console.log(`🌊 Skipping Windy timestamp ${i}: hours diff ${hoursDiff.toFixed(1)} < -6 OR forecastTime ${forecastTime.toISOString()} > endDate ${endDate.toISOString()}`);
-        }
-        continue;
-      }
-      
-      // Get wind data for this time point
-      let windSpeed = 0;
-      let windDirection = 'N';
-      let temperature = 50;
-      let pressure = 1013;
-      
-      if (windForecastData && windForecastData.windU[i] !== undefined && windForecastData.windV[i] !== undefined) {
-        const windU = windForecastData.windU[i] || 0;
-        const windV = windForecastData.windV[i] || 0;
-        windSpeed = Math.sqrt(windU * windU + windV * windV) * 2.23694; // Convert m/s to mph
-        const windDegrees = (Math.atan2(windV, windU) * 180 / Math.PI + 180) % 360; // Convert to meteorological convention (where wind is coming FROM)
-        windDirection = getWindDirectionFromDegrees(windDegrees);
-        temperature = windForecastData.temperature[i] || 50;
-        pressure = windForecastData.pressure[i] || 1013;
-        
-        // Debug logging for first few data points
-        if (i < 3) {
-          console.log(`🌊 Windy wind data ${i}: U=${windU}, V=${windV}, speed=${windSpeed.toFixed(1)}mph, dir=${windDirection}`);
-        }
-      }
-      
-      // Get wave data for this time point
-      let waveHeight = 0;
-      let wavePeriod = 0;
-      let waveDirection = 'N';
-      
-      if (waveForecastData && waveForecastData.waveHeight[i] !== undefined) {
-        waveHeight = (waveForecastData.waveHeight[i] || 0) * 3.28084; // Convert meters to feet
-        wavePeriod = Math.max(2, Math.min(8, waveForecastData.wavePeriod[i] || 4)); // Realistic wave period
-        waveDirection = waveForecastData.waveDirection[i] ? getWindDirectionFromDegrees(waveForecastData.waveDirection[i]) : 'N';
-        
-        // Debug logging for first few data points
-        if (i < 3) {
-          console.log(`🌊 Windy wave data ${i}: height=${waveHeight.toFixed(1)}ft, period=${wavePeriod}s, dir=${waveDirection}`);
-        }
-      }
-      
-      forecastData.push({
-        windSpeed,
-        windDirection,
-        temperature,
-        pressure,
-        waveHeight,
-        wavePeriod,
-        waveDirection,
-        source: 'windy-forecast',
-        timestamp: forecastTime.toISOString()
-      });
-    }
-    
-    console.log(`🌊 Generated ${forecastData.length} Windy forecast points`);
-    return forecastData;
-    
-  } catch (error) {
-    console.error('🌊 Error fetching Windy forecast data:', error);
-    return null;
-  }
-};
-
-/**
- * Fetch and aggregate forecast data from ALL sources (Windy and NOAA)
+ * Fetch and aggregate forecast data from NOAA marine products and buoy context
  */
 export const fetchAllGreatLakesForecastData = async (
   spotId: string,
@@ -2097,7 +1660,7 @@ export const fetchAllGreatLakesForecastData = async (
   hours: number = 168  // 7 days (168 hours) for proper weekly forecast
 ): Promise<AggregatedConditions[] | null> => {
   try {
-    console.log(`🌊 Fetching all Great Lakes forecast data for spot: ${spotId} at coordinates: ${latitude}, ${longitude} (${hours} hours)`);
+    dlog(`🌊 Fetching all Great Lakes forecast data for spot: ${spotId} at coordinates: ${latitude}, ${longitude} (${hours} hours)`);
     
     // Spot configuration handled by our new sophisticated wind logic
     
@@ -2105,7 +1668,7 @@ export const fetchAllGreatLakesForecastData = async (
     const startDate = new Date();
     const endDate = new Date(startDate.getTime() + (hours * 60 * 60 * 1000));
     
-    console.log(`🌊 Forecast time range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    dlog(`🌊 Forecast time range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
     
     // Fetch forecast data from NOAA ONLY (as requested)
     const [
@@ -2116,13 +1679,13 @@ export const fetchAllGreatLakesForecastData = async (
       fetchAllBuoyData(latitude, longitude) // Include buoy data for trend analysis
     ]);
     
-    console.log(`🌊 Forecast data sources status - NOAA: ${noaaForecastData.status}, Buoy: ${buoyData.status}`);
+    dlog(`🌊 Forecast data sources status - NOAA: ${noaaForecastData.status}, Buoy: ${buoyData.status}`);
     
     // Extract successful results
     const successfulNOAAData = noaaForecastData.status === 'fulfilled' ? noaaForecastData.value : [];
     const successfulBuoyData = buoyData.status === 'fulfilled' ? buoyData.value : [];
     
-    console.log(`🌊 Data sources results - NOAA: ${successfulNOAAData?.length || 0} points, Buoy: ${successfulBuoyData?.length || 0} points`);
+    dlog(`🌊 Data sources results - NOAA: ${successfulNOAAData?.length || 0} points, Buoy: ${successfulBuoyData?.length || 0} points`);
     
     // Log errors with context
     if (noaaForecastData.status === 'rejected') {
@@ -2137,10 +1700,10 @@ export const fetchAllGreatLakesForecastData = async (
       ...(successfulNOAAData || [])
     ];
     
-    console.log(`🌊 Combined forecast data: ${allForecastData.length} total points`);
+    dlog(`🌊 Combined forecast data: ${allForecastData.length} total points`);
     
     if (allForecastData.length === 0) {
-      console.log('❌ No forecast data available from any source');
+      dlog('❌ No forecast data available from any source');
       return null;
     }
     
@@ -2149,22 +1712,22 @@ export const fetchAllGreatLakesForecastData = async (
     const daysCovered = Math.ceil(totalHours / 24);
     
     if (daysCovered < 7) {
-      console.log(`🌊 Forecast coverage: ${daysCovered} days (${totalHours} hours)`);
-      console.log('🌊 This is normal - NOAA Marine API typically provides 2-4 days of detailed forecasts');
+      dlog(`🌊 Forecast coverage: ${daysCovered} days (${totalHours} hours)`);
+      dlog('🌊 This is normal - NOAA Marine API typically provides 2-4 days of detailed forecasts');
     } else {
-      console.log(`🌊 Full 7-day forecast coverage: ${daysCovered} days (${totalHours} hours)`);
+      dlog(`🌊 Full 7-day forecast coverage: ${daysCovered} days (${totalHours} hours)`);
     }
     
     // Group forecast data by time periods (using exact timestamps from APIs)
     const timeGroups = groupForecastDataByTime(allForecastData);
     
-    console.log(`🌊 Time groups created: ${timeGroups.size} unique time periods`);
+    dlog(`🌊 Time groups created: ${timeGroups.size} unique time periods`);
     
     // Aggregate each time period
     const aggregatedForecast: AggregatedConditions[] = [];
     
     for (const [timestamp, dataGroup] of timeGroups) {
-      console.log(`🌊 Aggregating time group: ${timestamp} with ${dataGroup.length} data points`);
+      dlog(`🌊 Aggregating time group: ${timestamp} with ${dataGroup.length} data points`);
       const aggregated = aggregateForecastDataWithBuoyContext(dataGroup, spotId, latitude, longitude, successfulBuoyData);
       if (aggregated) {
         aggregatedForecast.push(aggregated);
@@ -2174,7 +1737,7 @@ export const fetchAllGreatLakesForecastData = async (
     // Sort by timestamp
     aggregatedForecast.sort((a, b) => new Date(a.timestamp || '').getTime() - new Date(b.timestamp || '').getTime());
     
-    console.log(`🌊 Generated ${aggregatedForecast.length} aggregated forecast points with buoy data integration`);
+    dlog(`🌊 Generated ${aggregatedForecast.length} aggregated forecast points with buoy data integration`);
     return aggregatedForecast;
     
   } catch (error) {
@@ -2346,7 +1909,7 @@ const aggregateForecastDataWithBuoyContext = (
         
         const buoyContext = `Buoy context: ${avgBuoyWaveHeight.toFixed(1)}ft waves, ${avgBuoyWindSpeed.toFixed(1)}mph wind`;
         notes.push(buoyContext);
-        console.log(`🌊 ${buoyContext}`);
+        dlog(`🌊 ${buoyContext}`);
       }
     }
     
@@ -2422,7 +1985,7 @@ const aggregateForecastDataWithBuoyContext = (
  */
 const fetchNOAAForecastData = async (latitude: number, longitude: number, hours: number = 168): Promise<WindData[]> => {
   try {
-    console.log(`🌊 Fetching NOAA Marine forecast data for coordinates: ${latitude}, ${longitude} (${hours} hours)`);
+    dlog(`🌊 Fetching NOAA Marine forecast data for coordinates: ${latitude}, ${longitude} (${hours} hours)`);
     
     const forecastData: WindData[] = [];
     
@@ -2430,23 +1993,26 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
     const startDate = new Date();
     const endDate = new Date(startDate.getTime() + (hours * 60 * 60 * 1000));
     
-    console.log(`🌊 NOAA forecast time range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    dlog(`🌊 NOAA forecast time range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
     
     // First, determine the marine forecast zone based on coordinates
     const marineZone = getMarineForecastZone(latitude, longitude);
-    console.log(`🌊 Determined marine forecast zone: ${marineZone.name} (${marineZone.id})`);
+    dlog(`🌊 Determined marine forecast zone: ${marineZone.name} (${marineZone.id})`);
     
     // Try NOAA Marine Products API first - this provides the actual marine forecasts
     try {
-      console.log('🌊 Fetching NOAA Marine Products forecast...');
-      
-      // Get marine forecast products for the Duluth area
-      const marineProductsUrl = 'https://api.weather.gov/products/types/NSH/locations/DLH';
+      dlog('🌊 Fetching NOAA Marine Products forecast...');
+
+      // Select NWS office by location:
+      // MQT (Marquette, MI) handles Michigan UP south shore of Lake Superior
+      // DLH (Duluth, MN) handles Minnesota North Shore and Wisconsin south shore
+      const nwsOffice = (longitude >= -88.0 && latitude <= 47.0) ? 'MQT' : 'DLH';
+      const marineProductsUrl = `https://api.weather.gov/products/types/NSH/locations/${nwsOffice}`;
       const productsResponse = await fetch(marineProductsUrl);
       
       if (productsResponse.ok) {
         const productsData = await productsResponse.json();
-        console.log(`🌊 NOAA Marine Products response:`, {
+        dlog(`🌊 NOAA Marine Products response:`, {
           status: productsResponse.status,
           hasData: !!productsData,
           productsCount: productsData?.['@graph']?.length || 0
@@ -2455,17 +2021,17 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
         // Get the most recent marine forecast
         if (productsData && productsData['@graph'] && productsData['@graph'].length > 0) {
           const latestProduct = productsData['@graph'][0];
-          console.log(`🌊 Latest NOAA Marine Product: ${latestProduct.productName} (${latestProduct.issuanceTime})`);
+          dlog(`🌊 Latest NOAA Marine Product: ${latestProduct.productName} (${latestProduct.issuanceTime})`);
           
           // Fetch the actual forecast content
           const forecastResponse = await fetch(latestProduct['@id']);
           if (forecastResponse.ok) {
             const forecastContent = await forecastResponse.json();
-            console.log('🌊 NOAA Marine forecast content fetched successfully');
+            dlog('🌊 NOAA Marine forecast content fetched successfully');
             
             // Parse the marine forecast text
             const forecastText = forecastContent.productText || '';
-            console.log(`🌊 Marine forecast text length: ${forecastText.length} characters`);
+            dlog(`🌊 Marine forecast text length: ${forecastText.length} characters`);
             
             // Extract forecast data from the text
             const extractedData = parseNOAAMarineForecastText(forecastText, startDate, endDate, marineZone);
@@ -2482,18 +2048,18 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
     // Fallback to NOAA Marine MapClick API if zone forecast fails
     if (forecastData.length === 0) {
       try {
-        console.log('🌊 Trying fallback NOAA Marine MapClick API...');
+        dlog('🌊 Trying fallback NOAA Marine MapClick API...');
         const marineForecastUrl = `https://marine.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}&FcstType=marine`;
-        console.log(`🌊 NOAA Marine forecast URL: ${marineForecastUrl}`);
+        dlog(`🌊 NOAA Marine forecast URL: ${marineForecastUrl}`);
         
         const marineResponse = await fetch(marineForecastUrl);
-        console.log(`🌊 NOAA Marine response status: ${marineResponse.status}`);
+        dlog(`🌊 NOAA Marine response status: ${marineResponse.status}`);
         
         if (marineResponse.ok) {
           // Check if response is HTML (which happens with MapClick API)
           const contentType = marineResponse.headers.get('content-type');
           if (contentType && contentType.includes('text/html')) {
-            console.log('🌊 NOAA Marine API returned HTML, skipping JSON parse');
+            dlog('🌊 NOAA Marine API returned HTML, skipping JSON parse');
             return forecastData;
           }
           
@@ -2501,10 +2067,10 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
           try {
             marineData = await marineResponse.json();
           } catch {
-            console.log('🌊 Failed to parse NOAA Marine response as JSON, skipping');
+            dlog('🌊 Failed to parse NOAA Marine response as JSON, skipping');
             return forecastData;
           }
-          console.log(`🌊 NOAA Marine API response:`, {
+          dlog(`🌊 NOAA Marine API response:`, {
             status: marineResponse.status,
             hasData: !!marineData,
             dataKeys: marineData ? Object.keys(marineData) : [],
@@ -2513,11 +2079,11 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
           
           // Parse NOAA marine forecast periods
           if (marineData && marineData.data) {
-            console.log(`🌊 NOAA Marine data structure:`, Object.keys(marineData.data));
+            dlog(`🌊 NOAA Marine data structure:`, Object.keys(marineData.data));
             
             // Handle different data structures from NOAA Marine API
             if (marineData.data.text && Array.isArray(marineData.data.text)) {
-              console.log('🌊 Processing NOAA Marine forecast data - found text array');
+              dlog('🌊 Processing NOAA Marine forecast data - found text array');
               
               // Use only the actual NOAA forecast periods - no artificial generation
               for (let i = 0; i < marineData.data.text.length; i++) {
@@ -2553,7 +2119,7 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
                     temperature,
                     pressure: undefined,
                     waveHeight: avgWaveHeight > 0 ? avgWaveHeight : 0,
-                    wavePeriod: avgWaveHeight > 0 ? Math.max(4, Math.min(8, avgWaveHeight * 2)) : undefined,
+                    wavePeriod: undefined, // NOAA marine text forecasts don't include period — do not fabricate
                     waveDirection: windDirection,
                     source: 'noaa-marine-forecast',
                     timestamp: periodTime.toISOString()
@@ -2561,7 +2127,7 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
                 }
               }
             } else if (marineData.data.WindSpeed && Array.isArray(marineData.data.WindSpeed)) {
-              console.log('🌊 Processing NOAA Marine forecast data - found data arrays');
+              dlog('🌊 Processing NOAA Marine forecast data - found data arrays');
               
               // Process each forecast period
               const periods = Math.min(
@@ -2586,7 +2152,7 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
                     break;
                   }
                   
-                  console.log(`🌊 NOAA Marine period ${i}: ${periodTime.toISOString()} -> ${windDirection} ${windSpeed}mph, ${waveHeight}ft waves`);
+                  dlog(`🌊 NOAA Marine period ${i}: ${periodTime.toISOString()} -> ${windDirection} ${windSpeed}mph, ${waveHeight}ft waves`);
                   
                   forecastData.push({
                     windSpeed,
@@ -2594,7 +2160,7 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
                     temperature,
                     pressure: undefined,
                     waveHeight: waveHeight > 0 ? waveHeight : 0,
-                    wavePeriod: waveHeight > 0 ? Math.max(4, Math.min(8, waveHeight * 2)) : undefined,
+                    wavePeriod: undefined, // NOAA marine text forecasts don't include period — do not fabricate
                     waveDirection: windDirection,
                     source: 'noaa-marine-forecast',
                     timestamp: periodTime.toISOString()
@@ -2602,7 +2168,7 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
                 }
               }
             } else {
-              console.log('🌊 NOAA Marine API returned unexpected data structure');
+              dlog('🌊 NOAA Marine API returned unexpected data structure');
             }
           }
         } else {
@@ -2616,7 +2182,7 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
     // Final fallback: Try NOAA Weather.gov Marine API if both primary methods fail
     if (forecastData.length === 0) {
       try {
-        console.log('🌊 Trying NOAA Weather.gov Marine API fallback...');
+        dlog('🌊 Trying NOAA Weather.gov Marine API fallback...');
         const weatherGovUrl = `https://api.weather.gov/points/${latitude},${longitude}`;
         
         const pointsResponse = await fetch(weatherGovUrl);
@@ -2628,7 +2194,7 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
             const forecastResponse = await fetch(forecastUrl);
             if (forecastResponse.ok) {
               const forecastJson = await forecastResponse.json();
-              console.log('🌊 NOAA Weather.gov Marine API response:', forecastJson);
+              dlog('🌊 NOAA Weather.gov Marine API response:', forecastJson);
               
               // Parse Weather.gov marine forecast data
               if (forecastJson.properties && forecastJson.properties.periods) {
@@ -2643,7 +2209,7 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
                   const now = new Date();
                   const hoursDiff = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
                   if (hoursDiff < -6 || startTime > endDate) {
-                    console.log(`🌊 Skipping NOAA period ${i}: ${startTime.toISOString()} (hours diff: ${hoursDiff.toFixed(1)}, end: ${endDate.toISOString()})`);
+                    dlog(`🌊 Skipping NOAA period ${i}: ${startTime.toISOString()} (hours diff: ${hoursDiff.toFixed(1)}, end: ${endDate.toISOString()})`);
                     continue;
                   }
                   
@@ -2655,7 +2221,7 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
                     // Use the average wave height for the forecast data structure
                     const avgWaveHeight = Math.round(((waveHeightData.min + waveHeightData.max) / 2) * 10) / 10;
                     
-                    console.log(`🌊 NOAA Weather.gov period ${i}: ${startTime.toISOString()} - ${endTime.toISOString()} -> ${windDirection} ${windSpeed}mph, ${waveHeightData.min}-${waveHeightData.max}ft waves (avg: ${avgWaveHeight}ft)`);
+                    dlog(`🌊 NOAA Weather.gov period ${i}: ${startTime.toISOString()} - ${endTime.toISOString()} -> ${windDirection} ${windSpeed}mph, ${waveHeightData.min}-${waveHeightData.max}ft waves (avg: ${avgWaveHeight}ft)`);
                     
                     forecastData.push({
                       windSpeed,
@@ -2679,17 +2245,16 @@ const fetchNOAAForecastData = async (latitude: number, longitude: number, hours:
       }
     }
     
-    console.log(`🌊 Generated ${forecastData.length} NOAA forecast points`);
+    dlog(`🌊 Generated ${forecastData.length} NOAA forecast points`);
     
     // Provide feedback on forecast coverage
     if (forecastData.length === 0) {
-      console.log('🌊 No NOAA forecast data available for this location');
+      dlog('🌊 No NOAA forecast data available for this location');
     } else if (forecastData.length < hours/3) {
       const daysCovered = Math.ceil(forecastData.length * 3 / 24);
-      console.log(`🌊 NOAA provides ${daysCovered} days of forecast coverage (${forecastData.length} periods)`);
-      console.log('🌊 Consider Windy API for extended forecast coverage when not rate-limited');
+      dlog(`🌊 NOAA provides ${daysCovered} days of forecast coverage (${forecastData.length} periods)`);
     } else {
-      console.log('🌊 NOAA provides full forecast coverage');
+      dlog('🌊 NOAA provides full forecast coverage');
     }
     
     return forecastData;
@@ -2788,13 +2353,13 @@ const extractWindDirectionFromNOAA = (forecastText: string): string => {
  * Determine the marine forecast zone based on coordinates
  */
 const getMarineForecastZone = (latitude: number, longitude: number): { id: string; name: string } => {
-  // Lake Superior marine forecast zones - using actual NOAA zone IDs from the official table
-  
-  // Michigan Upper Peninsula (Marquette area) - expanded range
-  if (latitude >= 46.0 && latitude <= 47.0 && longitude >= -88.0 && longitude <= -85.0) {
-    return { id: 'LSZ146', name: 'Port Wing to Sand Island, WI' };
+  // Lake Superior marine forecast zones — NOAA zone IDs (MQT office handles MI, DLH handles MN/WI)
+
+  // Michigan Upper Peninsula south shore (Marquette, Grand Marais MI)
+  if (longitude >= -88.0 && latitude <= 47.0) {
+    return { id: 'LSZ261', name: 'Michigan Waters of Lake Superior' };
   }
-  
+
   // Wisconsin North Shore (Ashland, Cornucopia area)
   if (latitude >= 46.5 && latitude <= 47.0 && longitude >= -91.5 && longitude <= -90.5) {
     return { id: 'LSZ145', name: 'Duluth, MN to Port Wing, WI' };
@@ -2839,17 +2404,17 @@ const parseNOAAMarineForecastText = (forecastText: string, startDate: Date, endD
   
   if (!forecastText) return forecastData;
   
-  console.log(`🌊 Parsing NOAA marine forecast text (${forecastText.length} chars) for zone: ${marineZone.name}`);
+  dlog(`🌊 Parsing NOAA marine forecast text (${forecastText.length} chars) for zone: ${marineZone.name}`);
   
   // Split the text into sections by zone
   const sections = forecastText.split('LSZ');
-  console.log(`🌊 Found ${sections.length} marine zone sections`);
+  dlog(`🌊 Found ${sections.length} marine zone sections`);
   
   for (const section of sections) {
     // Look for the specific marine zone section based on the determined zone
     if (!section.includes(marineZone.name.split(',')[0]) && !section.includes(marineZone.id)) continue;
     
-    console.log(`🌊 Processing section: ${section.substring(0, 100)}...`);
+    dlog(`🌊 Processing section: ${section.substring(0, 100)}...`);
     
     // Extract time periods (TODAY, TONIGHT, FRIDAY, etc.)
     // Split the section into periods and capture the full text for each
@@ -2872,13 +2437,13 @@ const parseNOAAMarineForecastText = (forecastText: string, startDate: Date, endD
     }
     
     if (periods.length > 0) {
-      console.log(`🌊 Found ${periods.length} time periods in section`);
+      dlog(`🌊 Found ${periods.length} time periods in section`);
       
       for (const period of periods) {
         const periodName = period.name;
         const periodText = period.text;
         
-        console.log(`🌊 Processing period: "${periodName}" -> "${periodText}"`);
+        dlog(`🌊 Processing period: "${periodName}" -> "${periodText}"`);
         
         // Extract wind and wave data from period text
         const windSpeed = extractWindSpeedFromNOAA(periodText);
@@ -2888,13 +2453,13 @@ const parseNOAAMarineForecastText = (forecastText: string, startDate: Date, endD
         // Use the average wave height for the forecast data structure
         const avgWaveHeight = Math.round(((waveHeightData.min + waveHeightData.max) / 2) * 10) / 10;
         
-        console.log(`🌊 Extracted: Wind ${windSpeed}mph ${windDirection}, Waves ${waveHeightData.min}-${waveHeightData.max}ft (avg: ${avgWaveHeight}ft)`);
+        dlog(`🌊 Extracted: Wind ${windSpeed}mph ${windDirection}, Waves ${waveHeightData.min}-${waveHeightData.max}ft (avg: ${avgWaveHeight}ft)`);
         
         if (windSpeed > 0 && windDirection) {
           // Create timestamp based on period name
           const timestamp = createTimestampFromPeriodName(periodName, startDate);
           
-          console.log(`🌊 Created timestamp: ${timestamp.toISOString()} for period "${periodName}"`);
+          dlog(`🌊 Created timestamp: ${timestamp.toISOString()} for period "${periodName}"`);
           
           if (timestamp >= startDate && timestamp <= endDate) {
             forecastData.push({
@@ -2910,18 +2475,18 @@ const parseNOAAMarineForecastText = (forecastText: string, startDate: Date, endD
               periodName: periodName // Add the NOAA period name
             });
             
-            console.log(`🌊 Added forecast point: ${windSpeed}mph ${windDirection}, ${avgWaveHeight}ft waves at ${timestamp.toISOString()}`);
+            dlog(`🌊 Added forecast point: ${windSpeed}mph ${windDirection}, ${avgWaveHeight}ft waves at ${timestamp.toISOString()}`);
           } else {
-            console.log(`🌊 Skipping period "${periodName}" - timestamp ${timestamp.toISOString()} outside range ${startDate.toISOString()} to ${endDate.toISOString()}`);
+            dlog(`🌊 Skipping period "${periodName}" - timestamp ${timestamp.toISOString()} outside range ${startDate.toISOString()} to ${endDate.toISOString()}`);
           }
         } else {
-          console.log(`🌊 Skipping period "${periodName}" - invalid wind data (speed: ${windSpeed}, direction: ${windDirection})`);
+          dlog(`🌊 Skipping period "${periodName}" - invalid wind data (speed: ${windSpeed}, direction: ${windDirection})`);
         }
       }
     }
   }
   
-  console.log(`🌊 Total forecast points extracted: ${forecastData.length}`);
+  dlog(`🌊 Total forecast points extracted: ${forecastData.length}`);
   return forecastData;
 };
 
@@ -2978,7 +2543,7 @@ const extractWaveHeightFromNOAA = (forecastText: string): { min: number; max: nu
   if (!forecastText) return { min: 0, max: 0, isRange: false };
   
   const text = forecastText.toLowerCase();
-  console.log(`🌊 🔍 Extracting wave height from text: "${text}"`);
+  dlog(`🌊 🔍 Extracting wave height from text: "${text}"`);
   
   // Enhanced patterns specifically for NOAA marine forecast text
   const patterns = [
@@ -3005,24 +2570,24 @@ const extractWaveHeightFromNOAA = (forecastText: string): { min: number; max: nu
   for (let i = 0; i < patterns.length; i++) {
     const pattern = patterns[i];
     const match = text.match(pattern);
-    console.log(`🌊 🔍 Pattern ${i + 1}: ${pattern.source} - Match: ${match ? 'YES' : 'NO'}`);
+    dlog(`🌊 🔍 Pattern ${i + 1}: ${pattern.source} - Match: ${match ? 'YES' : 'NO'}`);
     if (match) {
-      console.log(`🌊 🔍 Pattern ${i + 1} matched: ${JSON.stringify(match)}`);
+      dlog(`🌊 🔍 Pattern ${i + 1} matched: ${JSON.stringify(match)}`);
       if (match[2]) {
         // Range like "2 to 4 feet"
         const min = parseInt(match[1]);
         const max = parseInt(match[2]);
-        console.log(`🌊 Found wave height range: ${min}-${max}ft in text: "${text}"`);
+        dlog(`🌊 Found wave height range: ${min}-${max}ft in text: "${text}"`);
         return { min, max, isRange: true };
       } else {
         // Single value like "2 feet"
         const height = parseInt(match[1]);
-        console.log(`🌊 Found wave height: ${height}ft in text: "${text}"`);
+        dlog(`🌊 Found wave height: ${height}ft in text: "${text}"`);
         return { min: height, max: height, isRange: false };
       }
     }
   }
   
-  console.log(`🌊 No wave height found in text: "${text}"`);
+  dlog(`🌊 No wave height found in text: "${text}"`);
   return { min: 0, max: 0, isRange: false };
 };

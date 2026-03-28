@@ -112,10 +112,6 @@ const SessionLogScreen: React.FC = () => {
       period: 12,
       direction: 'W'
     }],
-    tide: {
-      current: 2.5,
-      unit: 'ft'
-    },
     weather: {
       temperature: 62,
       condition: 'sunny',
@@ -330,7 +326,7 @@ const SessionLogScreen: React.FC = () => {
           <Text style={styles.inputLabel}>Swell Period (s)</Text>
           <TextInput
             style={styles.conditionInput}
-            value={conditions.swell[0].period.toString()}
+            value={(conditions.swell[0]?.period ?? 0).toString()}
             onChangeText={(text) => setConditions({
               ...conditions,
               swell: [

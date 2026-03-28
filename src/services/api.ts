@@ -1,29 +1,22 @@
 import { TIMEOUTS , API_BASE_URL } from '../constants';
-import { SurfConditions, SurfSpot, CheckIn , SurfSession } from '../types';
-// REMOVED: Unused imports that were only needed for the duplicate surf likelihood function
+import { SurfConditions, SurfSpot, SurfSession } from '../types';
 import axios from 'axios';
 import { addUserSession } from './storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchAllGreatLakesData, fetchAllGreatLakesForecastData } from './greatLakesApi';
 import { getSpotById, createSurfConditions, findNearbySpots } from '../utils/spotHelpers';
+import { getCachedForecast, cacheForecastData } from '../utils/storage';
 import {
   getSurferCount as getSurferCountFromBackend,
-  initializeMockBackend
+  initializeMockBackend,
+  resetAllCheckInsAndCounts,
 } from './mockBackend';
 
-// Re-export for screens that use api for surf spot + count
+
+
+/** Re-export for screens that use api for surf spot + count */
 export const getSurferCount = getSurferCountFromBackend;
-import { cacheForecastData, getCachedForecast } from '../utils/storage';
-// REMOVED: Unused import that was only needed for the duplicate surf likelihood function
-
-
-
-// REMOVED: Duplicate calculateSurfLikelihood function that was causing inconsistent surf likelihood calculations
-// The correct function is now in greatLakesApi.ts and handles all surf likelihood calculations consistently
-
-// REMOVED: generateForecastSummary function that was using the old surf likelihood logic
-// This functionality is now handled by the surf report generation in greatLakesApi.ts
-
+export { resetAllCheckInsAndCounts };
 
 // Create axios instance with base configuration
 const axiosInstance = axios.create({
@@ -43,10 +36,7 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Log request details in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, config.data);
-    }
+    if (__DEV__) console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, config.data);
 
     return config;
   },
@@ -59,10 +49,7 @@ axiosInstance.interceptors.request.use(
 // Add response interceptor for error handling and logging
 axiosInstance.interceptors.response.use(
   (response) => {
-    // Log response in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, response.data);
-    }
+    if (__DEV__) console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, response.data);
     return response;
   },
   async (error) => {
@@ -167,59 +154,21 @@ const handleApiError = (error: unknown) => {
  * Handles all external API calls for surf conditions data
  */
 
-const ENDPOINTS = {
-  WINDY: {
-    FORECAST: '/forecast',
-  },
-  NOAA: {
-    FORECAST: '/forecasts/point',
-  },
-  NDBC: {
-    REALTIME: '/realtime2',
-  },
-};
-
-// Helper function to handle fetch requests with timeout
-const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = TIMEOUTS.API_CALL) => {
-  const controller = new AbortController();
-  const { signal } = controller;
-  
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-  
-  try {
-    const response = await fetch(url, { ...options, signal });
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Request timed out');
-    }
-    throw error;
-  }
-};
-
-// Initialize mock backend
+// Initialize mock backend (check-ins / surfer counts only; conditions use greatLakesApi)
 initializeMockBackend();
 
 /**
- * Fetches current surf conditions for a specific spot
- * This is a mock implementation that would be replaced with actual API calls
+ * Fetches current surf conditions for a specific spot (NDBC buoys + NOAA marine wind).
  */
 export const fetchSurfConditions = async (spotId: string): Promise<SurfConditions | null> => {
   try {
-    // Check cache first (5 minute cache for current conditions) - TEMPORARILY DISABLED FOR TESTING
-    // const cached = await getCachedForecast(spotId, 5 * 60 * 1000); // 5 minutes
-    // if (cached) {
-    //   console.log('📦 Using cached conditions for', spotId);
-    //   return cached;
-    // }
-    
+    // Check cache first (5 minute cache for current conditions)
+    const cached = await getCachedForecast(spotId, 5 * 60 * 1000);
+    if (cached) {
+      if (__DEV__) console.log('📦 Using cached conditions for', spotId);
+      return cached;
+    }
+
     // Fetching current conditions
     
     // Get current surfer count
@@ -232,8 +181,8 @@ export const fetchSurfConditions = async (spotId: string): Promise<SurfCondition
       return null;
     }
     
-    console.log(`📍 Spot coordinates: ${spot.location.latitude}, ${spot.location.longitude}`);
-    
+    if (__DEV__) console.log(`📍 Spot coordinates: ${spot.location.latitude}, ${spot.location.longitude}`);
+
     // Use the comprehensive ALL sources data aggregation
     const aggregated = await fetchAllGreatLakesData(
       spotId,
@@ -242,23 +191,22 @@ export const fetchSurfConditions = async (spotId: string): Promise<SurfCondition
     );
     
     if (aggregated) {
-      console.log('📊 Aggregated data received:', {
+      if (__DEV__) console.log('📊 Aggregated data received:', {
         waveHeight: aggregated.waveHeight,
         swell: aggregated.swell,
         surfLikelihood: aggregated.surfLikelihood
       });
-      
+
       // Use the new helper function to create SurfConditions
       const conditions = createSurfConditions(spotId, aggregated, surferCount);
-      
-      console.log('🏄 Final SurfConditions:', {
+
+      if (__DEV__) console.log('🏄 Final SurfConditions:', {
         waveHeight: conditions.waveHeight,
         swell: conditions.swell,
         surfLikelihood: conditions.surfLikelihood
       });
       
-      // Cache the conditions for 5 minutes - TEMPORARILY DISABLED FOR TESTING
-      // await cacheForecastData(spotId, conditions);
+      await cacheForecastData(spotId, conditions);
       
       return conditions;
     }
@@ -276,7 +224,7 @@ export const fetchSurfConditions = async (spotId: string): Promise<SurfCondition
  */
 export const fetchSurfForecast = async (spotId: string, days = 14): Promise<SurfConditions[] | null> => {
   try {
-    console.log(`📆 Fetching forecast for ${spotId} (${days} days)`);
+    if (__DEV__) console.log(`📆 Fetching forecast for ${spotId} (${days} days)`);
     
     // Get spot coordinates for Great Lakes data
     const spot = getSpotById(spotId);
@@ -285,9 +233,9 @@ export const fetchSurfForecast = async (spotId: string, days = 14): Promise<Surf
       return null;
     }
     
-    console.log(`📍 Forecast coordinates: ${spot.location.latitude}, ${spot.location.longitude}`);
+    if (__DEV__) console.log(`📍 Forecast coordinates: ${spot.location.latitude}, ${spot.location.longitude}`);
     
-    // Use the new forecast data function that uses Windy + NOAA
+    // Forecast: NOAA marine grid + buoy context (see fetchAllGreatLakesForecastData in greatLakesApi)
     const forecastData = await fetchAllGreatLakesForecastData(
       spotId,
       spot.location.latitude,
@@ -295,20 +243,20 @@ export const fetchSurfForecast = async (spotId: string, days = 14): Promise<Surf
     );
     
     if (forecastData && forecastData.length > 0) {
-      console.log(`📊 Received ${forecastData.length} forecast data points`);
-      
+      if (__DEV__) console.log(`📊 Received ${forecastData.length} forecast data points`);
+
       // Convert AggregatedConditions to SurfConditions
       const forecast: SurfConditions[] = forecastData.map((data: any, index: number) => {
-        console.log(`📊 Converting forecast point ${index}:`, {
+        if (__DEV__) console.log(`📊 Converting forecast point ${index}:`, {
           waveHeight: data.waveHeight,
           wind: data.wind,
           timestamp: data.timestamp
         });
-        
+
         return createSurfConditions(spotId, data, 0); // 0 surfer count for forecast
       });
-      
-      console.log(`📊 Final forecast array length: ${forecast.length}`);
+
+      if (__DEV__) console.log(`📊 Final forecast array length: ${forecast.length}`);
       return forecast;
     }
     
@@ -332,20 +280,6 @@ export const fetchNearbySurfSpots = async (
     // Simulate API latency
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    // Use real data from spots.json
-    const toRad = (value: number) => (value * Math.PI) / 180;
-    const earthRadius = 6371; // km
-    const isWithinRadius = (lat1: number, lon1: number, lat2: number, lon2: number, r: number) => {
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return earthRadius * c <= r;
-    };
-
     const nearbySpots = findNearbySpots(latitude, longitude, radius);
 
     return nearbySpots;
@@ -361,39 +295,6 @@ export const fetchNearbySurfSpots = async (
 
 
 
-/**
- * Submits a check-in to the backend
- * This is a mock implementation
- */
-export const submitCheckIn = async (checkInData: Omit<CheckIn, 'id' | 'timestamp' | 'expiresAt' | 'isActive'>): Promise<CheckIn | null> => {
-  try {
-    // Simulate API latency
-    await new Promise(resolve => setTimeout(resolve, 1200));
-    
-    // In a real implementation, this would post to a backend API
-    // For now, we'll create a mock response
-    
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
-    
-    const checkIn: CheckIn = {
-      id: `checkin-${Date.now()}`,
-      userId: checkInData.userId,
-      spotId: checkInData.spotId,
-      timestamp: now.toISOString(),
-      expiresAt,
-      isActive: true,
-      conditions: checkInData.conditions,
-      comment: checkInData.comment,
-      imageUrls: checkInData.imageUrls,
-    };
-    
-    return checkIn;
-  } catch (error) {
-    console.error('Error submitting check-in:', error);
-    return null;
-  }
-};
 
 /**
  * Logs a surf session to storage

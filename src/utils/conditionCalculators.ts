@@ -111,7 +111,7 @@ export const calculateWindScore = (speed: number, direction: string): number => 
  * @returns A score from 1-10
  */
 export const calculateSwellScore = (
-  swells: { height: number; period: number; direction: string }[]
+  swells: { height: number; period?: number; direction: string }[]
 ): number => {
   if (swells.length === 0) return 5;
   
@@ -120,15 +120,13 @@ export const calculateSwellScore = (
   return Math.max(
     ...swells.map(swell => {
       // Swell period is very important for quality waves
-      const periodScore = calculatePeriodScore(swell.period);
+      const periodScore = calculatePeriodScore(swell.period ?? 0);
       
       // Swell height contributes to overall size
       const heightScore = calculateSwellHeightScore(swell.height);
       
-      // Direction is important but varies by break - assuming ideal direction for now
-      const directionScore = 8; // Placeholder for direction calculation
-      
-      return (periodScore * 0.5) + (heightScore * 0.3) + (directionScore * 0.2);
+      // Direction scoring requires spot context unavailable here; omit it and reweight.
+      return (periodScore * 0.6) + (heightScore * 0.4);
     })
   );
 };
@@ -276,11 +274,11 @@ export const isDaylightHours = (
 };
 
 export const calculateSurfRating = (conditions: SurfConditions): number => {
-  // Calculate rating based on wave height, wind speed, and direction
+  // Calculate rating based on wave height and wind speed.
+  // Wind direction scoring is spot-specific and handled in surfConfig; use neutral value here.
   const waveHeightScore = conditions.waveHeight.min >= 2 ? 5 : conditions.waveHeight.min >= 1 ? 3 : 1;
   const windSpeedScore = conditions.wind.speed <= 10 ? 5 : conditions.wind.speed <= 15 ? 3 : 1;
-  const windDirection = parseInt(conditions.wind.direction);
-  const windDirectionScore = !isNaN(windDirection) && windDirection >= 0 && windDirection <= 90 ? 5 : 3;
+  const windDirectionScore = 3; // Neutral — direction quality is spot-specific
 
   // Calculate average score
   return (waveHeightScore + windSpeedScore + windDirectionScore) / 3;

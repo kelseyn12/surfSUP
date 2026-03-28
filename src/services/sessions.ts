@@ -1,184 +1,119 @@
+/**
+ * Session service — surf session CRUD.
+ * All data persists to Firestore (cross-device). Function signatures unchanged.
+ */
+
 import { SurfSession, User } from '../types';
-import { storeUserSessions, getUserSessions as getUserSessionsFromStorage } from './storage';
+import {
+  firestoreSaveSession,
+  firestoreGetUserSessions,
+  firestoreUpdateSession,
+  firestoreDeleteSession,
+} from './firestore';
 import { useAuthStore } from './auth';
 
-/**
- * Calculate session duration in minutes
- */
-const calculateSessionDuration = (session: SurfSession): number => {
+// ─── Stats ───────────────────────────────────────────────────────────────────
+
+const calculateDuration = (session: SurfSession): number => {
   const start = new Date(session.startTime);
   const end = session.endTime ? new Date(session.endTime) : new Date();
   return Math.round((end.getTime() - start.getTime()) / (1000 * 60));
 };
 
-/**
- * Calculate user statistics from sessions
- */
 export const calculateUserStats = async (userId: string): Promise<User['stats']> => {
-  const sessions = await getUserSessionsFromStorage(userId);
-  const userSessions = sessions.filter(session => session.userId === userId);
+  const sessions = await firestoreGetUserSessions(userId);
 
-  if (userSessions.length === 0) {
-    return {
-      totalSessions: 0,
-      averageSessionLength: 0,
-      startDate: new Date().toISOString(),
-      longestSession: 0
-    };
+  if (sessions.length === 0) {
+    return { totalSessions: 0, averageSessionLength: 0, startDate: new Date().toISOString(), longestSession: 0 };
   }
 
-  // Calculate total sessions
-  const totalSessions = userSessions.length;
+  const durations = sessions.map(calculateDuration);
+  const total = durations.reduce((s, d) => s + d, 0);
 
-  // Calculate session durations
-  const sessionDurations = userSessions.map(calculateSessionDuration);
-  const totalDuration = sessionDurations.reduce((sum, duration) => sum + duration, 0);
-  const averageSessionLength = Math.round(totalDuration / totalSessions);
-  const longestSession = Math.max(...sessionDurations);
-
-  // Find start date (earliest session)
-  const startDate = userSessions
-    .map(session => new Date(session.startTime))
-    .reduce((earliest, current) => current < earliest ? current : earliest)
+  const startDate = sessions
+    .map((s) => new Date(s.startTime))
+    .reduce((earliest, d) => (d < earliest ? d : earliest))
     .toISOString();
 
-  // Find favorite spot (most visited)
-  const spotCounts = userSessions.reduce((counts, session) => {
-    counts[session.spotId] = (counts[session.spotId] || 0) + 1;
-    return counts;
+  const spotCounts = sessions.reduce((acc, s) => {
+    acc[s.spotId] = (acc[s.spotId] || 0) + 1;
+    return acc;
   }, {} as Record<string, number>);
 
-  const favoriteSurfSpot = Object.entries(spotCounts)
-    .reduce((max, [spotId, count]) => 
-      count > (max.count || 0) ? { spotId, count } : max,
-      { spotId: '', count: 0 }
-    ).spotId;
+  const favoriteSurfSpot = Object.entries(spotCounts).reduce(
+    (max, [id, count]) => (count > max.count ? { spotId: id, count } : max),
+    { spotId: '', count: 0 }
+  ).spotId;
 
   return {
-    totalSessions,
-    averageSessionLength,
+    totalSessions: sessions.length,
+    averageSessionLength: Math.round(total / sessions.length),
     startDate,
     favoriteSurfSpot: favoriteSurfSpot || undefined,
-    longestSession
+    longestSession: Math.max(...durations),
   };
 };
 
-/**
- * Add a new session and update user stats
- */
-export const addSession = async (session: Omit<SurfSession, 'id' | 'createdAt' | 'updatedAt'>): Promise<SurfSession> => {
-  const now = new Date().toISOString();
-  const newSession: SurfSession = {
-    ...session,
-    id: `session-${Date.now()}`,
-    createdAt: now,
-    updatedAt: now
-  };
+// ─── CRUD ────────────────────────────────────────────────────────────────────
 
-  const sessions = await getUserSessionsFromStorage(session.userId);
-  sessions.unshift(newSession);
-  await storeUserSessions(session.userId, sessions);
+export const addSession = async (
+  session: Omit<SurfSession, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<SurfSession> => {
+  const newSession = await firestoreSaveSession(session);
 
-  // Update user stats
   const stats = await calculateUserStats(session.userId);
   const authStore = useAuthStore.getState();
   if (authStore.user) {
-    await authStore.updateUserProfile({
-      ...authStore.user,
-      stats
-    });
+    await authStore.updateUserProfile({ ...authStore.user, stats });
   }
 
   return newSession;
 };
 
-/**
- * Update an existing session and recalculate stats
- */
-export const updateSession = async (sessionId: string, updates: Partial<SurfSession>): Promise<SurfSession> => {
+export const updateSession = async (
+  sessionId: string,
+  updates: Partial<SurfSession>
+): Promise<SurfSession> => {
   const authStore = useAuthStore.getState();
   const userId = authStore.user?.id;
-  
-  if (!userId) {
-    throw new Error('User not authenticated');
-  }
+  if (!userId) throw new Error('User not authenticated');
 
-  const sessions = await getUserSessionsFromStorage(userId);
-  const sessionIndex = sessions.findIndex(s => s.id === sessionId);
-  
-  if (sessionIndex === -1) {
-    throw new Error('Session not found');
-  }
+  await firestoreUpdateSession(sessionId, updates);
 
-  const updatedSession: SurfSession = {
-    ...sessions[sessionIndex],
-    ...updates,
-    updatedAt: new Date().toISOString()
-  };
+  const sessions = await firestoreGetUserSessions(userId);
+  const updated = sessions.find((s) => s.id === sessionId);
+  if (!updated) throw new Error('Session not found after update');
 
-  sessions[sessionIndex] = updatedSession;
-  await storeUserSessions(userId, sessions);
-
-  // Recalculate user stats
   const stats = await calculateUserStats(userId);
   if (authStore.user) {
-    await authStore.updateUserProfile({
-      ...authStore.user,
-      stats
-    });
+    await authStore.updateUserProfile({ ...authStore.user, stats });
   }
 
-  return updatedSession;
+  return updated;
 };
 
-/**
- * Delete a session and recalculate stats
- */
 export const deleteSession = async (sessionId: string): Promise<void> => {
   const authStore = useAuthStore.getState();
   const userId = authStore.user?.id;
-  
-  if (!userId) {
-    throw new Error('User not authenticated');
-  }
+  if (!userId) throw new Error('User not authenticated');
 
-  const sessions = await getUserSessionsFromStorage(userId);
-  const updatedSessions = sessions.filter(s => s.id !== sessionId);
-  
-  if (updatedSessions.length === sessions.length) {
-    throw new Error('Session not found');
-  }
+  await firestoreDeleteSession(sessionId);
 
-  await storeUserSessions(userId, updatedSessions);
-
-  // Recalculate user stats
   const stats = await calculateUserStats(userId);
   if (authStore.user) {
-    await authStore.updateUserProfile({
-      ...authStore.user,
-      stats
-    });
+    await authStore.updateUserProfile({ ...authStore.user, stats });
   }
 };
 
-/**
- * Get a specific session by ID
- */
 export const getSessionById = async (sessionId: string): Promise<SurfSession | null> => {
   const authStore = useAuthStore.getState();
   const userId = authStore.user?.id;
-  
-  if (!userId) {
-    throw new Error('User not authenticated');
-  }
+  if (!userId) throw new Error('User not authenticated');
 
-  const sessions = await getUserSessionsFromStorage(userId);
-  return sessions.find(s => s.id === sessionId) || null;
+  const sessions = await firestoreGetUserSessions(userId);
+  return sessions.find((s) => s.id === sessionId) ?? null;
 };
 
-/**
- * Get all sessions for the current user
- */
 export const getUserSessionsById = async (userId: string): Promise<SurfSession[]> => {
-  return await getUserSessionsFromStorage(userId);
-}; 
+  return firestoreGetUserSessions(userId);
+};

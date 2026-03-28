@@ -50,7 +50,6 @@ class WebSocketService {
   private _isConnected: boolean = false;
   private subscribers: Map<WebSocketMessageType, MessageCallback[]> = new Map();
   private reconnectInterval: NodeJS.Timeout | null = null;
-  private mockUpdateInterval: NodeJS.Timeout | null = null;
   private reconnectAttempts: number = 0;
   private readonly MAX_RECONNECT_ATTEMPTS = 5;
   private reconnectDelay: number = 2000; // Start with 2 seconds
@@ -71,34 +70,20 @@ class WebSocketService {
 
   // Connect to the WebSocket server
   public connect(): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-      console.log('[WebSocket] Connecting...');
-      
-      // Simulate connection delay with potential failure
-      setTimeout(() => {
-        // 20% chance of connection failure for testing
-        if (Math.random() < 0.2 && this.reconnectAttempts === 0) {
-          const error = new Error('Failed to connect to WebSocket server');
-          console.error('[WebSocket] Connection failed:', error);
-          this.handleConnectionError(error);
-          reject(error);
-          return;
-        }
+    return new Promise((resolve) => {
+      if (__DEV__) console.log('[WebSocket] Connecting...');
 
+      setTimeout(() => {
         this._isConnected = true;
         this.reconnectAttempts = 0;
-        this.reconnectDelay = 2000; // Reset delay on success
-        console.log('[WebSocket] Connected');
-        
-        // Notify subscribers of the connection
+        this.reconnectDelay = 2000;
+        if (__DEV__) console.log('[WebSocket] Connected');
+
         this.broadcastMessage({
           type: WebSocketMessageType.CONNECTION_STATUS,
           payload: { connected: true }
         });
 
-        // Start simulating real-time updates
-        this.startMockUpdates();
-        
         resolve(true);
       }, 1000);
     });
@@ -107,16 +92,10 @@ class WebSocketService {
   // Disconnect from the WebSocket server
   public disconnect(): void {
     if (!this._isConnected) return;
-    
-    console.log('[WebSocket] Disconnecting...');
+
+    if (__DEV__) console.log('[WebSocket] Disconnecting...');
     this._isConnected = false;
-    
-    // Clear intervals
-    if (this.mockUpdateInterval) {
-      clearInterval(this.mockUpdateInterval);
-      this.mockUpdateInterval = null;
-    }
-    
+
     if (this.reconnectInterval) {
       clearInterval(this.reconnectInterval);
       this.reconnectInterval = null;
@@ -132,36 +111,30 @@ class WebSocketService {
   // Handle connection errors and attempt reconnection
   private handleConnectionError(error: Error): void {
     this._isConnected = false;
-    
-    // Notify subscribers of the error
+
     this.broadcastMessage({
       type: WebSocketMessageType.CONNECTION_STATUS,
       payload: { connected: false, error: error.message }
     });
 
-    // Attempt to reconnect if we haven't exceeded max attempts
     if (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
       this.reconnectAttempts++;
-      console.log(`[WebSocket] Attempting to reconnect (${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS}) in ${this.reconnectDelay / 1000}s...`);
-      // Broadcast status for UI feedback
+      if (__DEV__) {
+        console.log(`[WebSocket] Reconnecting (${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS}) in ${this.reconnectDelay / 1000}s`);
+      }
       this.broadcastMessage({
         type: WebSocketMessageType.CONNECTION_STATUS,
         payload: {
           connected: false,
-          error: `Attempting to reconnect (${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`,
-          reconnectAttempt: this.reconnectAttempts,
-          reconnectDelay: this.reconnectDelay,
-        } as any // extra fields for context, ignored by other consumers
+          error: `Reconnecting (${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`,
+        }
       });
       this.reconnectInterval = setTimeout(() => {
-        this.connect().catch(() => {
-          // Reconnection failed, will be handled by handleConnectionError
-        });
+        this.connect().catch(() => {});
       }, this.reconnectDelay);
-      // Exponential backoff: double the delay, up to max
       this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.MAX_RECONNECT_DELAY);
     } else {
-      console.error('[WebSocket] Max reconnection attempts reached');
+      if (__DEV__) console.error('[WebSocket] Max reconnection attempts reached');
     }
   }
 
@@ -188,7 +161,7 @@ class WebSocketService {
   // Send a message to the server
   public send<T>(message: WebSocketMessage<T>): void {
     if (!this._isConnected) {
-      console.warn('[WebSocket] Cannot send message: not connected');
+      if (__DEV__) console.warn('[WebSocket] Cannot send message: not connected');
       return;
     }
     
@@ -204,22 +177,9 @@ class WebSocketService {
           this.handleCheckInStatusChange(message.payload as CheckInStatusMessage);
           break;
         default:
-          console.warn(`[WebSocket] Unhandled message type: ${message.type}`);
+          if (__DEV__) console.warn(`[WebSocket] Unhandled message type: ${message.type}`);
       }
     }, 300);
-  }
-
-  // Start periodic mock updates to simulate other users checking in/out
-  private startMockUpdates(): void {
-    if (this.mockUpdateInterval) {
-      clearInterval(this.mockUpdateInterval);
-    }
-    // Production: no mock updates
-  }
-
-  // Simulate a random update
-  private simulateRandomUpdate(): void {
-    // Removed for production
   }
 
   // Handle a surfer count update message
@@ -255,16 +215,11 @@ class WebSocketService {
   // Broadcast a message to all subscribers of a specific type
   private broadcastMessage<T>(message: WebSocketMessage<T>): void {
     const callbacks = this.subscribers.get(message.type) || [];
-    
-    // Also broadcast to subscribers that want all messages
-    const allCallbacks = this.subscribers.get('*' as WebSocketMessageType) || [];
-    
-    // Call all callbacks
-    [...callbacks, ...allCallbacks].forEach(callback => {
+    callbacks.forEach(callback => {
       try {
         callback(message);
       } catch (error) {
-        console.error('[WebSocket] Error in subscriber callback:', error);
+        if (__DEV__) console.error('[WebSocket] Error in subscriber callback:', error);
       }
     });
   }

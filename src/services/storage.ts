@@ -1,6 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants';
 import { User, SurfSpot, SurfSession, CheckIn } from '../types';
+import {
+  firestoreGetFavoriteSpots,
+  firestoreAddFavoriteSpot,
+  firestoreRemoveFavoriteSpot,
+} from './firestore';
 
 /**
  * Storage Service
@@ -54,20 +59,10 @@ export const removeAuthToken = async (): Promise<void> => {
   }
 };
 
-// Favorite spots storage functions (user-specific)
-export const storeFavoriteSpots = async (userId: string, spots: SurfSpot[]): Promise<void> => {
-  try {
-    await AsyncStorage.setItem(`${STORAGE_KEYS.FAVORITE_SPOTS}_${userId}`, JSON.stringify(spots));
-  } catch (error) {
-    console.error('Error storing favorite spots:', error);
-    throw error;
-  }
-};
-
+// Favorite spots — persisted to Firestore (cross-device)
 export const getFavoriteSpots = async (userId: string): Promise<SurfSpot[]> => {
   try {
-    const spotsJson = await AsyncStorage.getItem(`${STORAGE_KEYS.FAVORITE_SPOTS}_${userId}`);
-    return spotsJson ? JSON.parse(spotsJson) : [];
+    return await firestoreGetFavoriteSpots(userId);
   } catch (error) {
     console.error('Error getting favorite spots:', error);
     return [];
@@ -76,15 +71,8 @@ export const getFavoriteSpots = async (userId: string): Promise<SurfSpot[]> => {
 
 export const addFavoriteSpot = async (userId: string, spot: SurfSpot): Promise<SurfSpot[]> => {
   try {
-    const spots = await getFavoriteSpots(userId);
-    
-    // Check if spot already exists
-    if (!spots.some(s => s.id === spot.id)) {
-      spots.push(spot);
-      await storeFavoriteSpots(userId, spots);
-    }
-    
-    return spots;
+    await firestoreAddFavoriteSpot(userId, spot);
+    return firestoreGetFavoriteSpots(userId);
   } catch (error) {
     console.error('Error adding favorite spot:', error);
     throw error;
@@ -93,10 +81,8 @@ export const addFavoriteSpot = async (userId: string, spot: SurfSpot): Promise<S
 
 export const removeFavoriteSpot = async (userId: string, spotId: string): Promise<SurfSpot[]> => {
   try {
-    const spots = await getFavoriteSpots(userId);
-    const updatedSpots = spots.filter(spot => spot.id !== spotId);
-    await storeFavoriteSpots(userId, updatedSpots);
-    return updatedSpots;
+    await firestoreRemoveFavoriteSpot(userId, spotId);
+    return firestoreGetFavoriteSpots(userId);
   } catch (error) {
     console.error('Error removing favorite spot:', error);
     throw error;
@@ -269,7 +255,7 @@ export const clearAllData = async (): Promise<void> => {
 export const clearAllStorage = async (): Promise<void> => {
   try {
     await AsyncStorage.clear();
-    console.log('All storage cleared successfully');
+    if (__DEV__) console.log('All storage cleared successfully');
   } catch (error) {
     console.error('Error clearing storage:', error);
     throw error;
@@ -283,7 +269,7 @@ export const initializeStorage = async (userId: string): Promise<void> => {
     if (!sessions) {
       await storeUserSessions(userId, []);
     }
-    console.log('Storage initialized successfully');
+    if (__DEV__) console.log('Storage initialized successfully');
   } catch (error) {
     console.error('Error initializing storage:', error);
     throw error;

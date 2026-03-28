@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 const AuthScreen: React.FC = () => {
   const navigation = useNavigation<RootStackScreenProps<'AuthScreen'>['navigation']>();
-  const { login, register, isLoading, clearError, signInWithApple, signInWithGoogle } = useAuthStore();
+  const { login, register, isLoading, clearError, signInWithApple, signInWithGoogle, loginAttempts, error: authError } = useAuthStore();
   
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -26,12 +26,19 @@ const AuthScreen: React.FC = () => {
   const [name, setName] = useState('');
   const [localError, setLocalError] = useState('');
 
+  const isRateLimited = loginAttempts >= 5;
+  const showAttemptsWarning = loginAttempts >= 3 && loginAttempts < 5;
+
 
 
   const handleSubmit = async () => {
+    if (isRateLimited) {
+      setLocalError('Too many failed attempts. Please wait 15 minutes before trying again.');
+      return;
+    }
     setLocalError('');
     clearError();
-    
+
     if (!email || !password) {
       setLocalError('Please enter both email and password');
       return;
@@ -43,10 +50,10 @@ const AuthScreen: React.FC = () => {
     }
 
     try {
-    if (isLogin) {
-      await login(email, password);
-    } else {
-      await register(email, password, name);
+      if (isLogin) {
+        await login(email, password);
+      } else {
+        await register(email, password, name);
       }
     } catch (error) {
       setLocalError('Authentication failed. Please try again.');
@@ -64,7 +71,7 @@ const AuthScreen: React.FC = () => {
       } else if (provider === 'Google') {
         await signInWithGoogle();
       } else {
-        console.log(`${provider} login not implemented yet`);
+        throw new Error(`${provider} login is not supported`);
       }
     } catch (error) {
       console.error(`${provider} login error:`, error);
@@ -109,14 +116,20 @@ const AuthScreen: React.FC = () => {
               secureTextEntry
             />
             
-            {localError && (
-              <Text style={styles.errorText}>{localError}</Text>
+            {(localError || authError) && (
+              <Text style={styles.errorText}>{localError || authError}</Text>
             )}
-            
-            <TouchableOpacity 
-              style={styles.button}
+
+            {showAttemptsWarning && (
+              <Text style={styles.warningText}>
+                {5 - loginAttempts} attempt{5 - loginAttempts !== 1 ? 's' : ''} remaining before lockout.
+              </Text>
+            )}
+
+            <TouchableOpacity
+              style={[styles.button, isRateLimited && styles.buttonDisabled]}
               onPress={handleSubmit}
-              disabled={isLoading}
+              disabled={isLoading || isRateLimited}
             >
               {isLoading ? (
                 <ActivityIndicator color={COLORS.white} />
@@ -228,6 +241,15 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     marginBottom: 16,
     textAlign: 'center',
+  },
+  warningText: {
+    color: COLORS.warning,
+    marginBottom: 12,
+    textAlign: 'center',
+    fontSize: 13,
+  },
+  buttonDisabled: {
+    backgroundColor: COLORS.gray,
   },
   forgotPassword: {
     alignItems: 'center',

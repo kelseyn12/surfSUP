@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Platform, NativeModules, UIManager } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Platform, Alert, NativeModules, UIManager } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { MainTabScreenProps } from '../navigation/types';
@@ -41,11 +41,10 @@ try {
     PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE;
     PROVIDER_DEFAULT = maps.PROVIDER_DEFAULT;
   } else {
-    console.log('[MapScreen] Maps not available. Android: AirMapModule. iOS: UIManager AIRMap.');
-    console.log('[MapScreen] NativeModules (map-related):', Object.keys(NativeModules).filter(k => k.toLowerCase().includes('map')));
+    if (__DEV__) console.log('[MapScreen] Maps not available. Android: AirMapModule. iOS: UIManager AIRMap.');
   }
 } catch (e) {
-  console.log('[MapScreen] react-native-maps not available:', e);
+  if (__DEV__) console.log('[MapScreen] react-native-maps not available:', e);
 }
 type Region = { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number };
 
@@ -98,11 +97,9 @@ const MapScreen: React.FC = () => {
     try {
       const spots = await fetchNearbySurfSpots(SPOTS_CENTER.lat, SPOTS_CENTER.lng, SPOTS_RADIUS_KM);
       const list = spots && spots.length > 0 ? spots : getAllSpots();
-      const updatedSpots = [...list];
-      for (let i = 0; i < updatedSpots.length; i++) {
-        const latestCount = await getSurferCount(updatedSpots[i].id);
-        updatedSpots[i].currentSurferCount = latestCount;
-      }
+      // Fetch all surfer counts in parallel instead of sequentially
+      const counts = await Promise.all(list.map(spot => getSurferCount(spot.id)));
+      const updatedSpots = list.map((spot, i) => ({ ...spot, currentSurferCount: counts[i] }));
       setSurfSpots(updatedSpots);
     } catch (err) {
       console.warn('[MapScreen] loadSurfSpots failed:', err);
@@ -158,9 +155,9 @@ const MapScreen: React.FC = () => {
     const coords = await getCurrentLocation();
     if (!coords) {
       if (!permissionStatus || permissionStatus === 'denied') {
-        alert('Location permission is required to find your location');
+        Alert.alert('Permission Required', 'Location permission is required to find your location.');
       } else {
-        alert('Unable to find your location. Please try again.');
+        Alert.alert('Location Unavailable', 'Unable to find your location. Please try again.');
       }
       return;
     }

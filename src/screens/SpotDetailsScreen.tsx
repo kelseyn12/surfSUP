@@ -18,29 +18,42 @@ import {
   fetchSurfForecast, 
   fetchNearbySurfSpots 
 } from '../services/api';
-import { 
-  checkInToSpot, 
-  checkOutFromSpot, 
-  getSurferCount, 
-  getActiveCheckInForUser, 
-  getActiveCheckInForUserAnywhere 
+import {
+  checkInToSpot,
+  checkOutFromSpot,
+  getSurferCount,
+  getActiveCheckInForUser,
+  getActiveCheckInForUserAnywhere,
 } from '../services/mockBackend';
-import { isUserCheckedInAt, getGlobalSurferCount } from '../services/globalState';
+import { firestoreSubscribeSurferCount } from '../services/firestore';
+import { isUserCheckedInAt, getGlobalSurferCount, updateGlobalSurferCount } from '../services/globalState';
 import webSocketService, { WebSocketMessageType } from '../services/websocket';
 import { HeaderBar } from '../components';
 import { addFavoriteSpot, removeFavoriteSpot } from '../services/storage';
 import { useAuthStore } from '../services/auth';
+import { formatWind } from '../utils/formatters';
 
 const SpotDetailsScreen: React.FC<any> = (props) => {
   // Use props directly instead of hooks
   const route = props.route;
   const navigation = props.navigation;
   
-  // Get spot details from route params or use fallback
-  const { spotId: rawSpotId, spot } = route?.params || { spotId: '0', spot: { name: 'Unknown Spot' } };
-  
-  // Use a valid spot ID if none provided (for testing)
-  const spotId = rawSpotId === '0' ? 'stoneypoint' : rawSpotId;
+  // Get spot details from route params or use a complete fallback to prevent crashes
+  const { spotId: rawSpotId, spot } = route?.params || {
+    spotId: 'stoneypoint',
+    spot: {
+      id: 'stoneypoint',
+      name: 'Stoney Point',
+      location: { latitude: 46.9419, longitude: -91.8061, city: 'Duluth', state: 'MN' },
+      difficulty: 'intermediate' as const,
+      type: ['beach-break'],
+      region: 'superior',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+
+  const spotId: string = rawSpotId || 'stoneypoint';
   
   // SpotDetailsScreen initialized
   const [isFavorite, setIsFavorite] = useState(false);
@@ -80,29 +93,20 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
 
   // Function to check if the user is already checked in at this spot
   const checkExistingCheckIn = React.useCallback(async () => {
+    if (!user?.id) return;
     try {
-      // In a real app, you would get the actual userId from auth state
-      const userId = 'test-user-id';
-      
-      // Only check for check-ins at THIS spot
-      const activeCheckIn = await getActiveCheckInForUser(userId, spotId);
-      
-      
+      const activeCheckIn = await getActiveCheckInForUser(user.id, spotId);
       if (activeCheckIn) {
-        // User is checked in at this spot
-       
         setIsCheckedIn(true);
         setCheckInId(activeCheckIn.id);
       } else {
-        // User is not checked in at this spot
-        
         setIsCheckedIn(false);
         setCheckInId(null);
       }
     } catch (error) {
-      
+      if (__DEV__) console.error('[SpotDetails] checkExistingCheckIn error:', error);
     }
-  }, [spotId]);
+  }, [spotId, user?.id]);
 
   // Initial setup when spot changes
   useEffect(() => {
@@ -113,27 +117,13 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     checkExistingCheckIn();
   }, [spotId, loadData, checkExistingCheckIn]);
   
-  // Listen for WebSocket updates about surfer counts
+  // Real-time surfer count from Firestore — syncs across all devices
   useEffect(() => {
-    // Subscribe to WebSocket updates for this spot
-    const unsubscribe = webSocketService.subscribe(
-      WebSocketMessageType.SURFER_COUNT_UPDATE,
-      (message) => {
-        if (typeof message.payload === 'object' && message.payload && 'spotId' in message.payload && (message.payload as any).spotId === spotId) {
-          const payload = message.payload as { spotId: string; count: number };
-          setSurferCount(payload.count);
-        }
-      }
-    );
-    
-    // Initial connection if needed
-    if (!webSocketService.isConnected) {
-      webSocketService.connect();
-    }
-    
-    return () => {
-      unsubscribe();
-    };
+    const unsubscribe = firestoreSubscribeSurferCount(spotId, (count) => {
+      setSurferCount(count);
+      updateGlobalSurferCount(spotId, count);
+    });
+    return unsubscribe;
   }, [spotId]);
 
   // Listen for WebSocket updates about check-in status
@@ -142,9 +132,9 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     const unsubscribe = webSocketService.subscribe(
       WebSocketMessageType.CHECK_IN_STATUS_CHANGE,
       (message) => {
-        if (typeof message.payload === 'object' && message.payload && 'userId' in message.payload && 'spotId' in message.payload && (message.payload as any).userId === 'test-user-id' && (message.payload as any).spotId === spotId) {
+        if (typeof message.payload === 'object' && message.payload && 'userId' in message.payload && 'spotId' in message.payload && (message.payload as any).userId === user?.id && (message.payload as any).spotId === spotId) {
           const payload = message.payload as { userId: string; spotId: string; isCheckedIn: boolean };
-          console.log(`[WebSocket] Received check-in status update for current spot: ${payload.isCheckedIn}`);
+          if (__DEV__) console.log(`[WebSocket] Received check-in status update for current spot: ${payload.isCheckedIn}`);
           setIsCheckedIn(payload.isCheckedIn);
           // If checked out, also clear the check-in ID
           if (!payload.isCheckedIn) {
@@ -153,11 +143,11 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
         }
       }
     );
-    
+
     return () => {
       unsubscribe();
     };
-  }, [spotId]);
+  }, [spotId, user?.id]);
 
   // Toggle favorite status
   const toggleFavorite = async () => {
@@ -219,10 +209,13 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
       }
     } else {
       // Check in flow
+      if (!user?.id) {
+        Alert.alert('Sign In Required', 'Please sign in to check in at a spot.');
+        return;
+      }
       setIsLoading(true);
       try {
-        // In a real app, you would get the actual userId from auth state
-        const userId = 'test-user-id';
+        const userId = user.id;
 
         // Recheck if user is already checked in somewhere else
         const existingCheckIn = await getActiveCheckInForUserAnywhere(userId);
@@ -311,14 +304,6 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     }
   };
 
-  // Function to determine color based on rating
-  const getRatingColor = (rating: number) => {
-    if (rating >= 8) return COLORS.surfConditions.excellent;
-    if (rating >= 6) return COLORS.surfConditions.good;
-    if (rating >= 4) return COLORS.surfConditions.fair;
-    return COLORS.surfConditions.poor;
-  };
-
   // Function to get appropriate surfer activity label and color
   const getSurferActivityLabel = (count: number): string => {
     if (count === 0) return 'No surfers';
@@ -332,6 +317,18 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     if (count < 3) return COLORS.success;
     if (count < 8) return COLORS.warning;
     return COLORS.error;
+  };
+
+  // Returns a clean label and whether the data is measured (buoy) or forecasted
+  const getDataSourceLabel = (source: string): { label: string; isMeasured: boolean } => {
+    if (!source || source === 'unknown') return { label: 'Data source unknown', isMeasured: false };
+    // Wave buoy IDs contain 'ndbc-45' (e.g. ndbc-ndbc-45027)
+    if (source.includes('ndbc-45')) return { label: 'Live buoy data', isMeasured: true };
+    // Weather stations provide wind/temp only — no measured waves
+    if (source.includes('noaa-marine-forecast') || source.includes('weather-')) {
+      return { label: 'Forecast only · buoys seasonal', isMeasured: false };
+    }
+    return { label: 'Live data', isMeasured: true };
   };
 
   const getSurfLikelihoodColor = (likelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing' | 'Blown Out'): string => {
@@ -352,7 +349,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   };
 
   // Create a formatted forecast from the API data
-  console.log(`🔍 Forecast data in UI:`, {
+  if (__DEV__) console.log(`🔍 Forecast data in UI:`, {
     forecastLength: forecast?.length || 0,
     forecastSample: forecast?.[0],
     hasForecast: forecast && forecast.length > 0
@@ -381,12 +378,12 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     }
   });
   
-  console.log(`🔍 Grouped forecast data:`, Array.from(groupedByDay.entries()).map(([day, periods]) => 
+  if (__DEV__) console.log(`🔍 Grouped forecast data:`, Array.from(groupedByDay.entries()).map(([day, periods]) =>
     `${day}: ${periods.length} periods`
   ));
   
   // Convert grouped data to daily forecasts (take afternoon period as representative)
-  const formattedForecast = Array.from(groupedByDay.entries()).slice(0, 7).map(([dayKey, periods], displayIndex) => {
+  const formattedForecast = Array.from(groupedByDay.entries()).slice(0, 7).map(([dayKey, periods]) => {
     // Use afternoon period (around index 1-2 of the day) as representative
     const representativeItem = periods[Math.min(1, periods.length - 1)] || periods[0];
     const date = new Date(dayKey);
@@ -434,7 +431,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
       timestamp: representativeItem.timestamp,
       waveHeight: `${representativeItem.waveHeight.min}-${representativeItem.waveHeight.max}${representativeItem.waveHeight.unit}`,
       period: representativeItem.swell && representativeItem.swell.length > 0 && representativeItem.swell[0]?.period ? `${Math.round(representativeItem.swell[0].period || 0)}s` : 'N/A',
-      wind: `${representativeItem.wind.direction} ${representativeItem.wind.speed}${representativeItem.wind.unit}`,
+      wind: formatWind(representativeItem.wind.speed, representativeItem.wind.direction, representativeItem.wind.unit as 'mph' | 'kts' | 'kph'),
       rating: representativeItem.rating,
       surfLikelihood: representativeItem.surfLikelihood,
       surfReport: representativeItem.surfReport,
@@ -442,10 +439,11 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
       sourceInfo,
     };
     
-    // Debug day calculation
-    console.log(`🔍 Daily forecast for ${day} (${dayKey}): ${periods.length} periods available`);
-    console.log(`🔍 Using period ${representativeItem.originalIndex}: ${representativeItem.wind.direction} ${representativeItem.wind.speed}${representativeItem.wind.unit}`);
-    console.log(`🔍 Data sources: ${sourceInfo}`);
+    if (__DEV__) {
+      console.log(`🔍 Daily forecast for ${day} (${dayKey}): ${periods.length} periods available`);
+      console.log(`🔍 Using period ${representativeItem.originalIndex}: ${representativeItem.wind.direction} ${representativeItem.wind.speed}${representativeItem.wind.unit}`);
+      console.log(`🔍 Data sources: ${sourceInfo}`);
+    }
     
     return formattedItem;
   }).filter(Boolean); // Remove null items
@@ -538,7 +536,22 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
           <Text style={styles.sectionTitle}>Current Conditions</Text>
           {currentConditions ? (
             <View style={styles.conditionsCard}>
-
+              {/* Data source indicator */}
+              {(() => {
+                const { label, isMeasured } = getDataSourceLabel(currentConditions.source);
+                return (
+                  <View style={[styles.dataSourceBadge, isMeasured ? styles.dataSourceMeasured : styles.dataSourceForecast]}>
+                    <Ionicons
+                      name={isMeasured ? 'radio-outline' : 'cloud-outline'}
+                      size={11}
+                      color={isMeasured ? '#1a6b3a' : '#7a5500'}
+                    />
+                    <Text style={[styles.dataSourceText, { color: isMeasured ? '#1a6b3a' : '#7a5500' }]}>
+                      {label}
+                    </Text>
+                  </View>
+                );
+              })()}
 
               <View style={styles.conditionRow}>
                 <View style={styles.conditionItem}>
@@ -566,7 +579,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                   <Ionicons name="speedometer-outline" size={24} color={COLORS.primary} />
                   <Text style={styles.conditionLabel}>Wind</Text>
                   <Text style={styles.conditionValue}>
-                    {currentConditions?.wind?.direction ? `${currentConditions.wind.direction} @ ${currentConditions.wind.speed}${currentConditions.wind.unit === 'mph' ? 'mph' : 'kn'}` : `${currentConditions?.wind?.speed || 0}${currentConditions?.wind?.unit === 'mph' ? 'mph' : 'kn'}`}
+                    {currentConditions?.wind ? formatWind(currentConditions.wind.speed, currentConditions.wind.direction, currentConditions.wind.unit as 'mph' | 'kts' | 'kph') : 'N/A'}
                   </Text>
                 </View>
                 <View style={styles.conditionItem}>
@@ -1126,6 +1139,26 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: COLORS.text.secondary,
     fontStyle: 'italic',
+  },
+  dataSourceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginBottom: 12,
+    gap: 4,
+  },
+  dataSourceMeasured: {
+    backgroundColor: '#e6f4ec',
+  },
+  dataSourceForecast: {
+    backgroundColor: '#fff3cd',
+  },
+  dataSourceText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
 });
 

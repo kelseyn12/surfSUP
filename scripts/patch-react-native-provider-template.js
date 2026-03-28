@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 /**
- * Permanent fix for RCTThirdPartyComponentsProvider crash when New Arch is OFF.
- * Patches the React Native codegen template so the generated .mm always uses a
- * nil-safe empty registry (no NSDictionary literal with NSClassFromString),
- * avoiding nil insert crash in dictionaryWithObjects:forKeys:count:.
- *
- * Run on postinstall so every npm install gets the fix.
+ * Patches RN codegen template so generated RCTThirdPartyComponentsProvider is nil-safe
+ * (avoids nil in NSDictionary literal — RN #51077).
+ * RN versions differ: some use @{ } with {thirdPartyComponentsMapping}, some use NSMutableDictionary.
  */
 const fs = require('fs');
 const path = require('path');
@@ -28,32 +25,49 @@ if (!fs.existsSync(templatePath)) {
 
 let content = fs.readFileSync(templatePath, 'utf8');
 
-// Already patched
+// Already patched (nil-safe empty registry, no placeholder)
 if (content.includes('(void)_c;') && !content.includes('{thirdPartyComponentsMapping}')) {
   process.exit(0);
 }
 
-// Replace the dispatch_once block with nil-safe version (no mapping — empty registry when New Arch OFF)
-const unsafeBlock = `  dispatch_once(&nativeComponentsToken, ^{
-    NSMutableDictionary<NSString *, Class<RCTComponentViewProtocol> > *dict = [NSMutableDictionary new];
-    Class _c = nil;
-{thirdPartyComponentsMapping}
-    thirdPartyComponents = [dict copy];
-  });`;
-
 const safeBlock = `  dispatch_once(&nativeComponentsToken, ^{
-    /* surfSUP: nil-safe empty registry when New Arch is OFF; avoids nil-insert crash in dict literal */
+    /* surfSUP: nil-safe empty registry when New Arch is OFF; avoids nil-insert crash */
     NSMutableDictionary<NSString *, Class<RCTComponentViewProtocol> > *dict = [NSMutableDictionary new];
     Class _c = nil;
     (void)_c;
     thirdPartyComponents = [dict copy];
   });`;
 
-if (!content.includes(unsafeBlock)) {
-  console.warn('[surfSUP] Template format changed, cannot patch RCTThirdPartyComponentsProviderMM.template');
+// Current RN: dictionary literal + placeholder (crashes when NSClassFromString returns nil)
+const dictLiteralBlock = `  dispatch_once(&nativeComponentsToken, ^{
+    thirdPartyComponents = @{
+{thirdPartyComponentsMapping}
+    };
+  });`;
+
+// Older RN: NSMutableDictionary + mapping lines
+const mutableDictBlock = `  dispatch_once(&nativeComponentsToken, ^{
+    NSMutableDictionary<NSString *, Class<RCTComponentViewProtocol> > *dict = [NSMutableDictionary new];
+    Class _c = nil;
+{thirdPartyComponentsMapping}
+    thirdPartyComponents = [dict copy];
+  });`;
+
+if (content.includes(dictLiteralBlock)) {
+  content = content.replace(dictLiteralBlock, safeBlock);
+  fs.writeFileSync(templatePath, content);
+  console.log('[surfSUP] Patched RCTThirdPartyComponentsProviderMM.template (dict-literal → nil-safe)');
   process.exit(0);
 }
 
-content = content.replace(unsafeBlock, safeBlock);
-fs.writeFileSync(templatePath, content);
-console.log('[surfSUP] Patched RCTThirdPartyComponentsProviderMM.template (permanent RCTThirdPartyComponentsProvider fix)');
+if (content.includes(mutableDictBlock)) {
+  content = content.replace(mutableDictBlock, safeBlock);
+  fs.writeFileSync(templatePath, content);
+  console.log('[surfSUP] Patched RCTThirdPartyComponentsProviderMM.template (mutable-dict → nil-safe)');
+  process.exit(0);
+}
+
+console.warn('[surfSUP] Template format changed, cannot patch RCTThirdPartyComponentsProviderMM.template');
+process.exit(0);
+
+

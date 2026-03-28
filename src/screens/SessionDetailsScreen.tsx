@@ -14,7 +14,7 @@ import { COLORS } from '../constants/colors';
 import { SurfSession } from '../types';
 import { getSessionById, deleteSession } from '../services/sessions';
 import { HeaderBar } from '../components';
-import { formatDate, formatTime } from '../utils/dateTime';
+import { formatDate, formatTime } from '../utils/formatters';
 
 const SessionDetailsScreen: React.FC = () => {
   const navigation = useNavigation();

@@ -1,10 +1,10 @@
-import React, { useCallback } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  ScrollView, 
-  TouchableOpacity, 
+import React, { useCallback, useEffect } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
   Switch,
   Alert,
   Platform,
@@ -16,16 +16,27 @@ import { COLORS } from '../constants/colors';
 import { useAuthStore } from '../services/auth';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { RootStackScreenProps } from '../navigation/types';
+import { updateUserSettings, getUserSettings } from '../services/storage';
+import { useTheme } from '../contexts/ThemeContext';
 
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<RootStackScreenProps<'Settings'>['navigation']>();
   const { logout } = useAuthStore();
-  
-  // Settings state
+  const { isDark, toggleDark } = useTheme();
+
+  // Settings state — persisted to AsyncStorage
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
   const [locationEnabled, setLocationEnabled] = React.useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = React.useState(false);
-  const [privacyMode, setPrivacyMode] = React.useState('friends'); // 'public', 'friends', 'private'
+  const [privacyMode, setPrivacyMode] = React.useState('friends');
+
+  // Load persisted settings on mount
+  useEffect(() => {
+    getUserSettings().then(settings => {
+      if (settings.notificationsEnabled !== undefined) setNotificationsEnabled(settings.notificationsEnabled);
+      if (settings.locationEnabled !== undefined) setLocationEnabled(settings.locationEnabled);
+      if (settings.privacyMode !== undefined) setPrivacyMode(settings.privacyMode);
+    }).catch(() => {});
+  }, []);
 
   // Handle hardware back button
   useFocusEffect(
@@ -36,8 +47,8 @@ const SettingsScreen: React.FC = () => {
       };
 
       if (Platform.OS === 'android') {
-        BackHandler.addEventListener('hardwareBackPress', onBackPress);
-        return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+        const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => sub.remove();
       }
     }, [navigation])
   );
@@ -77,16 +88,19 @@ const SettingsScreen: React.FC = () => {
 
   const togglePrivacyMode = useCallback((mode: string) => {
     setPrivacyMode(mode);
+    updateUserSettings('privacyMode', mode).catch(() => {});
   }, []);
 
-  const handleDarkModeToggle = useCallback((value: boolean) => {
-    setDarkModeEnabled(value);
-    Alert.alert(
-      "Dark Mode",
-      value ? "Dark mode enabled! This is a placeholder - full implementation would change app theme." : "Dark mode disabled.",
-      [{ text: "OK" }]
-    );
+  const handleNotificationsToggle = useCallback((value: boolean) => {
+    setNotificationsEnabled(value);
+    updateUserSettings('notificationsEnabled', value).catch(() => {});
   }, []);
+
+  const handleLocationToggle = useCallback((value: boolean) => {
+    setLocationEnabled(value);
+    updateUserSettings('locationEnabled', value).catch(() => {});
+  }, []);
+
 
   return (
     <ScrollView style={styles.container}>
@@ -105,7 +119,7 @@ const SettingsScreen: React.FC = () => {
           </View>
           <Switch
             value={notificationsEnabled}
-            onValueChange={setNotificationsEnabled}
+            onValueChange={handleNotificationsToggle}
             trackColor={{ false: COLORS.lightGray, true: COLORS.primary }}
             thumbColor={COLORS.white}
           />
@@ -122,7 +136,7 @@ const SettingsScreen: React.FC = () => {
           </View>
           <Switch
             value={locationEnabled}
-            onValueChange={setLocationEnabled}
+            onValueChange={handleLocationToggle}
             trackColor={{ false: COLORS.lightGray, true: COLORS.primary }}
             thumbColor={COLORS.white}
           />
@@ -138,8 +152,8 @@ const SettingsScreen: React.FC = () => {
             <Text style={styles.settingDescription}>Switch between light and dark themes</Text>
           </View>
           <Switch
-            value={darkModeEnabled}
-            onValueChange={handleDarkModeToggle}
+            value={isDark}
+            onValueChange={toggleDark}
             trackColor={{ false: COLORS.lightGray, true: COLORS.primary }}
             thumbColor={COLORS.white}
           />
@@ -230,10 +244,10 @@ const SettingsScreen: React.FC = () => {
 
       <View style={styles.footer}>
         <Text style={styles.version}>SurfSUP v1.0.0</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => Alert.alert('Privacy Policy', 'Privacy policy will be available at launch.')}>
           <Text style={styles.link}>Privacy Policy</Text>
         </TouchableOpacity>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => Alert.alert('Terms of Service', 'Terms of service will be available at launch.')}>
           <Text style={styles.link}>Terms of Service</Text>
         </TouchableOpacity>
       </View>

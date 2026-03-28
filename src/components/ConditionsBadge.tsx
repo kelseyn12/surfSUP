@@ -125,7 +125,7 @@ const ConditionsBadge: React.FC<ConditionsBadgeProps> = ({
     >
       {showIcon && (
         <Ionicons
-          name={icon}
+          name={icon as any}
           size={iconSize}
           color={COLORS.white}
           style={showText ? styles.iconWithText : undefined}

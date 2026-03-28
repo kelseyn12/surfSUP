@@ -122,6 +122,25 @@ export const formatTemperature = (
 };
 
 /**
+ * Format a date to a short date string (e.g., "Jan 1, 2024")
+ */
+export const formatShortDate = (date: string | Date): string => {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+/**
+ * Format duration in minutes to a compact string (e.g., "2h 30m")
+ */
+export const formatDurationShort = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hours === 0) return `${mins}m`;
+  if (mins === 0) return `${hours}h`;
+  return `${hours}h ${mins}m`;
+};
+
+/**
  * Format date as relative time (e.g., "5 minutes ago")
  * @param date Date string or Date object
  * @returns Relative time string

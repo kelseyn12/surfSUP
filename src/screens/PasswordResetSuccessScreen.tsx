@@ -21,9 +21,8 @@ const PasswordResetSuccessScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <HeaderBar 
+      <HeaderBar
         title="Password Reset"
-        showBackButton
         onBackPress={() => navigation.goBack()}
       />
       

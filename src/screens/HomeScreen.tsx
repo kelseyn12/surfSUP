@@ -8,12 +8,18 @@ import { SurfSpot } from '../types';
 import { fetchNearbySurfSpots, resetAllCheckInsAndCounts } from '../services/api';
 import { getGlobalSurferCount } from '../services/globalState';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocation } from '../hooks/useLocation';
+
+// Duluth, MN — fallback when device location is unavailable
+const DULUTH_LAT = 46.7825;
+const DULUTH_LNG = -92.0856;
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<MainTabScreenProps<'Home'>['navigation']>();
   const [refreshing, setRefreshing] = useState(false);
   const [nearbySpots, setNearbySpots] = useState<SurfSpot[]>([]);
   const [loading, setLoading] = useState(false);
+  const { location, requestLocationPermission } = useLocation();
 
   // Function to refresh only the surfer counts without reloading the spots
   const refreshSurferCounts = useCallback(() => {
@@ -35,8 +41,11 @@ const HomeScreen: React.FC = () => {
   const loadNearbySpots = useCallback(async () => {
     try {
       setLoading(true);
-      // Using a fixed location for Lake Superior near Duluth
-      const spots = await fetchNearbySurfSpots(46.7825, -92.0856);
+      // Request permission if not yet granted; fall back to Duluth if denied or unavailable
+      await requestLocationPermission();
+      const lat = location?.latitude ?? DULUTH_LAT;
+      const lng = location?.longitude ?? DULUTH_LNG;
+      const spots = await fetchNearbySurfSpots(lat, lng);
       if (spots) {
         
         // Make sure each spot shows the latest surfer count by reading from global state
@@ -52,7 +61,7 @@ const HomeScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [location, requestLocationPermission]);
 
   // On manual refresh
   const onRefresh = React.useCallback(() => {
@@ -79,7 +88,7 @@ const HomeScreen: React.FC = () => {
   );
 
   const handleSearch = () => {
-    navigation.navigate('Search' as any);
+    navigation.navigate('Search');
   };
 
   return (
@@ -101,17 +110,18 @@ const HomeScreen: React.FC = () => {
             <Ionicons name="search" size={24} color={COLORS.text.primary} />
           </TouchableOpacity>
           
-          {/* Add Reset button for testing */}
-          <TouchableOpacity 
-            onPress={() => {
-              resetAllCheckInsAndCounts();
-              Alert.alert('Reset', 'All check-ins and surfer counts have been reset');
-              onRefresh();
-            }} 
-            style={[styles.iconButton, { backgroundColor: COLORS.error }]}
-          >
-            <Ionicons name="refresh" size={20} color={COLORS.white} />
-          </TouchableOpacity>
+          {__DEV__ && (
+            <TouchableOpacity
+              onPress={() => {
+                resetAllCheckInsAndCounts();
+                Alert.alert('Reset', 'All check-ins and surfer counts have been reset');
+                onRefresh();
+              }}
+              style={[styles.iconButton, { backgroundColor: COLORS.error }]}
+            >
+              <Ionicons name="refresh" size={20} color={COLORS.white} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -133,38 +143,6 @@ const HomeScreen: React.FC = () => {
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Your Recent Activity</Text>
-        <TouchableOpacity 
-          style={styles.activityCard}
-          onPress={() => navigation.navigate('SessionDetails', { sessionId: '123' })}
-        >
-          <Text style={styles.activityTitle}>Park Point Session</Text>
-          <Text style={styles.activityDate}>Yesterday • 2hrs</Text>
-          <Text style={styles.activityDetails}>Epic NE wind swell, caught some great rides!</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Surf Forecast</Text>
-        <View style={styles.forecastContainer}>
-          <View style={styles.forecastDay}>
-            <Text style={styles.forecastDate}>Today</Text>
-            <Text style={styles.forecastCondition}>Good</Text>
-            <Text style={styles.forecastDetails}>3-4ft</Text>
-          </View>
-          <View style={styles.forecastDay}>
-            <Text style={styles.forecastDate}>Tomorrow</Text>
-            <Text style={[styles.forecastCondition, { color: COLORS.surfConditions.excellent }]}>Excellent</Text>
-            <Text style={styles.forecastDetails}>4-6ft</Text>
-          </View>
-          <View style={styles.forecastDay}>
-            <Text style={styles.forecastDate}>Wed</Text>
-            <Text style={[styles.forecastCondition, { color: COLORS.surfConditions.fair }]}>Fair</Text>
-            <Text style={styles.forecastDetails}>2-3ft</Text>
-          </View>
-        </View>
-      </View>
     </ScrollView>
   );
 };

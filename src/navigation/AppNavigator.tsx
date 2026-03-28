@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer, DefaultTheme, useNavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { enableScreens } from 'react-native-screens';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/colors';
 import { useAuthStore } from '../services/auth';
+import { useTheme } from '../contexts/ThemeContext';
 import HomeScreen from '../screens/HomeScreen';
 import MapScreen from '../screens/MapScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
@@ -27,16 +27,6 @@ import StatsDashboardScreen from '../screens/StatsDashboardScreen';
 // Enable screens for better performance
 enableScreens(true);
 
-// Create a theme with better screen transition behavior
-const AppTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: COLORS.background,
-    primary: COLORS.primary,
-  },
-};
-
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -57,17 +47,18 @@ const getTabIconName = (routeName: keyof MainTabParamList, focused: boolean): Ta
   }
 };
 
-// Bottom tab navigator
+// Bottom tab navigator — reads colors from ThemeContext
 const MainTabNavigator = () => {
+  const { colors } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }: { route: { name: keyof MainTabParamList } }) => ({
         headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.gray,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.gray,
         tabBarStyle: {
-          backgroundColor: COLORS.white,
-          borderTopColor: COLORS.lightGray,
+          backgroundColor: colors.white,
+          borderTopColor: colors.lightGray,
           paddingTop: 5,
           paddingBottom: 5,
           height: 60,
@@ -90,13 +81,12 @@ const MainTabNavigator = () => {
 const AppNavigator = () => {
   const navigationRef = useNavigationContainerRef();
   const { isAuthenticated, initializeAuth } = useAuthStore();
+  const { isDark, colors } = useTheme();
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
       const completed = await isOnboardingComplete();
-      // For now, assume onboarding is complete if user is authenticated
-      // This prevents the onboarding screen from showing for existing users
       const shouldShowOnboarding = !completed && !isAuthenticated;
       setHasCompletedOnboarding(!shouldShowOnboarding);
     };
@@ -113,26 +103,29 @@ const AppNavigator = () => {
   useEffect(() => {
     if (hasCompletedOnboarding !== null && navigationRef.current) {
       if (isAuthenticated && hasCompletedOnboarding) {
-        navigationRef.current.navigate('Main');
+        navigationRef.current.navigate('Main' as any);
       } else if (!isAuthenticated) {
         navigationRef.current.navigate('AuthScreen');
       }
     }
   }, [isAuthenticated, hasCompletedOnboarding, navigationRef]);
 
-
-
   // Show loading state while checking onboarding status
   if (hasCompletedOnboarding === null) {
     return null;
   }
 
+  // Build a nav theme that tracks the app's dark mode setting
+  const navTheme = isDark
+    ? { ...DarkTheme, colors: { ...DarkTheme.colors, background: colors.background, primary: colors.primary, card: colors.white, text: colors.text.primary, border: colors.border } }
+    : { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: colors.background, primary: colors.primary, card: colors.white, text: colors.text.primary, border: colors.border } };
+
   return (
-    <NavigationContainer 
-      theme={AppTheme}
+    <NavigationContainer
+      theme={navTheme}
       ref={navigationRef}
     >
-      <Stack.Navigator 
+      <Stack.Navigator
         initialRouteName={hasCompletedOnboarding ? (isAuthenticated ? 'Main' : 'AuthScreen') : 'OnBoarding'}
         screenOptions={{
           headerShown: false,
@@ -142,9 +135,9 @@ const AppNavigator = () => {
         }}
       >
         {!hasCompletedOnboarding && (
-          <Stack.Screen 
-            name="OnBoarding" 
-            component={OnBoardingScreen} 
+          <Stack.Screen
+            name="OnBoarding"
+            component={OnBoardingScreen}
             options={{ headerShown: false }}
           />
         )}
@@ -164,4 +157,4 @@ const AppNavigator = () => {
   );
 };
 
-export default AppNavigator; 
+export default AppNavigator;

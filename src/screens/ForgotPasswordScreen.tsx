@@ -74,9 +74,8 @@ const ForgotPasswordScreen: React.FC = () => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <HeaderBar 
+      <HeaderBar
         title="Reset Password"
-        showBackButton
         onBackPress={handleBack}
       />
       <ScrollView 

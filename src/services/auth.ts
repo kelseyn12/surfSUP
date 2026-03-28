@@ -8,6 +8,7 @@ import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { User } from '../types';
 import { SocialAuthService } from './socialAuth';
 import { reload, getIdToken, updateProfile, onAuthStateChanged } from '@react-native-firebase/auth';
+import { firestoreGetActiveCheckInAnywhere, firestoreCheckOutFromSpot } from './firestore';
 
 // Constants
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -76,7 +77,22 @@ export const useAuthStore = create<AuthState>()(
       ...initialState,
 
       initializeAuth: () => {
-        console.log('Initializing Firebase auth listener...');
+        if (__DEV__) console.log('Initializing Firebase auth listener...');
+
+        // Refresh the ID token every TOKEN_REFRESH_INTERVAL ms so it never expires mid-session
+        let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+        const startRefreshTimer = (firebaseUser: any) => {
+          if (refreshTimer) clearInterval(refreshTimer);
+          refreshTimer = setInterval(async () => {
+            try {
+              const idToken = await getIdToken(firebaseUser, true);
+              set({ token: idToken, lastActivity: Date.now() });
+            } catch {
+              // Token refresh failed silently — Firebase will re-auth on next request
+            }
+          }, TOKEN_REFRESH_INTERVAL);
+        };
 
         const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
           if (firebaseUser) {
@@ -88,12 +104,17 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: true,
               lastActivity: Date.now(),
             });
+            startRefreshTimer(firebaseUser);
           } else {
+            if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
             set(initialState);
           }
         });
 
-        return unsubscribe;
+        return () => {
+          unsubscribe();
+          if (refreshTimer) clearInterval(refreshTimer);
+        };
       },
 
       login: async (email, password) => {
@@ -180,6 +201,21 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        // Step 1: attempt checkout — wrapped separately so a failure never blocks sign-out
+        const currentUser = get().user;
+        if (currentUser?.id) {
+          try {
+            const activeCheckIn = await firestoreGetActiveCheckInAnywhere(currentUser.id);
+            if (activeCheckIn?.id) {
+              await firestoreCheckOutFromSpot(activeCheckIn.id);
+            }
+          } catch (checkoutError) {
+            // Log but do not rethrow — sign-out must always proceed
+            console.error('Auto-checkout failed during logout:', checkoutError);
+          }
+        }
+
+        // Step 2: sign out — always runs regardless of checkout result
         try {
           await firebaseAuth.signOut();
           set(initialState);

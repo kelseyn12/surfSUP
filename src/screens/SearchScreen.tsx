@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -28,6 +28,8 @@ interface FilterState {
 const SearchScreen: React.FC = () => {
   const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [allSpots, setAllSpots] = useState<SurfSpot[]>([]);
   const [filteredSpots, setFilteredSpots] = useState<SurfSpot[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,8 +51,8 @@ const SearchScreen: React.FC = () => {
   const loadSpots = useCallback(async () => {
     try {
       setLoading(true);
-      // Load all spots (not just nearby)
-      const spots = await fetchNearbySurfSpots(46.7825, -92.0856, 1000); // Large radius to get all spots
+      // Large radius from lake center to load all Lake Superior spots
+      const spots = await fetchNearbySurfSpots(46.7825, -92.0856, 1000);
       if (spots) {
         const updatedSpots = spots.map(spot => ({
           ...spot,
@@ -66,13 +68,20 @@ const SearchScreen: React.FC = () => {
     }
   }, []);
 
+  // Debounce search input by 300ms
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
+  }, [searchQuery]);
+
   // Filter spots based on search query and filters
   const filterSpots = useCallback(() => {
     let filtered = [...allSpots];
 
     // Text search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (debouncedQuery.trim()) {
+      const query = debouncedQuery.toLowerCase();
       filtered = filtered.filter(spot =>
         spot.name.toLowerCase().includes(query) ||
         spot.location.city?.toLowerCase().includes(query) ||
@@ -110,7 +119,7 @@ const SearchScreen: React.FC = () => {
     }
 
     setFilteredSpots(filtered);
-  }, [allSpots, searchQuery, filters]);
+  }, [allSpots, debouncedQuery, filters]);
 
   // Apply filters when any filter changes
   useEffect(() => {
@@ -151,6 +160,7 @@ const SearchScreen: React.FC = () => {
       hasAmenities: [],
     });
     setSearchQuery('');
+    setDebouncedQuery('');
   };
 
   const renderFilterChip = (
@@ -244,7 +254,7 @@ const SearchScreen: React.FC = () => {
           <Ionicons
             name={showFilters ? 'close' : 'filter'}
             size={24}
-            color={COLORS.text?.primary || COLORS.text || '#000'}
+            color={COLORS.text.primary}
           />
         </TouchableOpacity>
       </View>

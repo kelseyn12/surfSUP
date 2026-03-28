@@ -16,7 +16,7 @@ import type { SurfSession, SurfSpot } from '../types';
 import { useAuthStore } from '../services/auth';
 import { getUserSessionsById, calculateUserStats } from '../services/sessions';
 import { fetchNearbySurfSpots } from '../services/api';
-import { formatShortDate, formatDuration } from '../utils/dateTime';
+import { formatShortDate, formatDurationShort as formatDuration } from '../utils/formatters';
 
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<MainTabScreenProps<'Profile'>['navigation']>();
@@ -33,7 +33,8 @@ const ProfileScreen: React.FC = () => {
       setSessions(userSessions);
       const stats = await calculateUserStats(user.id);
       await updateUserProfile({ stats });
-      const spots = await fetchNearbySurfSpots(46.7825, -92.0856);
+      // Fetch all Lake Superior spots for session spot-name lookup (large radius, fixed center)
+      const spots = await fetchNearbySurfSpots(46.7825, -92.0856, 500);
       if (spots) {
         const spotsMap = spots.reduce((acc, spot) => {
           acc[spot.id] = spot;

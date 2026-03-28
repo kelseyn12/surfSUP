@@ -16,14 +16,14 @@ export default {
     ],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.surfsup.app'
+      bundleIdentifier: 'com.kelseyn12.surfsupnative'
     },
     android: {
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffffff'
       },
-      package: 'com.surfsup.app'
+      package: 'com.kelseyn12.surfsupnative'
     },
     web: {
       favicon: './assets/favicon.png'

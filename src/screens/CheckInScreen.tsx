@@ -1,104 +1,112 @@
 import React, { useState } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  ScrollView, 
-  TextInput, 
-  Alert 
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackScreenProps } from '../navigation/types';
 import { COLORS } from '../constants/colors';
 import { MESSAGES } from '../constants';
-import { SurfConditions } from '../types';
+import { CheckIn } from '../types';
+import { checkInToSpot } from '../services/mockBackend';
+import { useAuthStore } from '../services/auth';
+
+type CrowdLevel = NonNullable<CheckIn['conditions']>['crowdLevel'];
+type WindQuality = NonNullable<CheckIn['conditions']>['windQuality'];
+
+const CROWD_LEVELS: { value: CrowdLevel; label: string }[] = [
+  { value: 'empty', label: 'Empty' },
+  { value: 'uncrowded', label: 'Uncrowded' },
+  { value: 'moderate', label: 'Moderate' },
+  { value: 'crowded', label: 'Crowded' },
+  { value: 'very-crowded', label: 'Very Crowded' },
+];
+
+const WIND_QUALITIES: { value: WindQuality; label: string }[] = [
+  { value: 'poor', label: 'Poor' },
+  { value: 'fair', label: 'Fair' },
+  { value: 'good', label: 'Good' },
+  { value: 'excellent', label: 'Excellent' },
+];
 
 const CheckInScreen: React.FC = () => {
   const route = useRoute<RootStackScreenProps<'CheckIn'>['route']>();
   const navigation = useNavigation<RootStackScreenProps<'CheckIn'>['navigation']>();
-  
-  // Get spot details from route params or use fallback
+  const { user } = useAuthStore();
+
   const { spotId, spot } = route.params || { spotId: '0', spot: { name: 'Unknown Spot' } };
-  
-  // Current date and time
+
   const currentDate = new Date();
-  const formattedDate = currentDate.toLocaleDateString('en-US', { 
-    month: 'long', 
-    day: 'numeric', 
-    year: 'numeric' 
+  const formattedDate = currentDate.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
   });
-  const formattedTime = currentDate.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
+  const formattedTime = currentDate.toLocaleTimeString('en-US', {
+    hour: 'numeric',
     minute: '2-digit',
-    hour12: true 
+    hour12: true,
   });
 
-  // Form state
+  // Form state — defaults sourced from spot conditions when available via route.params
+  const routeConditions = (route.params as any)?.conditions;
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [rating, setRating] = useState(3);
   const [notes, setNotes] = useState('');
-  const [waveHeight, setWaveHeight] = useState(3.0);
-  const [windSpeed, setWindSpeed] = useState(15);
-  const [windDirection, setWindDirection] = useState('northeast');
-  const [swellPeriod, setSwellPeriod] = useState(6);
-  const [waterTemp, setWaterTemp] = useState(38);
+  const [waveHeight, setWaveHeight] = useState<number>(
+    routeConditions?.waveHeight?.min != null
+      ? Math.round(((routeConditions.waveHeight.min + routeConditions.waveHeight.max) / 2) * 2) / 2
+      : 2.0
+  );
+  const [windSpeed, setWindSpeed] = useState<number>(routeConditions?.wind?.speed ?? 10);
+  const [windDirection, setWindDirection] = useState<string>(
+    routeConditions?.wind?.direction?.toLowerCase() ?? 'north'
+  );
+  const [swellPeriod, setSwellPeriod] = useState<number>(routeConditions?.swell?.[0]?.period ?? 6);
+  const [waterTemp, setWaterTemp] = useState<number>(routeConditions?.waterTemp?.value ?? 38);
+  const [crowdLevel, setCrowdLevel] = useState<CrowdLevel>('uncrowded');
+  const [windQuality, setWindQuality] = useState<WindQuality>('fair');
 
-  // Submit check-in
-  const handleSubmit = () => {
-    // In a real app, you would save this to storage or API
-    const surfConditions: Partial<SurfConditions> = {
-      spotId: spotId,
-      timestamp: currentDate.toISOString(),
-      waveHeight: {
-        min: waveHeight - 0.5,
-        max: waveHeight + 0.5,
-        unit: 'ft'
-      },
-      wind: {
-        speed: windSpeed,
-        direction: windDirection.toUpperCase().substr(0, 2),
-        unit: 'mph'
-      },
-      swell: [{
-        height: waveHeight,
-        period: swellPeriod,
-        direction: windDirection.toUpperCase().substr(0, 2)
-      }],
-      tide: {
-        current: 0, // Lake Superior doesn't have significant tides
-        unit: 'ft'
-      },
-      weather: {
-        temperature: waterTemp,
-        condition: 'reported by user',
-        unit: 'F'
-      },
-      rating: rating * 2, // Convert 1-5 scale to 1-10
-      source: 'user-report'
-    };
-    
-    console.log('Check-in submitted', { 
-      spotId, 
-      spotName: spot?.name,
-      date: currentDate.toISOString(),
-      time: formattedTime,
-      rating,
-      notes,
-      conditions: surfConditions
-    });
+  const handleSubmit = async () => {
+    if (!user?.id) {
+      Alert.alert('Sign In Required', 'Please sign in to check in.');
+      return;
+    }
 
-    // Show success message and navigate back
-    Alert.alert(
-      'Success',
-      MESSAGES.SUCCESS.CHECK_IN,
-      [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack(),
+    setIsSubmitting(true);
+    try {
+      const checkInData = {
+        conditions: {
+          waveHeight,
+          crowdLevel,
+          windQuality,
+          overallRating: rating,
         },
-      ]
-    );
+        comment: notes.trim() || undefined,
+      };
+
+      const result = await checkInToSpot(user.id, spotId, checkInData);
+
+      if (result) {
+        Alert.alert('Success', MESSAGES.SUCCESS.CHECK_IN, [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+      } else {
+        Alert.alert('Error', 'Failed to check in. Please try again.');
+      }
+    } catch (error) {
+      console.error('Check-in error:', error);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -108,8 +116,9 @@ const CheckInScreen: React.FC = () => {
         <Text style={styles.dateTime}>{formattedDate} • {formattedTime}</Text>
       </View>
 
+      {/* Overall rating */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>How are the waves?</Text>
+        <Text style={styles.sectionTitle}>Overall Rating</Text>
         <View style={styles.ratingContainer}>
           {[1, 2, 3, 4, 5].map((value) => (
             <TouchableOpacity
@@ -130,9 +139,12 @@ const CheckInScreen: React.FC = () => {
         </View>
       </View>
 
+      {/* Conditions */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Conditions</Text>
         <View style={styles.conditionsContainer}>
+
+          {/* Wave Height */}
           <View style={styles.conditionRow}>
             <Text style={styles.conditionLabel}>Wave Height (ft)</Text>
             <View style={styles.conditionInputContainer}>
@@ -142,16 +154,17 @@ const CheckInScreen: React.FC = () => {
               >
                 <Ionicons name="remove" size={20} color={COLORS.text.primary} />
               </TouchableOpacity>
-              <Text style={styles.conditionValue}>{waveHeight}</Text>
+              <Text style={styles.conditionValue}>{waveHeight.toFixed(1)}</Text>
               <TouchableOpacity
                 style={styles.conditionButton}
-                onPress={() => setWaveHeight(waveHeight + 0.5)}
+                onPress={() => setWaveHeight(Math.round((waveHeight + 0.5) * 2) / 2)}
               >
                 <Ionicons name="add" size={20} color={COLORS.text.primary} />
               </TouchableOpacity>
             </View>
           </View>
 
+          {/* Wind Speed */}
           <View style={styles.conditionRow}>
             <Text style={styles.conditionLabel}>Wind Speed (mph)</Text>
             <View style={styles.conditionInputContainer}>
@@ -171,6 +184,7 @@ const CheckInScreen: React.FC = () => {
             </View>
           </View>
 
+          {/* Swell Period */}
           <View style={styles.conditionRow}>
             <Text style={styles.conditionLabel}>Swell Period (s)</Text>
             <View style={styles.conditionInputContainer}>
@@ -190,6 +204,7 @@ const CheckInScreen: React.FC = () => {
             </View>
           </View>
 
+          {/* Water Temp */}
           <View style={styles.conditionRow}>
             <Text style={styles.conditionLabel}>Water Temp (°F)</Text>
             <View style={styles.conditionInputContainer}>
@@ -209,6 +224,7 @@ const CheckInScreen: React.FC = () => {
             </View>
           </View>
 
+          {/* Wind Direction */}
           <View style={styles.conditionRow}>
             <Text style={styles.conditionLabel}>Wind Direction</Text>
             <View style={styles.windDirectionContainer}>
@@ -227,7 +243,7 @@ const CheckInScreen: React.FC = () => {
                       windDirection === direction ? { color: COLORS.white } : {}
                     ]}
                   >
-                    {direction.charAt(0).toUpperCase()}
+                    {direction.slice(0, 2).toUpperCase()}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -236,6 +252,43 @@ const CheckInScreen: React.FC = () => {
         </View>
       </View>
 
+      {/* Crowd Level — user-reported */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Crowd Level</Text>
+        <View style={styles.chipRow}>
+          {CROWD_LEVELS.map(({ value, label }) => (
+            <TouchableOpacity
+              key={value}
+              style={[styles.chip, crowdLevel === value && styles.chipSelected]}
+              onPress={() => setCrowdLevel(value)}
+            >
+              <Text style={[styles.chipText, crowdLevel === value && styles.chipTextSelected]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Wind Quality — user-reported */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Wind Quality</Text>
+        <View style={styles.chipRow}>
+          {WIND_QUALITIES.map(({ value, label }) => (
+            <TouchableOpacity
+              key={value}
+              style={[styles.chip, windQuality === value && styles.chipSelected]}
+              onPress={() => setWindQuality(value)}
+            >
+              <Text style={[styles.chipText, windQuality === value && styles.chipTextSelected]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Notes */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Notes</Text>
         <TextInput
@@ -251,10 +304,15 @@ const CheckInScreen: React.FC = () => {
 
       <View style={styles.actionContainer}>
         <TouchableOpacity
-          style={styles.submitButton}
+          style={[styles.submitButton, isSubmitting && { opacity: 0.6 }]}
           onPress={handleSubmit}
+          disabled={isSubmitting}
         >
-          <Text style={styles.submitButtonText}>Submit Check-In</Text>
+          {isSubmitting ? (
+            <ActivityIndicator color={COLORS.white} />
+          ) : (
+            <Text style={styles.submitButtonText}>Submit Check-In</Text>
+          )}
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -345,21 +403,47 @@ const styles = StyleSheet.create({
   windDirectionContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
     justifyContent: 'flex-end',
+    maxWidth: 200,
   },
   windDirectionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
     backgroundColor: COLORS.white,
     borderWidth: 1,
     borderColor: COLORS.lightGray,
   },
   windDirectionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.lightGray,
+    borderWidth: 1,
+    borderColor: COLORS.lightGray,
+  },
+  chipSelected: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  chipText: {
     fontSize: 14,
     color: COLORS.text.primary,
-    textTransform: 'capitalize',
+    fontWeight: '500',
+  },
+  chipTextSelected: {
+    color: COLORS.white,
   },
   notesInput: {
     borderWidth: 1,
@@ -388,4 +472,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CheckInScreen; 
+export default CheckInScreen;

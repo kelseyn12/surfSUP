@@ -1,47 +1,30 @@
 /**
  * Global State Service
- * 
- * A simple service to share state across components without complex state management.
- * This helps ensure all components display consistent data.
+ *
+ * Shared in-memory state for surfer counts and check-in status.
+ * Spot IDs are derived dynamically from the spots registry — adding a spot
+ * to spots.json automatically includes it here.
  */
+import { getAllSpots } from '../utils/spotHelpers';
+
+// Initialize maps from the live spot registry so new spots are included automatically
+function buildInitialCounts(): Record<string, number> {
+  const counts: Record<string, number> = {};
+  getAllSpots().forEach(spot => { counts[spot.id] = 0; });
+  return counts;
+}
+
+function buildInitialCheckIns(): Record<string, boolean> {
+  const checkIns: Record<string, boolean> = {};
+  getAllSpots().forEach(spot => { checkIns[spot.id] = false; });
+  return checkIns;
+}
 
 // Global surfer counts that all components can access
-export const globalSurferCounts: Record<string, number> = {
-  'stoneypoint': 0,
-  'boulders': 0,
-  'guardrails': 0,
-  'lesterriver': 0,
-  'brightonbeach': 0,
-  'frenchriver': 0,
-  'parkpoint': 0,
-  'floodbay': 0,
-  'beaverbay': 0,
-  'grandmaraismn': 0,
-  'marquette': 0,
-  'ashland': 0,
-  'cornucopia': 0,
-  'grandmaraismi': 0,
-  'duluth': 0,
-};
+export const globalSurferCounts: Record<string, number> = buildInitialCounts();
 
 // Global list of which spots the user is checked into
-export const userCheckIns: Record<string, boolean> = {
-  'stoneypoint': false,
-  'boulders': false,
-  'guardrails': false,
-  'lesterriver': false,
-  'brightonbeach': false,
-  'frenchriver': false,
-  'parkpoint': false,
-  'floodbay': false,
-  'beaverbay': false,
-  'grandmaraismn': false,
-  'marquette': false,
-  'ashland': false,
-  'cornucopia': false,
-  'grandmaraismi': false,
-  'duluth': false,
-};
+export const userCheckIns: Record<string, boolean> = buildInitialCheckIns();
 
 // Call this function to update the global surfer count
 export const updateGlobalSurferCount = (spotId: string, count: number): void => {
@@ -50,8 +33,6 @@ export const updateGlobalSurferCount = (spotId: string, count: number): void => 
 
 // Call this function to update check-in status
 export const updateUserCheckedInStatus = (spotId: string, isCheckedIn: boolean): void => {
-  
-  
   // If checking in to a spot, make sure user is checked out everywhere else
   if (isCheckedIn) {
     Object.keys(userCheckIns).forEach(id => {
@@ -71,4 +52,4 @@ export const getGlobalSurferCount = (spotId: string): number => {
 // Helper to check if user is checked in at a specific spot
 export const isUserCheckedInAt = (spotId: string): boolean => {
   return userCheckIns[spotId] || false;
-}; 
+};

@@ -26,7 +26,14 @@ static_frameworks = [
   'FirebaseInstallations',
   'GoogleDataTransport',
   'nanopb',
-  'FirebaseAuth'
+  'FirebaseAuth',
+  'FirebaseFirestore',
+  'FirebaseFirestoreInternal',
+  'leveldb-library',
+  'abseil',
+  'gRPC-Core',
+  'gRPC-C++',
+  'BoringSSL-GRPC'
 ]
 
 pre_install do |installer|
@@ -73,6 +80,7 @@ target 'surfSUP' do
   # ✅ Ensure RNFBApp native module is linked
   pod 'RNFBApp', :path => '../node_modules/@react-native-firebase/app'
   pod 'RNFBAuth', :path => '../node_modules/@react-native-firebase/auth'
+  pod 'RNFBFirestore', :path => '../node_modules/@react-native-firebase/firestore'
 
   # You can also explicitly add any other Firebase pods you are using:
   pod 'FirebaseAuth'
