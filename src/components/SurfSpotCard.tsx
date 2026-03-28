@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, Image, TouchableOpacity, ActivityIndicator } fr
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { SurfSpot, SurfConditions } from '../types';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { SPACING } from '../constants';
 import { formatWaveHeight, formatWind, formatTemperature } from '../utils/formatters';
 import { fetchSurfConditions } from '../services/api';
@@ -27,6 +27,8 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
   compact = false,
   surferCount = 0,
 }) => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const navigation = useNavigation();
   const [conditions, setConditions] = useState<SurfConditions | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -105,23 +107,23 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
   };
 
   const getConditionColor = (rating: number) => {
-    if (rating >= 7) return COLORS.surfConditions.excellent;
-    if (rating >= 5) return COLORS.surfConditions.good;
-    if (rating >= 3) return COLORS.surfConditions.fair;
-    return COLORS.surfConditions.poor;
+    if (rating >= 7) return colors.surfConditions.excellent;
+    if (rating >= 5) return colors.surfConditions.good;
+    if (rating >= 3) return colors.surfConditions.fair;
+    return colors.surfConditions.poor;
   };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'beginner':
-        return COLORS.surfConditions.good;
+        return colors.surfConditions.good;
       case 'intermediate':
-        return COLORS.surfConditions.fair;
+        return colors.surfConditions.fair;
       case 'advanced':
       case 'expert':
-        return COLORS.surfConditions.poor;
+        return colors.surfConditions.poor;
       default:
-        return COLORS.gray;
+        return colors.gray;
     }
   };
 
@@ -135,10 +137,10 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
 
   // Get color for surfer count badge
   const getSurferCountColor = (count: number): string => {
-    if (count === 0) return COLORS.gray;
-    if (count < 3) return COLORS.success;
-    if (count < 8) return COLORS.warning;
-    return COLORS.error;
+    if (count === 0) return colors.gray;
+    if (count < 3) return colors.success;
+    if (count < 8) return colors.warning;
+    return colors.error;
   };
 
   const renderConditions = () => {
@@ -147,7 +149,7 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
     if (isLoading) {
       return (
         <View style={styles.conditionsLoading}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
+          <ActivityIndicator size="small" color={colors.primary} />
         </View>
       );
     }
@@ -170,7 +172,7 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
         
         <View style={styles.conditionsDetails}>
           <View style={styles.conditionRow}>
-            <Ionicons name="water" size={16} color={COLORS.primary} />
+            <Ionicons name="water" size={16} color={colors.primary} />
             <Text style={styles.conditionText}>
               {conditions.waveHeight.max < 0.5 
                 ? 'Flat' 
@@ -180,14 +182,14 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
           </View>
           
           <View style={styles.conditionRow}>
-            <Ionicons name="compass" size={16} color={COLORS.primary} />
+            <Ionicons name="compass" size={16} color={colors.primary} />
             <Text style={styles.conditionText}>
               {formatWind(conditions.wind.speed, conditions.wind.direction, conditions.wind.unit)}
             </Text>
           </View>
           
           <View style={styles.conditionRow}>
-            <Ionicons name="thermometer" size={16} color={COLORS.primary} />
+            <Ionicons name="thermometer" size={16} color={colors.primary} />
             <Text style={styles.conditionText}>
               {formatTemperature(conditions.weather.temperature, conditions.weather.unit as 'F' | 'C')}
             </Text>
@@ -213,7 +215,7 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
             />
           ) : (
             <View style={[styles.image, styles.noImage]}>
-              <Ionicons name="water-outline" size={32} color={COLORS.primary} />
+              <Ionicons name="water-outline" size={32} color={colors.primary} />
             </View>
           )}
           
@@ -226,7 +228,7 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
               <Ionicons
                 name={isFavorite ? 'heart' : 'heart-outline'}
                 size={24}
-                color={isFavorite ? COLORS.error : COLORS.white}
+                color={isFavorite ? colors.error : colors.white}
               />
             </TouchableOpacity>
           )}
@@ -238,7 +240,7 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
               { backgroundColor: getSurferCountColor(currentSurferCount) }
             ]}
           >
-            <Ionicons name="people" size={12} color={COLORS.white} />
+            <Ionicons name="people" size={12} color={colors.white} />
             <Text style={styles.surferCountText}>{currentSurferCount}</Text>
           </View>
         </View>
@@ -283,12 +285,12 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     marginBottom: SPACING.md,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -311,7 +313,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   noImage: {
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: colors.lightGray,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -339,7 +341,7 @@ const styles = StyleSheet.create({
   spotName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     flex: 1,
   },
   difficultyBadge: {
@@ -349,18 +351,18 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   difficultyText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 12,
     fontWeight: '500',
   },
   location: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginBottom: 6,
   },
   description: {
     fontSize: 14,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 12,
   },
   bottomRow: {
@@ -380,7 +382,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   ratingText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 14,
     fontWeight: '500',
   },
@@ -394,7 +396,7 @@ const styles = StyleSheet.create({
   },
   conditionText: {
     fontSize: 12,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginLeft: 4,
   },
   conditionsLoading: {
@@ -409,7 +411,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    color: COLORS.error,
+    color: colors.error,
   },
   surferCountBadge: {
     position: 'absolute',
@@ -423,7 +425,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
   },
   surferCountText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 10,
     fontWeight: 'bold',
     marginLeft: 2,
@@ -435,7 +437,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   activityText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 12,
     fontWeight: '500',
   },
@@ -446,7 +448,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   surferActivityText: {
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     fontSize: 12,
     fontWeight: '500',
   }

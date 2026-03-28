@@ -12,10 +12,10 @@ import {
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackScreenProps } from '../navigation/types';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { MESSAGES } from '../constants';
 import { CheckIn } from '../types';
-import { checkInToSpot } from '../services/mockBackend';
+import { checkInToSpot } from '../services/checkInService';
 import { useAuthStore } from '../services/auth';
 
 type CrowdLevel = NonNullable<CheckIn['conditions']>['crowdLevel'];
@@ -37,6 +37,8 @@ const WIND_QUALITIES: { value: WindQuality; label: string }[] = [
 ];
 
 const CheckInScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const route = useRoute<RootStackScreenProps<'CheckIn'>['route']>();
   const navigation = useNavigation<RootStackScreenProps<'CheckIn'>['navigation']>();
   const { user } = useAuthStore();
@@ -125,14 +127,14 @@ const CheckInScreen: React.FC = () => {
               key={value}
               style={[
                 styles.ratingButton,
-                rating >= value ? { backgroundColor: COLORS.primary } : {}
+                rating >= value ? { backgroundColor: colors.primary } : {}
               ]}
               onPress={() => setRating(value)}
             >
               <Ionicons
                 name="star"
                 size={24}
-                color={rating >= value ? COLORS.white : COLORS.lightGray}
+                color={rating >= value ? colors.white : colors.lightGray}
               />
             </TouchableOpacity>
           ))}
@@ -152,14 +154,14 @@ const CheckInScreen: React.FC = () => {
                 style={styles.conditionButton}
                 onPress={() => setWaveHeight(Math.max(0, waveHeight - 0.5))}
               >
-                <Ionicons name="remove" size={20} color={COLORS.text.primary} />
+                <Ionicons name="remove" size={20} color={colors.text.primary} />
               </TouchableOpacity>
               <Text style={styles.conditionValue}>{waveHeight.toFixed(1)}</Text>
               <TouchableOpacity
                 style={styles.conditionButton}
                 onPress={() => setWaveHeight(Math.round((waveHeight + 0.5) * 2) / 2)}
               >
-                <Ionicons name="add" size={20} color={COLORS.text.primary} />
+                <Ionicons name="add" size={20} color={colors.text.primary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -172,14 +174,14 @@ const CheckInScreen: React.FC = () => {
                 style={styles.conditionButton}
                 onPress={() => setWindSpeed(Math.max(0, windSpeed - 1))}
               >
-                <Ionicons name="remove" size={20} color={COLORS.text.primary} />
+                <Ionicons name="remove" size={20} color={colors.text.primary} />
               </TouchableOpacity>
               <Text style={styles.conditionValue}>{windSpeed}</Text>
               <TouchableOpacity
                 style={styles.conditionButton}
                 onPress={() => setWindSpeed(windSpeed + 1)}
               >
-                <Ionicons name="add" size={20} color={COLORS.text.primary} />
+                <Ionicons name="add" size={20} color={colors.text.primary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -192,14 +194,14 @@ const CheckInScreen: React.FC = () => {
                 style={styles.conditionButton}
                 onPress={() => setSwellPeriod(Math.max(0, swellPeriod - 1))}
               >
-                <Ionicons name="remove" size={20} color={COLORS.text.primary} />
+                <Ionicons name="remove" size={20} color={colors.text.primary} />
               </TouchableOpacity>
               <Text style={styles.conditionValue}>{swellPeriod}</Text>
               <TouchableOpacity
                 style={styles.conditionButton}
                 onPress={() => setSwellPeriod(swellPeriod + 1)}
               >
-                <Ionicons name="add" size={20} color={COLORS.text.primary} />
+                <Ionicons name="add" size={20} color={colors.text.primary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -212,14 +214,14 @@ const CheckInScreen: React.FC = () => {
                 style={styles.conditionButton}
                 onPress={() => setWaterTemp(Math.max(32, waterTemp - 1))}
               >
-                <Ionicons name="remove" size={20} color={COLORS.text.primary} />
+                <Ionicons name="remove" size={20} color={colors.text.primary} />
               </TouchableOpacity>
               <Text style={styles.conditionValue}>{waterTemp}</Text>
               <TouchableOpacity
                 style={styles.conditionButton}
                 onPress={() => setWaterTemp(waterTemp + 1)}
               >
-                <Ionicons name="add" size={20} color={COLORS.text.primary} />
+                <Ionicons name="add" size={20} color={colors.text.primary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -233,14 +235,14 @@ const CheckInScreen: React.FC = () => {
                   key={direction}
                   style={[
                     styles.windDirectionButton,
-                    windDirection === direction ? { backgroundColor: COLORS.primary } : {}
+                    windDirection === direction ? { backgroundColor: colors.primary } : {}
                   ]}
                   onPress={() => setWindDirection(direction)}
                 >
                   <Text
                     style={[
                       styles.windDirectionText,
-                      windDirection === direction ? { color: COLORS.white } : {}
+                      windDirection === direction ? { color: colors.white } : {}
                     ]}
                   >
                     {direction.slice(0, 2).toUpperCase()}
@@ -298,7 +300,7 @@ const CheckInScreen: React.FC = () => {
           onChangeText={setNotes}
           multiline
           numberOfLines={4}
-          placeholderTextColor={COLORS.gray}
+          placeholderTextColor={colors.gray}
         />
       </View>
 
@@ -309,7 +311,7 @@ const CheckInScreen: React.FC = () => {
           disabled={isSubmitting}
         >
           {isSubmitting ? (
-            <ActivityIndicator color={COLORS.white} />
+            <ActivityIndicator color={colors.white} />
           ) : (
             <Text style={styles.submitButtonText}>Submit Check-In</Text>
           )}
@@ -319,36 +321,36 @@ const CheckInScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   header: {
     padding: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     marginBottom: 16,
   },
   spotName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   dateTime: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginTop: 4,
   },
   section: {
     padding: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   ratingContainer: {
     flexDirection: 'row',
@@ -359,12 +361,12 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 5,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
   },
   conditionsContainer: {
     gap: 16,
@@ -376,13 +378,13 @@ const styles = StyleSheet.create({
   },
   conditionLabel: {
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   conditionInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
     borderRadius: 8,
     overflow: 'hidden',
   },
@@ -391,14 +393,14 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: colors.lightGray,
   },
   conditionValue: {
     width: 50,
     textAlign: 'center',
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   windDirectionContainer: {
     flexDirection: 'row',
@@ -411,14 +413,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 8,
     borderRadius: 6,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
   },
   windDirectionText: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   chipRow: {
     flexDirection: 'row',
@@ -429,44 +431,44 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: colors.lightGray,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
   },
   chipSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   chipText: {
     fontSize: 14,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     fontWeight: '500',
   },
   chipTextSelected: {
-    color: COLORS.white,
+    color: colors.white,
   },
   notesInput: {
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     textAlignVertical: 'top',
     minHeight: 100,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   actionContainer: {
     padding: 16,
     paddingBottom: 32,
   },
   submitButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
   },
   submitButtonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 16,
     fontWeight: 'bold',
   },

@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackScreenProps } from '../navigation/types';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { HeaderBar } from '../components';
 import { firebaseAuth } from '../config/firebase';
 
 const ForgotPasswordScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const navigation = useNavigation<RootStackScreenProps<'ForgotPassword'>['navigation']>();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -108,7 +110,7 @@ const ForgotPasswordScreen: React.FC = () => {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color={COLORS.white} />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.buttonText}>Send Reset Link</Text>
             )}
@@ -119,10 +121,10 @@ const ForgotPasswordScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -135,13 +137,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 10,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginBottom: 30,
     textAlign: 'center',
   },
@@ -149,27 +151,27 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   input: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 8,
     padding: 15,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   button: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 8,
     padding: 15,
     alignItems: 'center',
     marginTop: 10,
   },
   buttonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 16,
     fontWeight: 'bold',
   },
   errorText: {
-    color: COLORS.error,
+    color: colors.error,
     marginBottom: 10,
     textAlign: 'center',
   },

@@ -10,13 +10,15 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { SurfSession } from '../types';
 import { getSessionById, deleteSession } from '../services/sessions';
 import { HeaderBar } from '../components';
 import { formatDate, formatTime } from '../utils/formatters';
 
 const SessionDetailsScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const navigation = useNavigation();
   const route = useRoute();
   const { sessionId } = route.params as { sessionId: string };
@@ -73,7 +75,7 @@ const SessionDetailsScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -89,7 +91,7 @@ const SessionDetailsScreen: React.FC = () => {
         onBackPress={() => navigation.goBack()}
         rightComponent={
           <TouchableOpacity onPress={handleDeleteSession} style={styles.deleteButton}>
-            <Ionicons name="trash-outline" size={24} color={COLORS.error} />
+            <Ionicons name="trash-outline" size={24} color={colors.error} />
           </TouchableOpacity>
         }
       />
@@ -146,16 +148,16 @@ const SessionDetailsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background
+    backgroundColor: colors.background
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background
+    backgroundColor: colors.background
   },
   content: {
     flex: 1,
@@ -169,19 +171,19 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 24,
-    backgroundColor: COLORS.card,
+    backgroundColor: colors.card,
     padding: 16,
     borderRadius: 8
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 8
   },
   text: {
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 4
   }
 });

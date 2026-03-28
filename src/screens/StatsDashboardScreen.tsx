@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { getUserSessions, storeUserSessions } from '../services/storage';
 import { SurfSession } from '../types';
 import { useNavigation } from '@react-navigation/native';
@@ -13,6 +13,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const StatsDashboardScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const navigation = useNavigation();
   const { user } = useAuthStore();
   const [sessions, setSessions] = useState<SurfSession[]>([]);
@@ -52,6 +54,7 @@ const StatsDashboardScreen: React.FC = () => {
     milestone: 0,
     streakDays: [] as boolean[], // last 14 days, true if surfed
   });
+  const [monthlyChartData, setMonthlyChartData] = useState<{ label: string; count: number }[]>([]);
   const [qualityStats, setQualityStats] = useState({
     avgRating: null as number | null,
     bestSession: null as SurfSession | null,
@@ -90,9 +93,28 @@ const StatsDashboardScreen: React.FC = () => {
       calculateStreaks(data);
       calculateQualityStats(data);
       calculateFunFacts(data);
+      calculateMonthlyChartData(data);
     };
     fetchSessions();
   }, [user?.id]);
+
+  const calculateMonthlyChartData = (data: SurfSession[]) => {
+    const now = new Date();
+    const months: { label: string; key: string; count: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+      months.push({ label: MONTH_NAMES[d.getMonth()], key, count: 0 });
+    }
+    data.forEach((session) => {
+      const start = session.startTime ? new Date(session.startTime) : null;
+      if (!start) return;
+      const key = `${start.getFullYear()}-${(start.getMonth() + 1).toString().padStart(2, '0')}`;
+      const bucket = months.find((m) => m.key === key);
+      if (bucket) bucket.count++;
+    });
+    setMonthlyChartData(months.map(({ label, count }) => ({ label, count })));
+  };
 
   const calculateStats = (data: SurfSession[]) => {
     if (!data.length) return;
@@ -567,13 +589,13 @@ const StatsDashboardScreen: React.FC = () => {
             navigation.navigate('Main', { screen: 'Profile' });
           }
         }}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.title}>Surf Session Dashboard</Text>
       </View>
       {sessions.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 80 }}>
-          <Text style={{ color: COLORS.text.secondary, fontSize: 18, fontWeight: 'bold' }}>No sessions logged yet.</Text>
+          <Text style={{ color: colors.text.secondary, fontSize: 18, fontWeight: 'bold' }}>No sessions logged yet.</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.container}>
@@ -622,21 +644,21 @@ const StatsDashboardScreen: React.FC = () => {
             <View style={styles.trendRow}>
               <Text style={styles.trendLabel}>Sessions ({trend.thisMonth} vs {trend.lastMonth}): </Text>
               <Text style={styles.trendValue}>{trend.thisMonthSessions} vs {trend.lastMonthSessions} </Text>
-              <MaterialIcons name={trend.sessionUp ? 'arrow-upward' : 'arrow-downward'} size={18} color={trend.sessionUp ? COLORS.success : COLORS.error} />
-              <Text style={[styles.trendPercent, { color: trend.sessionUp ? COLORS.success : COLORS.error }]}> {trend.sessionChange}%</Text>
+              <MaterialIcons name={trend.sessionUp ? 'arrow-upward' : 'arrow-downward'} size={18} color={trend.sessionUp ? colors.success : colors.error} />
+              <Text style={[styles.trendPercent, { color: trend.sessionUp ? colors.success : colors.error }]}> {trend.sessionChange}%</Text>
             </View>
             <View style={styles.trendRow}>
               <Text style={styles.trendLabel}>Avg. Duration (min): </Text>
               <Text style={styles.trendValue}>{trend.thisMonthAvg} vs {trend.lastMonthAvg} </Text>
-              <MaterialIcons name={trend.avgDurationUp ? 'arrow-upward' : 'arrow-downward'} size={18} color={trend.avgDurationUp ? COLORS.success : COLORS.error} />
-              <Text style={[styles.trendPercent, { color: trend.avgDurationUp ? COLORS.success : COLORS.error }]}> {trend.avgDurationChange}%</Text>
+              <MaterialIcons name={trend.avgDurationUp ? 'arrow-upward' : 'arrow-downward'} size={18} color={trend.avgDurationUp ? colors.success : colors.error} />
+              <Text style={[styles.trendPercent, { color: trend.avgDurationUp ? colors.success : colors.error }]}> {trend.avgDurationChange}%</Text>
             </View>
           </View>
           {/* Personal Bests & Achievements */}
           <View style={styles.achievementsSection}>
             <Text style={styles.achievementsTitle}>Personal Bests & Achievements</Text>
             <View style={styles.achievementCard}>
-              <View style={styles.achievementIcon}><Ionicons name="timer-outline" size={28} color={COLORS.primary} /></View>
+              <View style={styles.achievementIcon}><Ionicons name="timer-outline" size={28} color={colors.primary} /></View>
               <View style={styles.achievementContent}>
                 <Text style={styles.achievementLabel}>Longest Session</Text>
                 <Text style={styles.achievementValue}>{personalBests.longestSession.duration ? `${Math.floor(personalBests.longestSession.duration / 60)}h ${personalBests.longestSession.duration % 60}m` : '-'} on {personalBests.longestSession.date} at {personalBests.longestSession.spot}</Text>
@@ -644,7 +666,7 @@ const StatsDashboardScreen: React.FC = () => {
               {personalBests.longestSession.isNew && <View style={styles.recordBadge}><Text style={styles.recordBadgeText}>🏆 New Record!</Text></View>}
             </View>
             <View style={styles.achievementCard}>
-              <View style={styles.achievementIcon}><Ionicons name="calendar-outline" size={28} color={COLORS.primary} /></View>
+              <View style={styles.achievementIcon}><Ionicons name="calendar-outline" size={28} color={colors.primary} /></View>
               <View style={styles.achievementContent}>
                 <Text style={styles.achievementLabel}>Most Sessions in a Week</Text>
                 <Text style={styles.achievementValue}>{personalBests.mostSessionsWeek.count} ({personalBests.mostSessionsWeek.range})</Text>
@@ -652,7 +674,7 @@ const StatsDashboardScreen: React.FC = () => {
               {personalBests.mostSessionsWeek.isNew && <View style={styles.recordBadge}><Text style={styles.recordBadgeText}>🏆 New Record!</Text></View>}
             </View>
             <View style={styles.achievementCard}>
-              <View style={styles.achievementIcon}><Ionicons name="calendar" size={28} color={COLORS.primary} /></View>
+              <View style={styles.achievementIcon}><Ionicons name="calendar" size={28} color={colors.primary} /></View>
               <View style={styles.achievementContent}>
                 <Text style={styles.achievementLabel}>Most Sessions in a Month</Text>
                 <Text style={styles.achievementValue}>{personalBests.mostSessionsMonth.count} ({personalBests.mostSessionsMonth.month})</Text>
@@ -666,7 +688,7 @@ const StatsDashboardScreen: React.FC = () => {
             {spotAnalytics.length > 0 ? (
               spotAnalytics.map((item, idx) => (
                 <View key={item.spot} style={styles.spotRow}>
-                  {idx === 0 && <Ionicons name="star" size={18} color={COLORS.secondary} style={{ marginRight: 4 }} />}
+                  {idx === 0 && <Ionicons name="star" size={18} color={colors.secondary} style={{ marginRight: 4 }} />}
                   <Text style={[styles.spotName, idx === 0 && styles.topSpot]}>{item.spot}</Text>
                   <Text style={styles.spotPercent}>{item.percent}%</Text>
                   <Text style={styles.spotCount}>({item.count} session{item.count > 1 ? 's' : ''}, {Math.round(item.totalMinutes)} min)</Text>
@@ -682,7 +704,7 @@ const StatsDashboardScreen: React.FC = () => {
             <View style={styles.streakRow}>
               <Text style={styles.streakLabel}>Current Streak:</Text>
               <Text style={styles.streakValue}>{streaks.current} days</Text>
-              {streaks.current > 0 && <Ionicons name="flame" size={18} color={COLORS.secondary} style={{ marginLeft: 4 }} />}
+              {streaks.current > 0 && <Ionicons name="flame" size={18} color={colors.secondary} style={{ marginLeft: 4 }} />}
             </View>
             <View style={styles.streakRow}>
               <Text style={styles.streakLabel}>Longest Streak:</Text>
@@ -693,37 +715,37 @@ const StatsDashboardScreen: React.FC = () => {
               <View style={styles.streakDotRowInner}>
                 {streaks.streakDays.map((active, idx) => (
                   <View key={idx} style={styles.streakDotCell}>
-                    <View style={[styles.streakDot, { backgroundColor: active ? COLORS.secondary : COLORS.lightGray }]} />
+                    <View style={[styles.streakDot, { backgroundColor: active ? colors.secondary : colors.lightGray }]} />
                   </View>
                 ))}
               </View>
             </View>
             <Text style={styles.streakLegend}>
-              Last 14 days: <Text style={{ color: COLORS.secondary }}>●</Text> = surfed
+              Last 14 days: <Text style={{ color: colors.secondary }}>●</Text> = surfed
             </Text>
           </View>
           {/* Session Quality Analytics */}
           <View style={styles.qualitySection}>
             <Text style={styles.qualityTitle}>Session Quality Analytics</Text>
             <View style={styles.qualityRow}>
-              <Ionicons name="star" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} />
+              <Ionicons name="star" size={18} color={colors.secondary} style={{ marginRight: 6 }} />
               <Text style={styles.qualityLabel}>Avg. Rating:</Text>
               <Text style={styles.qualityValue}>{qualityStats.avgRating !== null ? qualityStats.avgRating : '-'}</Text>
             </View>
             <View style={styles.qualityRow}>
-              <Ionicons name="trophy-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} />
+              <Ionicons name="trophy-outline" size={18} color={colors.secondary} style={{ marginRight: 6 }} />
               <Text style={styles.qualityLabel}>Best Session:</Text>
               <Text style={styles.qualityValue}>
                 {qualityStats.bestSession ? `${new Date(qualityStats.bestSession.startTime).toLocaleDateString()} at ${qualityStats.bestSession.spotId} (${qualityStats.bestRating})` : '-'}
               </Text>
             </View>
             <View style={styles.qualityRow}>
-              <Ionicons name="navigate" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} />
+              <Ionicons name="navigate" size={18} color={colors.secondary} style={{ marginRight: 6 }} />
               <Text style={styles.qualityLabel}>Most Common Wind:</Text>
               <Text style={styles.qualityValue}>{qualityStats.commonWind || '-'}</Text>
             </View>
             <View style={styles.qualityRow}>
-              <Ionicons name="partly-sunny-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} />
+              <Ionicons name="partly-sunny-outline" size={18} color={colors.secondary} style={{ marginRight: 6 }} />
               <Text style={styles.qualityLabel}>Most Common Weather:</Text>
               <Text style={styles.qualityValue}>{qualityStats.commonWeather || '-'}</Text>
             </View>
@@ -731,19 +753,47 @@ const StatsDashboardScreen: React.FC = () => {
           {/* Fun Facts */}
           <View style={styles.funFactsSection}>
             <Text style={styles.funFactsTitle}>Fun Facts</Text>
-            <View style={styles.funFactRow}><Ionicons name="time-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Total Hours Surfed:</Text><Text style={styles.funFactValue}>{funFacts.totalHours}</Text></View>
-            <View style={styles.funFactRow}><Ionicons name="calendar-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>First Session Logged:</Text><Text style={styles.funFactValue}>{funFacts.firstSession || '-'}</Text></View>
-            <View style={styles.funFactRow}><Ionicons name="repeat" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Sessions in a Day:</Text><Text style={styles.funFactValue}>{funFacts.mostSessionsDayDate ? formatDateString(funFacts.mostSessionsDayDate) : '-'}</Text></View>
-            <View style={styles.funFactRow}><Ionicons name="alarm-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Earliest Session Time:</Text><Text style={styles.funFactValue}>{formatTime12h(funFacts.earliestTime) || '-'}</Text></View>
-            <View style={styles.funFactRow}><Ionicons name="moon-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Latest Session Time:</Text><Text style={styles.funFactValue}>{formatTime12h(funFacts.latestTime) || '-'}</Text></View>
-            <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Popular Day:</Text><Text style={styles.funFactValue}>{funFacts.popularDay || '-'}</Text></View>
-            <View style={styles.funFactRow}><Ionicons name="bicycle-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Favorite Board:</Text><Text style={styles.funFactValue}>{funFacts.favoriteBoard || '-'}</Text></View>
-            <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Sessions in a Month:</Text><Text style={styles.funFactValue}>{funFacts.mostSessionsMonthLabel || '-'}</Text></View>
-            <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Earliest Month Surfed:</Text><Text style={styles.funFactValue}>{funFacts.earliestMonth || '-'}</Text></View>
-            <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Latest Month Surfed:</Text><Text style={styles.funFactValue}>{funFacts.latestMonth || '-'}</Text></View>
-            <View style={styles.funFactRow}><Ionicons name="water-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Common Condition:</Text><Text style={styles.funFactValue}>{funFacts.commonCondition || '-'}</Text></View>
-            <View style={styles.funFactRow}><Ionicons name="location-outline" size={18} color={COLORS.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Total Spots Surfed:</Text><Text style={styles.funFactValue}>{funFacts.uniqueSpots}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="time-outline" size={18} color={colors.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Total Hours Surfed:</Text><Text style={styles.funFactValue}>{funFacts.totalHours}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="calendar-outline" size={18} color={colors.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>First Session Logged:</Text><Text style={styles.funFactValue}>{funFacts.firstSession || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="repeat" size={18} color={colors.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Sessions in a Day:</Text><Text style={styles.funFactValue}>{funFacts.mostSessionsDayDate ? formatDateString(funFacts.mostSessionsDayDate) : '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="alarm-outline" size={18} color={colors.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Earliest Session Time:</Text><Text style={styles.funFactValue}>{formatTime12h(funFacts.earliestTime) || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="moon-outline" size={18} color={colors.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Latest Session Time:</Text><Text style={styles.funFactValue}>{formatTime12h(funFacts.latestTime) || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={colors.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Popular Day:</Text><Text style={styles.funFactValue}>{funFacts.popularDay || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="bicycle-outline" size={18} color={colors.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Favorite Board:</Text><Text style={styles.funFactValue}>{funFacts.favoriteBoard || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={colors.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Sessions in a Month:</Text><Text style={styles.funFactValue}>{funFacts.mostSessionsMonthLabel || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={colors.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Earliest Month Surfed:</Text><Text style={styles.funFactValue}>{funFacts.earliestMonth || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="calendar" size={18} color={colors.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Latest Month Surfed:</Text><Text style={styles.funFactValue}>{funFacts.latestMonth || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="water-outline" size={18} color={colors.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Most Common Condition:</Text><Text style={styles.funFactValue}>{funFacts.commonCondition || '-'}</Text></View>
+            <View style={styles.funFactRow}><Ionicons name="location-outline" size={18} color={colors.secondary} style={{ marginRight: 6 }} /><Text style={styles.funFactLabel}>Total Spots Surfed:</Text><Text style={styles.funFactValue}>{funFacts.uniqueSpots}</Text></View>
           </View>
+          {/* Sessions Per Month Chart */}
+          {monthlyChartData.length > 0 && (() => {
+            const maxCount = Math.max(...monthlyChartData.map((d) => d.count), 1);
+            const BAR_MAX_HEIGHT = 80;
+            return (
+              <View style={styles.chartSection}>
+                <Text style={styles.chartTitle}>Sessions per Month</Text>
+                <View style={styles.chartBars}>
+                  {monthlyChartData.map(({ label, count }) => (
+                    <View key={label} style={styles.chartBarColumn}>
+                      <Text style={styles.chartBarCount}>{count > 0 ? count : ''}</Text>
+                      <View
+                        style={[
+                          styles.chartBar,
+                          {
+                            height: count > 0 ? Math.max(4, Math.round((count / maxCount) * BAR_MAX_HEIGHT)) : 3,
+                            backgroundColor: count > 0 ? colors.primary : colors.lightGray,
+                          },
+                        ]}
+                      />
+                      <Text style={styles.chartBarLabel}>{label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            );
+          })()}
+
           {/* Session History */}
           <Text style={styles.sectionTitle}>Session History</Text>
           {Object.keys(sessionsByMonth).length > 0 ? (
@@ -766,72 +816,79 @@ const StatsDashboardScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: COLORS.background },
-  headerRow: { flexDirection: 'row', alignItems: 'center', paddingTop: 8, paddingBottom: 8, backgroundColor: COLORS.background },
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.background },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingTop: 8, paddingBottom: 8, backgroundColor: colors.background },
   backButton: { padding: 8, marginRight: 8 },
   container: { padding: 16, paddingTop: 16 },
-  title: { fontSize: 24, fontWeight: 'bold', color: COLORS.primary, textAlign: 'center', flex: 1 },
+  title: { fontSize: 24, fontWeight: 'bold', color: colors.primary, textAlign: 'center', flex: 1 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  statBox: { flex: 1, alignItems: 'center', padding: 8, backgroundColor: COLORS.white, borderRadius: 8, marginHorizontal: 4, elevation: 2 },
-  statValue: { fontSize: 20, fontWeight: 'bold', color: COLORS.primary },
-  statLabel: { fontSize: 12, color: COLORS.text.secondary },
+  statBox: { flex: 1, alignItems: 'center', padding: 8, backgroundColor: colors.white, borderRadius: 8, marginHorizontal: 4, elevation: 2 },
+  statValue: { fontSize: 20, fontWeight: 'bold', color: colors.primary },
+  statLabel: { fontSize: 12, color: colors.text.secondary },
   miniStatsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, marginTop: 8 },
-  miniStatCard: { flex: 1, alignItems: 'center', backgroundColor: COLORS.secondary, borderRadius: 8, marginHorizontal: 4, padding: 10 },
-  miniStatLabel: { fontSize: 12, color: COLORS.white, marginBottom: 2 },
-  miniStatValue: { fontSize: 16, color: COLORS.white, fontWeight: 'bold' },
-  trendSection: { backgroundColor: COLORS.white, borderRadius: 8, padding: 14, marginBottom: 16, elevation: 1 },
-  trendTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary, marginBottom: 8 },
+  miniStatCard: { flex: 1, alignItems: 'center', backgroundColor: colors.secondary, borderRadius: 8, marginHorizontal: 4, padding: 10 },
+  miniStatLabel: { fontSize: 12, color: colors.white, marginBottom: 2 },
+  miniStatValue: { fontSize: 16, color: colors.white, fontWeight: 'bold' },
+  trendSection: { backgroundColor: colors.white, borderRadius: 8, padding: 14, marginBottom: 16, elevation: 1 },
+  trendTitle: { fontSize: 16, fontWeight: 'bold', color: colors.primary, marginBottom: 8 },
   trendRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  trendLabel: { fontSize: 14, color: COLORS.text.primary },
-  trendValue: { fontSize: 14, color: COLORS.text.primary, fontWeight: 'bold', marginLeft: 4 },
+  trendLabel: { fontSize: 14, color: colors.text.primary },
+  trendValue: { fontSize: 14, color: colors.text.primary, fontWeight: 'bold', marginLeft: 4 },
   trendPercent: { fontSize: 14, fontWeight: 'bold', marginLeft: 2 },
-  achievementsSection: { backgroundColor: COLORS.white, borderRadius: 8, padding: 14, marginBottom: 16, elevation: 1 },
-  achievementsTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary, marginBottom: 12 },
+  achievementsSection: { backgroundColor: colors.white, borderRadius: 8, padding: 14, marginBottom: 16, elevation: 1 },
+  achievementsTitle: { fontSize: 16, fontWeight: 'bold', color: colors.primary, marginBottom: 12 },
   achievementCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f2f8fc', borderRadius: 10, padding: 12, marginBottom: 10, elevation: 1 },
   achievementIcon: { marginRight: 12 },
   achievementContent: { flex: 1 },
-  achievementLabel: { fontSize: 14, color: COLORS.text.primary, fontWeight: '600', marginBottom: 2 },
-  achievementValue: { fontSize: 14, color: COLORS.text.primary, fontWeight: 'bold' },
-  recordBadge: { backgroundColor: COLORS.success, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
-  recordBadgeText: { color: COLORS.white, fontWeight: 'bold', fontSize: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text.primary, marginTop: 24, marginBottom: 8 },
+  achievementLabel: { fontSize: 14, color: colors.text.primary, fontWeight: '600', marginBottom: 2 },
+  achievementValue: { fontSize: 14, color: colors.text.primary, fontWeight: 'bold' },
+  recordBadge: { backgroundColor: colors.success, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
+  recordBadgeText: { color: colors.white, fontWeight: 'bold', fontSize: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text.primary, marginTop: 24, marginBottom: 8 },
   monthGroup: { marginBottom: 12 },
-  monthLabel: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary, marginBottom: 4 },
-  sessionItem: { padding: 10, backgroundColor: COLORS.white, borderRadius: 8, marginBottom: 8, elevation: 1 },
-  sessionText: { color: COLORS.text.primary },
-  emptyText: { color: COLORS.text.secondary, textAlign: 'center', marginVertical: 16 },
-  spotAnalyticsSection: { backgroundColor: COLORS.white, borderRadius: 8, padding: 14, marginBottom: 16, elevation: 1 },
-  spotAnalyticsTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary, marginBottom: 8 },
+  monthLabel: { fontSize: 16, fontWeight: 'bold', color: colors.primary, marginBottom: 4 },
+  sessionItem: { padding: 10, backgroundColor: colors.white, borderRadius: 8, marginBottom: 8, elevation: 1 },
+  sessionText: { color: colors.text.primary },
+  emptyText: { color: colors.text.secondary, textAlign: 'center', marginVertical: 16 },
+  spotAnalyticsSection: { backgroundColor: colors.white, borderRadius: 8, padding: 14, marginBottom: 16, elevation: 1 },
+  spotAnalyticsTitle: { fontSize: 16, fontWeight: 'bold', color: colors.primary, marginBottom: 8 },
   spotRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  spotName: { fontSize: 14, color: COLORS.text.primary, marginRight: 8 },
-  topSpot: { fontWeight: 'bold', color: COLORS.secondary },
-  spotPercent: { fontSize: 14, color: COLORS.text.primary, marginRight: 4 },
-  spotCount: { fontSize: 14, color: COLORS.text.secondary },
-  streaksSection: { backgroundColor: COLORS.white, borderRadius: 8, padding: 14, marginBottom: 16, elevation: 1 },
-  streaksTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary, marginBottom: 8 },
+  spotName: { fontSize: 14, color: colors.text.primary, marginRight: 8 },
+  topSpot: { fontWeight: 'bold', color: colors.secondary },
+  spotPercent: { fontSize: 14, color: colors.text.primary, marginRight: 4 },
+  spotCount: { fontSize: 14, color: colors.text.secondary },
+  streaksSection: { backgroundColor: colors.white, borderRadius: 8, padding: 14, marginBottom: 16, elevation: 1 },
+  streaksTitle: { fontSize: 16, fontWeight: 'bold', color: colors.primary, marginBottom: 8 },
   streakRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  streakLabel: { fontSize: 14, color: COLORS.text.primary },
-  streakValue: { fontSize: 14, color: COLORS.text.primary, fontWeight: 'bold', marginLeft: 4 },
-  streakBadge: { backgroundColor: COLORS.success, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
-  streakBadgeText: { color: COLORS.white, fontWeight: 'bold', fontSize: 12 },
+  streakLabel: { fontSize: 14, color: colors.text.primary },
+  streakValue: { fontSize: 14, color: colors.text.primary, fontWeight: 'bold', marginLeft: 4 },
+  streakBadge: { backgroundColor: colors.success, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
+  streakBadgeText: { color: colors.white, fontWeight: 'bold', fontSize: 12 },
   streakDotsRow: { flexDirection: 'row', marginTop: 8 },
   streakDot: { width: 12, height: 12, borderRadius: 6, marginHorizontal: 2 },
   streakDotCell: { width: 16, alignItems: 'center' },
   streakDotLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 2 },
-  streakDotMarker: { fontSize: 10, color: COLORS.text.secondary },
+  streakDotMarker: { fontSize: 10, color: colors.text.secondary },
   streakDotRowInner: { flexDirection: 'row' },
-  streakLegend: { fontSize: 11, color: COLORS.text.secondary, marginTop: 4, textAlign: 'left', alignSelf: 'flex-start' },
-  qualitySection: { backgroundColor: COLORS.white, borderRadius: 8, padding: 14, marginBottom: 16, elevation: 1 },
-  qualityTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary, marginBottom: 8 },
+  streakLegend: { fontSize: 11, color: colors.text.secondary, marginTop: 4, textAlign: 'left', alignSelf: 'flex-start' },
+  qualitySection: { backgroundColor: colors.white, borderRadius: 8, padding: 14, marginBottom: 16, elevation: 1 },
+  qualityTitle: { fontSize: 16, fontWeight: 'bold', color: colors.primary, marginBottom: 8 },
   qualityRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  qualityLabel: { fontSize: 14, color: COLORS.text.primary, marginRight: 4 },
-  qualityValue: { fontSize: 14, color: COLORS.text.primary, fontWeight: 'bold' },
-  funFactsSection: { backgroundColor: COLORS.white, borderRadius: 8, padding: 14, marginBottom: 16, elevation: 1 },
-  funFactsTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary, marginBottom: 8 },
+  qualityLabel: { fontSize: 14, color: colors.text.primary, marginRight: 4 },
+  qualityValue: { fontSize: 14, color: colors.text.primary, fontWeight: 'bold' },
+  funFactsSection: { backgroundColor: colors.white, borderRadius: 8, padding: 14, marginBottom: 16, elevation: 1 },
+  funFactsTitle: { fontSize: 16, fontWeight: 'bold', color: colors.primary, marginBottom: 8 },
   funFactRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  funFactLabel: { fontSize: 14, color: COLORS.text.primary, marginRight: 4 },
-  funFactValue: { fontSize: 14, color: COLORS.text.primary, fontWeight: 'bold' },
+  funFactLabel: { fontSize: 14, color: colors.text.primary, marginRight: 4 },
+  funFactValue: { fontSize: 14, color: colors.text.primary, fontWeight: 'bold' },
+  chartSection: { backgroundColor: colors.white, borderRadius: 8, padding: 16, marginBottom: 16, elevation: 1 },
+  chartTitle: { fontSize: 16, fontWeight: 'bold', color: colors.primary, marginBottom: 12 },
+  chartBars: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 110 },
+  chartBarColumn: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', marginHorizontal: 2 },
+  chartBar: { width: '70%', borderRadius: 4 },
+  chartBarCount: { fontSize: 11, fontWeight: '600', color: colors.text.primary, marginBottom: 2 },
+  chartBarLabel: { fontSize: 10, color: colors.text.secondary, marginTop: 4 },
 });
 
 export default StatsDashboardScreen; 

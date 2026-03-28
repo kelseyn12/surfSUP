@@ -12,7 +12,7 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { MainTabScreenProps } from '../navigation/types';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { SurfSpot } from '../types';
 import { SurfSpotCard } from '../components';
 import { eventEmitter, AppEvents } from '../services/events';
@@ -21,6 +21,8 @@ import { getSurferCount } from '../services/api';
 import { useAuthStore } from '../services/auth';
 
 const FavoritesScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const navigation = useNavigation<MainTabScreenProps<'Favorites'>['navigation']>();
   const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
@@ -105,7 +107,7 @@ const FavoritesScreen: React.FC = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[COLORS.primary]}
+            colors={[colors.primary]}
           />
         }
         ListHeaderComponent={
@@ -115,7 +117,7 @@ const FavoritesScreen: React.FC = () => {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="heart-outline" size={64} color={COLORS.gray} />
+            <Ionicons name="heart-outline" size={64} color={colors.gray} />
             <Text style={styles.emptyText}>You haven&apos;t added any favorites yet</Text>
             <Text style={styles.emptySubText}>
               Add spots to your favorites to see them here
@@ -133,10 +135,10 @@ const FavoritesScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   listContent: {
     padding: 16,
@@ -148,17 +150,17 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   spotCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -170,11 +172,11 @@ const styles = StyleSheet.create({
   spotName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   spotType: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginTop: 4,
     textTransform: 'capitalize',
   },
@@ -189,25 +191,25 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginTop: 16,
   },
   emptySubText: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     textAlign: 'center',
     marginTop: 8,
     marginHorizontal: 32,
   },
   exploreButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
     marginTop: 24,
   },
   exploreButtonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
     fontSize: 16,
   },

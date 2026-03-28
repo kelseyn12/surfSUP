@@ -8,9 +8,8 @@ import { getSpotById, createSurfConditions, findNearbySpots } from '../utils/spo
 import { getCachedForecast, cacheForecastData } from '../utils/storage';
 import {
   getSurferCount as getSurferCountFromBackend,
-  initializeMockBackend,
   resetAllCheckInsAndCounts,
-} from './mockBackend';
+} from './checkInService';
 
 
 
@@ -154,8 +153,7 @@ const handleApiError = (error: unknown) => {
  * Handles all external API calls for surf conditions data
  */
 
-// Initialize mock backend (check-ins / surfer counts only; conditions use greatLakesApi)
-initializeMockBackend();
+// No-op initialization kept for future startup hooks
 
 /**
  * Fetches current surf conditions for a specific spot (NDBC buoys + NOAA marine wind).

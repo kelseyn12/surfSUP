@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  ScrollView, 
-  TouchableOpacity, 
-  Image,
+import {
+  StyleSheet,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Modal
+  Modal,
+  Image,
 } from 'react-native';
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/colors';
-import { SurfConditions } from '../types';
-import { 
-  fetchSurfConditions, 
-  fetchSurfForecast, 
-  fetchNearbySurfSpots 
+import { useTheme } from '../contexts/ThemeContext';
+import { SurfConditions, CheckIn } from '../types';
+import {
+  fetchSurfConditions,
+  fetchSurfForecast,
+  fetchNearbySurfSpots
 } from '../services/api';
 import {
   checkInToSpot,
@@ -24,8 +25,19 @@ import {
   getSurferCount,
   getActiveCheckInForUser,
   getActiveCheckInForUserAnywhere,
-} from '../services/mockBackend';
-import { firestoreSubscribeSurferCount } from '../services/firestore';
+} from '../services/checkInService';
+import {
+  firestoreSubscribeSurferCount,
+  firestoreGetRecentCheckIns,
+  firestoreGetSpotPhotos,
+  firestoreAddSpotPhoto,
+  SpotPhoto,
+} from '../services/firestore';
+import {
+  pickSpotPhoto,
+  uploadSpotPhoto,
+  isPhotoUploadAvailable,
+} from '../services/photoService';
 import { isUserCheckedInAt, getGlobalSurferCount, updateGlobalSurferCount } from '../services/globalState';
 import webSocketService, { WebSocketMessageType } from '../services/websocket';
 import { HeaderBar } from '../components';
@@ -34,6 +46,8 @@ import { useAuthStore } from '../services/auth';
 import { formatWind } from '../utils/formatters';
 
 const SpotDetailsScreen: React.FC<any> = (props) => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   // Use props directly instead of hooks
   const route = props.route;
   const navigation = props.navigation;
@@ -65,6 +79,9 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   const [checkInId, setCheckInId] = useState<string | null>(null);
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
+  const [recentCheckIns, setRecentCheckIns] = useState<CheckIn[]>([]);
+  const [spotPhotos, setSpotPhotos] = useState<SpotPhoto[]>([]);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const { user } = useAuthStore();
 
   // Function to load spot data
@@ -83,6 +100,14 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
       if (forecastData) {
         setForecast(forecastData);
       }
+
+      // Fetch recent check-ins for conditions history
+      const checkIns = await firestoreGetRecentCheckIns(spotId, 8);
+      setRecentCheckIns(checkIns.filter((c) => c.conditions));
+
+      // Fetch community photos
+      const photos = await firestoreGetSpotPhotos(spotId);
+      setSpotPhotos(photos);
     } catch (error) {
       console.error('Error loading spot data:', error);
       Alert.alert('Error', 'Failed to load spot information. Please try again later.');
@@ -305,6 +330,35 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   };
 
   // Function to get appropriate surfer activity label and color
+  const handleAddPhoto = async () => {
+    if (!user?.id) {
+      Alert.alert('Sign In Required', 'Please sign in to add photos.');
+      return;
+    }
+    if (!isPhotoUploadAvailable()) {
+      Alert.alert('Coming Soon', 'Photo uploads will be available in a future update.');
+      return;
+    }
+    const uri = await pickSpotPhoto();
+    if (!uri) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const url = await uploadSpotPhoto(spotId, user.id, uri);
+      if (url) {
+        await firestoreAddSpotPhoto(spotId, { url, uploadedBy: user.id });
+        setSpotPhotos((prev) => [{ url, uploadedBy: user.id, createdAt: new Date().toISOString() }, ...prev]);
+      } else {
+        Alert.alert('Upload Failed', 'Could not upload photo. Please try again.');
+      }
+    } catch (err) {
+      console.error('[SpotDetails] Photo upload error:', err);
+      Alert.alert('Error', 'Something went wrong uploading your photo.');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   const getSurferActivityLabel = (count: number): string => {
     if (count === 0) return 'No surfers';
     if (count < 3) return 'Low activity';
@@ -313,10 +367,10 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   };
 
   const getSurferCountColor = (count: number): string => {
-    if (count === 0) return COLORS.gray;
-    if (count < 3) return COLORS.success;
-    if (count < 8) return COLORS.warning;
-    return COLORS.error;
+    if (count === 0) return colors.gray;
+    if (count < 3) return colors.success;
+    if (count < 8) return colors.warning;
+    return colors.error;
   };
 
   // Returns a clean label and whether the data is measured (buoy) or forecasted
@@ -334,17 +388,17 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   const getSurfLikelihoodColor = (likelihood: 'Flat' | 'Maybe Surf' | 'Good' | 'Firing' | 'Blown Out'): string => {
     switch (likelihood) {
       case 'Flat':
-        return COLORS.gray;
+        return colors.gray;
       case 'Maybe Surf':
-        return COLORS.warning;
+        return colors.warning;
       case 'Good':
-        return COLORS.success;
+        return colors.success;
       case 'Firing':
-        return COLORS.error; // Red for "firing" conditions
+        return colors.error; // Red for "firing" conditions
       case 'Blown Out':
-        return COLORS.error; // Red for "blown out" conditions
+        return colors.error; // Red for "blown out" conditions
       default:
-        return COLORS.gray;
+        return colors.gray;
     }
   };
 
@@ -470,7 +524,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   if (isLoading && !currentConditions) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading spot information...</Text>
       </View>
     );
@@ -486,31 +540,65 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
             <Ionicons
               name={isFavorite ? 'heart' : 'heart-outline'}
               size={28}
-              color={isFavorite ? COLORS.error : COLORS.primary}
+              color={isFavorite ? colors.error : colors.primary}
             />
           </TouchableOpacity>
         }
       />
       
       <ScrollView style={styles.scrollContent}>
-        {/* Hero image */}
+        {/* Satellite map thumbnail */}
         <View style={styles.imageContainer}>
-          <Image 
-            source={{ uri: spot?.imageUrls?.[0] || 'https://via.placeholder.com/800x400' }} 
-            style={styles.spotImage} 
-          />
+          {spot?.location?.latitude && spot?.location?.longitude ? (
+            <MapView
+              provider={PROVIDER_GOOGLE}
+              style={styles.spotImage}
+              mapType="satellite"
+              initialRegion={{
+                latitude: spot.location.latitude,
+                longitude: spot.location.longitude,
+                latitudeDelta: 0.004,
+                longitudeDelta: 0.004,
+              }}
+              scrollEnabled={false}
+              zoomEnabled={false}
+              rotateEnabled={false}
+              pitchEnabled={false}
+              toolbarEnabled={false}
+              moveOnMarkerPress={false}
+            />
+          ) : (
+            <View style={[styles.spotImage, styles.mapPlaceholder]}>
+              <Ionicons name="map-outline" size={48} color={colors.lightGray} />
+            </View>
+          )}
           <View style={styles.imageOverlay}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.favoriteButton}
               onPress={toggleFavorite}
             >
-              <Ionicons 
-                name={isFavorite ? 'heart' : 'heart-outline'} 
-                size={28} 
-                color={isFavorite ? COLORS.error : COLORS.white} 
+              <Ionicons
+                name={isFavorite ? 'heart' : 'heart-outline'}
+                size={28}
+                color={isFavorite ? colors.error : colors.white}
               />
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Community photos */}
+        <View style={styles.photosRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photosScroll}>
+            <TouchableOpacity style={styles.addPhotoButton} onPress={handleAddPhoto} disabled={isUploadingPhoto}>
+              {isUploadingPhoto
+                ? <ActivityIndicator size="small" color={colors.primary} />
+                : <Ionicons name="camera-outline" size={28} color={colors.primary} />}
+              <Text style={styles.addPhotoLabel}>{isUploadingPhoto ? 'Uploading…' : 'Add Photo'}</Text>
+            </TouchableOpacity>
+            {spotPhotos.map((photo, idx) => (
+              <Image key={idx} source={{ uri: photo.url }} style={styles.communityPhoto} />
+            ))}
+          </ScrollView>
         </View>
 
         {/* Spot header with surfer count */}
@@ -525,7 +613,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
           <View style={styles.surferCountContainer}>
             <View style={[styles.surferCountBadge, { backgroundColor: getSurferCountColor(surferCount) }]}>
               <Text style={styles.surferCountNumber}>{surferCount}</Text>
-              <Ionicons name="people" size={14} color={COLORS.white} />
+              <Ionicons name="people" size={14} color={colors.white} />
             </View>
             <Text style={styles.surferCountLabel}>{getSurferActivityLabel(surferCount)}</Text>
           </View>
@@ -555,7 +643,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
 
               <View style={styles.conditionRow}>
                 <View style={styles.conditionItem}>
-                  <Ionicons name="water-outline" size={24} color={COLORS.primary} />
+                  <Ionicons name="water-outline" size={24} color={colors.primary} />
                   <Text style={styles.conditionLabel}>Wave Height</Text>
                   <Text style={styles.conditionValue}>
                     {currentConditions.waveHeight.max < 0.5 
@@ -565,7 +653,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                   </Text>
                 </View>
                 <View style={styles.conditionItem}>
-                  <Ionicons name="time-outline" size={24} color={COLORS.primary} />
+                  <Ionicons name="time-outline" size={24} color={colors.primary} />
                   <Text style={styles.conditionLabel}>Period</Text>
                   <Text style={styles.conditionValue}>
                     {currentConditions?.swell && currentConditions.swell.length > 0 && currentConditions.swell[0]?.period && currentConditions.swell[0].period > 0 
@@ -576,14 +664,14 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
               </View>
               <View style={styles.conditionRow}>
                 <View style={styles.conditionItem}>
-                  <Ionicons name="speedometer-outline" size={24} color={COLORS.primary} />
+                  <Ionicons name="speedometer-outline" size={24} color={colors.primary} />
                   <Text style={styles.conditionLabel}>Wind</Text>
                   <Text style={styles.conditionValue}>
                     {currentConditions?.wind ? formatWind(currentConditions.wind.speed, currentConditions.wind.direction, currentConditions.wind.unit as 'mph' | 'kts' | 'kph') : 'N/A'}
                   </Text>
                 </View>
                 <View style={styles.conditionItem}>
-                  <Ionicons name="thermometer-outline" size={24} color={COLORS.primary} />
+                  <Ionicons name="thermometer-outline" size={24} color={colors.primary} />
                   <Text style={styles.conditionLabel}>Water Temp</Text>
                   <Text style={styles.conditionValue}>
                     {currentConditions.weather?.temperature ? Number(currentConditions.weather.temperature).toFixed(1) : 'N/A'}°{currentConditions.weather?.unit || 'F'}
@@ -646,22 +734,22 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                   )}
                   
                   <View style={styles.forecastDetail}>
-                    <Ionicons name="water-outline" size={16} color={COLORS.gray} />
+                    <Ionicons name="water-outline" size={16} color={colors.gray} />
                     <Text style={styles.forecastDetailText}>{day.waveHeight}</Text>
                   </View>
                   <View style={styles.forecastDetail}>
-                    <Ionicons name="time-outline" size={16} color={COLORS.gray} />
+                    <Ionicons name="time-outline" size={16} color={colors.gray} />
                     <Text style={styles.forecastDetailText}>{day.period}</Text>
                   </View>
                   <View style={styles.forecastDetail}>
-                    <Ionicons name="speedometer-outline" size={16} color={COLORS.gray} />
+                    <Ionicons name="speedometer-outline" size={16} color={colors.gray} />
                     <Text style={styles.forecastDetailText}>{day.wind}</Text>
                   </View>
                   
                   {/* Data Sources */}
                   {day.sourceInfo && (
                     <View style={styles.forecastDetail}>
-                      <Ionicons name="information-circle-outline" size={16} color={COLORS.gray} />
+                      <Ionicons name="information-circle-outline" size={16} color={colors.gray} />
                       <Text style={[styles.forecastDetailText, styles.sourceInfoText]}>{day.sourceInfo}</Text>
                     </View>
                   )}
@@ -687,6 +775,56 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
           </View>
         </View>
 
+        {/* Conditions History */}
+        {recentCheckIns.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recent Reports</Text>
+            {recentCheckIns.map((checkIn) => {
+              const ts = new Date(checkIn.timestamp);
+              const timeAgo = (() => {
+                const mins = Math.floor((Date.now() - ts.getTime()) / 60000);
+                if (mins < 60) return `${mins}m ago`;
+                const hrs = Math.floor(mins / 60);
+                if (hrs < 24) return `${hrs}h ago`;
+                return `${Math.floor(hrs / 24)}d ago`;
+              })();
+              const c = checkIn.conditions!;
+              const crowdEmoji: Record<string, string> = {
+                empty: '🏝️', uncrowded: '😊', moderate: '🤙', crowded: '😤', 'very-crowded': '🚫',
+              };
+              const windEmoji: Record<string, string> = {
+                poor: '💨', fair: '🌬️', good: '👍', excellent: '🎯',
+              };
+              return (
+                <View key={checkIn.id} style={styles.checkInHistoryRow}>
+                  <View style={styles.checkInHistoryLeft}>
+                    <Text style={styles.checkInHistoryTime}>{timeAgo}</Text>
+                    <Text style={styles.checkInHistoryWave}>{c.waveHeight.toFixed(1)} ft</Text>
+                  </View>
+                  <View style={styles.checkInHistoryMeta}>
+                    <Text style={styles.checkInHistoryItem}>
+                      {crowdEmoji[c.crowdLevel] ?? ''} {c.crowdLevel.replace('-', ' ')}
+                    </Text>
+                    <Text style={styles.checkInHistoryItem}>
+                      {windEmoji[c.windQuality] ?? ''} wind {c.windQuality}
+                    </Text>
+                  </View>
+                  <View style={styles.checkInHistoryStars}>
+                    {[1,2,3,4,5].map((s) => (
+                      <Ionicons
+                        key={s}
+                        name="star"
+                        size={12}
+                        color={c.overallRating >= s ? colors.secondary : colors.lightGray}
+                      />
+                    ))}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         {/* Action buttons */}
         <View style={styles.actions}>
           <TouchableOpacity 
@@ -694,7 +832,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
             onPress={handleCheckIn}
             disabled={isLoading}
           >
-            <Ionicons name={isCheckedIn ? "log-out-outline" : "location-outline"} size={20} color={COLORS.white} />
+            <Ionicons name={isCheckedIn ? "log-out-outline" : "location-outline"} size={20} color={colors.white} />
             <Text style={styles.actionButtonText}>
               {isLoading ? 'Processing...' : isCheckedIn ? 'Check Out' : 'Check In'}
             </Text>
@@ -703,7 +841,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
             style={[styles.actionButton, styles.secondaryButton]}
             onPress={() => navigation.navigate('LogSession', { spotId, spot })}
           >
-            <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
+            <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
             <Text style={[styles.actionButtonText, styles.secondaryButtonText]}>Log Session</Text>
           </TouchableOpacity>
         </View>
@@ -743,10 +881,10 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flex: 1,
@@ -755,13 +893,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     padding: 20,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   imageContainer: {
     position: 'relative',
@@ -770,6 +908,11 @@ const styles = StyleSheet.create({
   spotImage: {
     width: '100%',
     height: '100%',
+  },
+  mapPlaceholder: {
+    backgroundColor: colors.lightGray,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   imageOverlay: {
     position: 'absolute',
@@ -790,9 +933,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: colors.lightGray,
   },
   spotTitleContainer: {
     flex: 1,
@@ -800,11 +943,11 @@ const styles = StyleSheet.create({
   spotName: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   spotLocation: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginTop: 4,
   },
   surferCountContainer: {
@@ -820,14 +963,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   surferCountNumber: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
     marginRight: 4,
     fontSize: 14,
   },
   surferCountLabel: {
     fontSize: 12,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   section: {
     padding: 16,
@@ -837,13 +980,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 12,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   conditionsCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -860,13 +1003,13 @@ const styles = StyleSheet.create({
   },
   conditionLabel: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginTop: 4,
   },
   conditionValue: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginTop: 4,
   },
   ratingContainer: {
@@ -877,23 +1020,23 @@ const styles = StyleSheet.create({
   },
   ratingLabel: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   ratingValue: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   forecastContainer: {
     paddingRight: 16,
   },
   forecastCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
     marginRight: 12,
     width: 120,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -902,7 +1045,7 @@ const styles = StyleSheet.create({
   forecastDay: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 4,
   },
   forecastRating: {
@@ -917,14 +1060,14 @@ const styles = StyleSheet.create({
   },
   forecastDetailText: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginLeft: 6,
   },
   infoCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -933,7 +1076,7 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 14,
     lineHeight: 20,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   actions: {
     flexDirection: 'row',
@@ -942,7 +1085,7 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   actionButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -953,20 +1096,20 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   secondaryButton: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
   },
   actionButtonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '600',
     marginLeft: 8,
   },
   secondaryButtonText: {
-    color: COLORS.primary,
+    color: colors.primary,
   },
   checkOutButton: {
-    backgroundColor: COLORS.error,
+    backgroundColor: colors.error,
   },
   noDataContainer: {
     flex: 1,
@@ -976,7 +1119,7 @@ const styles = StyleSheet.create({
   },
   noDataText: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   conditionsDescription: {
     flexDirection: 'row',
@@ -986,30 +1129,30 @@ const styles = StyleSheet.create({
   },
   conditionsText: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginLeft: 8,
     fontStyle: 'italic',
   },
   modalContent: {
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     padding: 20,
     borderRadius: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
   },
   surfReportContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
     paddingHorizontal: 4,
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: colors.lightGray,
     padding: 12,
     borderRadius: 8,
   },
   surfReportText: {
     fontSize: 18,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginLeft: 8,
     fontWeight: '600',
     flex: 1,
@@ -1023,7 +1166,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   surfLikelihoodText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
     fontSize: 14,
   },
@@ -1034,7 +1177,7 @@ const styles = StyleSheet.create({
   },
   notesText: {
     fontSize: 12,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     textAlign: 'center',
   },
   surfTagBadge: {
@@ -1044,14 +1187,14 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     marginTop: 20,
     marginBottom: 12,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
   },
   surfTagText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
     fontSize: 16,
     textTransform: 'uppercase',
@@ -1064,7 +1207,7 @@ const styles = StyleSheet.create({
   },
   surfSummaryText: {
     fontSize: 12,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     textAlign: 'center',
     fontStyle: 'italic',
   },
@@ -1077,7 +1220,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   forecastSurfBadgeText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
     fontSize: 10,
     textTransform: 'uppercase',
@@ -1085,7 +1228,7 @@ const styles = StyleSheet.create({
   },
   forecastSummaryText: {
     fontSize: 10,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     textAlign: 'center',
     fontStyle: 'italic',
     marginBottom: 8,
@@ -1098,12 +1241,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   notesModalContent: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 20,
     margin: 20,
     maxWidth: 300,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1112,18 +1255,18 @@ const styles = StyleSheet.create({
   notesModalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 16,
     textAlign: 'center',
   },
   notesModalText: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginBottom: 8,
     lineHeight: 20,
   },
   notesModalCloseButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -1131,13 +1274,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   notesModalCloseText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '600',
     fontSize: 16,
   },
   sourceInfoText: {
     fontSize: 10,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     fontStyle: 'italic',
   },
   dataSourceBadge: {
@@ -1159,6 +1302,73 @@ const styles = StyleSheet.create({
   dataSourceText: {
     fontSize: 11,
     fontWeight: '500',
+  },
+  checkInHistoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.lightGray,
+  },
+  checkInHistoryLeft: {
+    width: 64,
+    marginRight: 12,
+  },
+  checkInHistoryTime: {
+    fontSize: 11,
+    color: colors.text.secondary,
+    marginBottom: 2,
+  },
+  checkInHistoryWave: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  checkInHistoryMeta: {
+    flex: 1,
+  },
+  checkInHistoryItem: {
+    fontSize: 12,
+    color: colors.text.primary,
+    marginBottom: 2,
+    textTransform: 'capitalize',
+  },
+  checkInHistoryStars: {
+    flexDirection: 'row',
+    gap: 1,
+  },
+  photosRow: {
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.lightGray,
+  },
+  photosScroll: {
+    padding: 12,
+    gap: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  addPhotoButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  addPhotoLabel: {
+    fontSize: 10,
+    color: colors.primary,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  communityPhoto: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
   },
 });
 

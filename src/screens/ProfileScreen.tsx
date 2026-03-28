@@ -11,7 +11,7 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { MainTabScreenProps } from '../navigation/types';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import type { SurfSession, SurfSpot } from '../types';
 import { useAuthStore } from '../services/auth';
 import { getUserSessionsById, calculateUserStats } from '../services/sessions';
@@ -19,6 +19,8 @@ import { fetchNearbySurfSpots } from '../services/api';
 import { formatShortDate, formatDurationShort as formatDuration } from '../utils/formatters';
 
 const ProfileScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const navigation = useNavigation<MainTabScreenProps<'Profile'>['navigation']>();
   const { user, updateUserProfile } = useAuthStore();
   const [sessions, setSessions] = useState<SurfSession[]>([]);
@@ -66,7 +68,7 @@ const ProfileScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -83,7 +85,7 @@ const ProfileScreen: React.FC = () => {
             style={styles.editProfileButton}
             onPress={() => navigation.navigate('EditProfile')}
           >
-            <Ionicons name="create-outline" size={20} color={COLORS.white} />
+            <Ionicons name="create-outline" size={20} color={colors.white} />
           </TouchableOpacity>
         </View>
         <Text style={styles.profileName}>{user?.name || 'Surfer'}</Text>
@@ -152,21 +154,21 @@ const ProfileScreen: React.FC = () => {
               </View>
               <View style={styles.sessionDetails}>
                 <View style={styles.sessionDetail}>
-                  <Ionicons name="time-outline" size={16} color={COLORS.gray} />
+                  <Ionicons name="time-outline" size={16} color={colors.gray} />
                   <Text style={styles.sessionDetailText}>
                     {formatDuration(session.duration || 0)}
                   </Text>
                 </View>
                 {session.conditions && (
                   <View style={styles.sessionDetail}>
-                    <Ionicons name="water-outline" size={16} color={COLORS.gray} />
+                    <Ionicons name="water-outline" size={16} color={colors.gray} />
                     <Text style={styles.sessionDetailText}>
                       {session.conditions.waveHeight}ft
                     </Text>
                   </View>
                 )}
                 <View style={styles.sessionDetail}>
-                  <Ionicons name="sunny-outline" size={16} color={COLORS.gray} />
+                  <Ionicons name="sunny-outline" size={16} color={colors.gray} />
                   <Text style={styles.sessionDetailText}>
                     {session.conditions?.quality || 'good'}
                   </Text>
@@ -192,21 +194,21 @@ const ProfileScreen: React.FC = () => {
           style={styles.actionButton}
           onPress={() => navigation.navigate('LogSession', { spotId: '' })}
         >
-          <Ionicons name="add-circle-outline" size={20} color={COLORS.white} />
+          <Ionicons name="add-circle-outline" size={20} color={colors.white} />
           <Text style={styles.actionButtonText}>Log Session</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.actionButton, styles.secondaryButton]}
           onPress={() => navigation.navigate('Settings')}
         >
-          <Ionicons name="settings-outline" size={20} color={COLORS.primary} />
+          <Ionicons name="settings-outline" size={20} color={colors.primary} />
           <Text style={[styles.actionButtonText, styles.secondaryButtonText]}>Settings</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: COLORS.secondary }]}
+          style={[styles.actionButton, { backgroundColor: colors.secondary }]}
           onPress={() => navigation.navigate('StatsDashboard')}
         >
-          <Ionicons name="stats-chart-outline" size={20} color={COLORS.white} />
+          <Ionicons name="stats-chart-outline" size={20} color={colors.white} />
           <Text style={styles.actionButtonText}>View Stats</Text>
         </TouchableOpacity>
       </View>
@@ -218,7 +220,7 @@ const ProfileScreen: React.FC = () => {
             style={styles.debugButton}
             onPress={() => navigation.navigate('Debug')}
           >
-            <Ionicons name="bug-outline" size={20} color={COLORS.white} />
+            <Ionicons name="bug-outline" size={20} color={colors.white} />
             <Text style={styles.debugButtonText}>Debug Panel</Text>
           </TouchableOpacity>
         </View>
@@ -227,10 +229,10 @@ const ProfileScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   centerContent: {
     justifyContent: 'center',
@@ -240,7 +242,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 24,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: colors.lightGray,
   },
   profileImageContainer: {
     position: 'relative',
@@ -255,28 +257,28 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 20,
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: COLORS.white,
+    borderColor: colors.white,
   },
   profileName: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   profileUsername: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginTop: 4,
   },
   homeSpot: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginTop: 4,
   },
   statsContainer: {
@@ -285,7 +287,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
     paddingHorizontal: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     marginBottom: 16,
   },
   statItem: {
@@ -294,24 +296,24 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   statLabel: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginTop: 4,
   },
   statDivider: {
     height: 30,
     width: 1,
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: colors.lightGray,
   },
   section: {
     padding: 16,
     marginBottom: 16,
   },
   preferencesContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
   },
@@ -321,50 +323,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: colors.lightGray,
   },
   preferenceLabel: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   preferenceValue: {
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     fontWeight: '500',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   emptyState: {
     alignItems: 'center',
     padding: 24,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
   },
   emptyStateText: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginBottom: 16,
   },
   emptyStateButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
   },
   emptyStateButtonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '600',
   },
   sessionCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -379,11 +381,11 @@ const styles = StyleSheet.create({
   sessionSpot: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   sessionDate: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   sessionDetails: {
     flexDirection: 'row',
@@ -395,7 +397,7 @@ const styles = StyleSheet.create({
   },
   sessionDetailText: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginLeft: 4,
   },
   actions: {
@@ -405,7 +407,7 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   actionButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -416,24 +418,24 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   secondaryButton: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
   },
   actionButtonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '600',
     marginLeft: 8,
   },
   secondaryButtonText: {
-    color: COLORS.primary,
+    color: colors.primary,
   },
   debugSection: {
     alignItems: 'center',
     padding: 16,
   },
   debugButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -442,7 +444,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   debugButtonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '600',
     marginLeft: 8,
   },

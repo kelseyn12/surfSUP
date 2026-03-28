@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { MainTabScreenProps } from '../navigation/types';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { SurfSpotCard } from '../components';
 import { SurfSpot } from '../types';
 import { fetchNearbySurfSpots, resetAllCheckInsAndCounts } from '../services/api';
@@ -15,6 +15,8 @@ const DULUTH_LAT = 46.7825;
 const DULUTH_LNG = -92.0856;
 
 const HomeScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const navigation = useNavigation<MainTabScreenProps<'Home'>['navigation']>();
   const [refreshing, setRefreshing] = useState(false);
   const [nearbySpots, setNearbySpots] = useState<SurfSpot[]>([]);
@@ -98,7 +100,7 @@ const HomeScreen: React.FC = () => {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          colors={[COLORS.primary]}
+          colors={[colors.primary]}
         />
       }
     >
@@ -107,7 +109,7 @@ const HomeScreen: React.FC = () => {
         <Text style={styles.headerSubtitle}>Lake Superior Surf Forecast</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity onPress={handleSearch} style={styles.iconButton}>
-            <Ionicons name="search" size={24} color={COLORS.text.primary} />
+            <Ionicons name="search" size={24} color={colors.text.primary} />
           </TouchableOpacity>
           
           {__DEV__ && (
@@ -117,9 +119,9 @@ const HomeScreen: React.FC = () => {
                 Alert.alert('Reset', 'All check-ins and surfer counts have been reset');
                 onRefresh();
               }}
-              style={[styles.iconButton, { backgroundColor: COLORS.error }]}
+              style={[styles.iconButton, { backgroundColor: colors.error }]}
             >
-              <Ionicons name="refresh" size={20} color={COLORS.white} />
+              <Ionicons name="refresh" size={20} color={colors.white} />
             </TouchableOpacity>
           )}
         </View>
@@ -147,10 +149,10 @@ const HomeScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   header: {
     padding: 16,
@@ -160,11 +162,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: COLORS.gray,
+    color: colors.gray,
     marginTop: 4,
   },
   section: {
@@ -175,22 +177,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 12,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   spotsList: {
     gap: 12,
   },
   noSpotsText: {
     fontSize: 16,
-    color: COLORS.gray,
+    color: colors.gray,
     textAlign: 'center',
     marginVertical: 20,
   },
   activityCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -199,16 +201,16 @@ const styles = StyleSheet.create({
   activityTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   activityDate: {
     fontSize: 14,
-    color: COLORS.gray,
+    color: colors.gray,
     marginTop: 4,
   },
   activityDetails: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginTop: 4,
   },
   forecastContainer: {
@@ -217,12 +219,12 @@ const styles = StyleSheet.create({
   },
   forecastDay: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 12,
     marginHorizontal: 4,
     alignItems: 'center',
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -231,17 +233,17 @@ const styles = StyleSheet.create({
   forecastDate: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   forecastCondition: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.surfConditions.good,
+    color: colors.surfConditions.good,
     marginTop: 4,
   },
   forecastDetails: {
     fontSize: 12,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginTop: 4,
   },
   headerActions: {

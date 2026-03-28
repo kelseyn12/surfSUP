@@ -6,6 +6,7 @@
  *   - Surfer counts  →  collection: spotCounts/{spotId}
  *   - Sessions  →  collection: sessions/{sessionId}
  *   - Favorites  →  collection: users/{userId}  (field: favoriteSpotIds)
+ *   - Spots      →  collection: spots/{spotId}
  */
 
 import firestore from '@react-native-firebase/firestore';
@@ -120,6 +121,23 @@ export const firestoreGetActiveCheckInAnywhere = async (userId: string): Promise
   return null;
 };
 
+/**
+ * Returns the most recent check-ins for a spot (both active and expired),
+ * sorted newest-first. Queries by spotId only to avoid composite index requirements.
+ */
+export const firestoreGetRecentCheckIns = async (
+  spotId: string,
+  limit = 10
+): Promise<CheckIn[]> => {
+  const snapshot = await db
+    .collection('checkIns')
+    .where('spotId', '==', spotId)
+    .orderBy('timestamp', 'desc')
+    .limit(limit)
+    .get();
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as CheckIn));
+};
+
 export const firestoreGetSurferCount = async (spotId: string): Promise<number> => {
   const doc = await db.collection('spotCounts').doc(spotId).get();
   return doc.data()?.count ?? 0;
@@ -212,4 +230,81 @@ export const firestoreGetFavoriteSpots = async (userId: string): Promise<SurfSpo
 
   const ids: string[] = doc.data()?.favoriteSpotIds ?? [];
   return ids.map((id) => getSpotById(id)).filter((s): s is SurfSpot => s !== undefined);
+};
+
+// ─── SPOTS ────────────────────────────────────────────────────────────────────
+
+/**
+ * Fetch all spots from Firestore.
+ * Returns an empty array if the collection doesn't exist yet.
+ */
+export const firestoreGetSpots = async (): Promise<SurfSpot[]> => {
+  const snapshot = await db.collection('spots').get();
+  if (snapshot.empty) return [];
+  return snapshot.docs.map((d) => ({ ...d.data() } as SurfSpot));
+};
+
+/**
+ * Write a spot document to Firestore (create or overwrite).
+ * Uses the spot's id as the document ID.
+ */
+export const firestoreUpsertSpot = async (spot: SurfSpot): Promise<void> => {
+  await db.collection('spots').doc(spot.id).set(spot);
+};
+
+// ─── SPOT PHOTOS ─────────────────────────────────────────────────────────────
+
+export interface SpotPhoto {
+  url: string;
+  uploadedBy: string; // userId
+  createdAt: string;
+}
+
+/**
+ * Returns community-uploaded photos for a spot, newest first.
+ */
+export const firestoreGetSpotPhotos = async (spotId: string): Promise<SpotPhoto[]> => {
+  const snapshot = await db
+    .collection('spotPhotos')
+    .doc(spotId)
+    .collection('photos')
+    .orderBy('createdAt', 'desc')
+    .get();
+  if (snapshot.empty) return [];
+  return snapshot.docs.map((d) => d.data() as SpotPhoto);
+};
+
+/**
+ * Saves a photo URL (after upload to Firebase Storage) to the spot's photo list.
+ */
+export const firestoreAddSpotPhoto = async (
+  spotId: string,
+  photo: Omit<SpotPhoto, 'createdAt'>
+): Promise<void> => {
+  await db
+    .collection('spotPhotos')
+    .doc(spotId)
+    .collection('photos')
+    .add({ ...photo, createdAt: new Date().toISOString() });
+};
+
+// ─── FORECAST FEEDBACK ───────────────────────────────────────────────────────
+
+export type ForecastAccuracy = 'off' | 'close' | 'spot-on';
+
+export interface ForecastFeedback {
+  id: string;
+  sessionId: string;
+  spotId: string;
+  userId: string;
+  sessionDate: string; // ISO startTime of the session
+  accuracy: ForecastAccuracy;
+  createdAt: string;
+}
+
+export const firestoreSaveForecastFeedback = async (
+  data: Omit<ForecastFeedback, 'id' | 'createdAt'>
+): Promise<void> => {
+  const now = new Date().toISOString();
+  await db.collection('forecastFeedback').add({ ...data, createdAt: now });
 };

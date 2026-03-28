@@ -16,16 +16,22 @@ import {
   BackHandler
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { SurfSession, SurfSpot } from '../types';
 import { fetchNearbySurfSpots } from '../services/api';
 import { addSession } from '../services/sessions';
+import {
+  firestoreSaveForecastFeedback,
+  ForecastAccuracy,
+} from '../services/firestore';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../services/auth';
 import { formatShortDate, formatTime } from '../utils/formatters';
 
 const LogSessionScreen: React.FC<any> = (props) => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const navigation = useNavigation();
   const { user } = useAuthStore();
   
@@ -52,6 +58,11 @@ const LogSessionScreen: React.FC<any> = (props) => {
   const [bestWave, setBestWave] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [includeInPublicActivity, setIncludeInPublicActivity] = useState(false);
+
+  // Forecast accuracy feedback
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
+  const [savedSpotId, setSavedSpotId] = useState<string | null>(null);
 
   // New state for spot picker
   const [spotSearchText, setSpotSearchText] = useState('');
@@ -212,8 +223,10 @@ const LogSessionScreen: React.FC<any> = (props) => {
       // Use the new sessions service to add the session
       const savedSession = await addSession(sessionData);
 
-      // Navigate back to the previous screen
-      navigation.goBack();
+      // Show forecast accuracy feedback prompt before navigating back
+      setSavedSessionId(savedSession.id);
+      setSavedSpotId(spot?.id || spotId);
+      setShowFeedbackModal(true);
 
     } catch (error) {
       console.error('Error saving session:', error);
@@ -224,6 +237,25 @@ const LogSessionScreen: React.FC<any> = (props) => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleFeedback = async (accuracy: ForecastAccuracy | null) => {
+    setShowFeedbackModal(false);
+    if (accuracy && savedSessionId && savedSpotId && user?.id) {
+      try {
+        await firestoreSaveForecastFeedback({
+          sessionId: savedSessionId,
+          spotId: savedSpotId,
+          userId: user.id,
+          sessionDate: startTime.toISOString(),
+          accuracy,
+        });
+      } catch (err) {
+        // Feedback is best-effort — don't block navigation on failure
+        console.warn('[ForecastFeedback] Save failed:', err);
+      }
+    }
+    navigation.goBack();
   };
 
   const selectSpot = (selectedSpot: SurfSpot) => {
@@ -241,7 +273,7 @@ const LogSessionScreen: React.FC<any> = (props) => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading spot information...</Text>
       </View>
     );
@@ -258,7 +290,7 @@ const LogSessionScreen: React.FC<any> = (props) => {
             style={styles.backButton}
             onPress={handleBack}
           >
-            <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
+            <Ionicons name="arrow-back" size={24} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Log Session</Text>
         </View>
@@ -277,7 +309,7 @@ const LogSessionScreen: React.FC<any> = (props) => {
                   </Text>
                 )}
               </View>
-              <Ionicons name="chevron-down" size={24} color={COLORS.primary} />
+              <Ionicons name="chevron-down" size={24} color={colors.primary} />
             </TouchableOpacity>
           </View>
 
@@ -292,7 +324,7 @@ const LogSessionScreen: React.FC<any> = (props) => {
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>Select Surf Spot</Text>
                   <TouchableOpacity onPress={() => setShowSpotPicker(false)}>
-                    <Ionicons name="close" size={24} color={COLORS.text.primary} />
+                    <Ionicons name="close" size={24} color={colors.text.primary} />
                   </TouchableOpacity>
                 </View>
                 
@@ -422,7 +454,7 @@ const LogSessionScreen: React.FC<any> = (props) => {
                   style={[
                     styles.qualityButton,
                     quality === q && styles.qualityButtonSelected,
-                    { backgroundColor: getQualityColor(q as NonNullable<SurfSession['conditions']>['quality']) }
+                    { backgroundColor: getQualityColor(q as NonNullable<SurfSession['conditions']>['quality'], colors) }
                   ]}
                   onPress={() => handleQualitySelect(q as NonNullable<SurfSession['conditions']>['quality'])}
                 >
@@ -493,21 +525,21 @@ const LogSessionScreen: React.FC<any> = (props) => {
               <Switch
                 value={includeInPublicActivity}
                 onValueChange={setIncludeInPublicActivity}
-                trackColor={{ false: COLORS.lightGray, true: COLORS.primary }}
-                thumbColor={COLORS.white}
+                trackColor={{ false: colors.lightGray, true: colors.primary }}
+                thumbColor={colors.white}
               />
             </View>
           </View>
 
           <View style={styles.buttonContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.cancelButton}
               onPress={navigation.goBack}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={styles.saveButton}
               onPress={handleSaveSession}
             >
@@ -515,34 +547,83 @@ const LogSessionScreen: React.FC<any> = (props) => {
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        {/* Forecast Accuracy Feedback Modal */}
+        <Modal
+          visible={showFeedbackModal}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={() => handleFeedback(null)}
+        >
+          <View style={styles.feedbackOverlay}>
+            <View style={styles.feedbackCard}>
+              <Text style={styles.feedbackTitle}>How accurate was today's forecast?</Text>
+              <Text style={styles.feedbackSubtitle}>Help us improve predictions for this spot.</Text>
+
+              <View style={styles.feedbackButtonRow}>
+                <TouchableOpacity
+                  style={styles.feedbackButton}
+                  onPress={() => handleFeedback('off')}
+                >
+                  <Text style={styles.feedbackEmoji}>😕</Text>
+                  <Text style={styles.feedbackButtonLabel}>Way Off</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.feedbackButton}
+                  onPress={() => handleFeedback('close')}
+                >
+                  <Text style={styles.feedbackEmoji}>🤙</Text>
+                  <Text style={styles.feedbackButtonLabel}>Close</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.feedbackButton}
+                  onPress={() => handleFeedback('spot-on')}
+                >
+                  <Text style={styles.feedbackEmoji}>🎯</Text>
+                  <Text style={styles.feedbackButtonLabel}>Spot On</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={styles.feedbackSkip}
+                onPress={() => handleFeedback(null)}
+              >
+                <Text style={styles.feedbackSkipText}>Skip</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
       </View>
     </KeyboardAvoidingView>
   );
 };
 
 // Helper function to get color based on quality
-const getQualityColor = (quality: NonNullable<SurfSession['conditions']>['quality']): string => {
+const getQualityColor = (quality: NonNullable<SurfSession['conditions']>['quality'], colors: ReturnType<typeof useTheme>['colors']): string => {
   switch (quality) {
-    case 'poor': return COLORS.surfConditions.poor;
-    case 'fair': return COLORS.surfConditions.fair;
-    case 'good': return COLORS.surfConditions.good;
-    case 'excellent': return COLORS.surfConditions.excellent;
-    default: return COLORS.gray;
+    case 'poor': return colors.surfConditions.poor;
+    case 'fair': return colors.surfConditions.fair;
+    case 'good': return colors.surfConditions.good;
+    case 'excellent': return colors.surfConditions.excellent;
+    default: return colors.gray;
   }
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: colors.lightGray,
   },
   backButton: {
     marginRight: 16,
@@ -550,7 +631,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   content: {
     flex: 1,
@@ -559,29 +640,29 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   section: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: colors.lightGray,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 12,
   },
   spotCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 8,
     padding: 12,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -590,11 +671,11 @@ const styles = StyleSheet.create({
   spotName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   spotLocation: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginTop: 4,
   },
   dateTimeContainer: {
@@ -607,19 +688,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
   },
   dateTimeLabel: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   dateTimeValue: {
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   boardTypeContainer: {
     flexDirection: 'row',
@@ -627,34 +708,34 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   boardTypeButton: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
     marginRight: 8,
     marginBottom: 8,
   },
   boardTypeButtonSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   boardTypeText: {
     fontSize: 14,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   boardTypeTextSelected: {
-    color: COLORS.white,
+    color: colors.white,
   },
   input: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   shortInput: {
     width: 100,
@@ -672,7 +753,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   qualityContainer: {
     flexDirection: 'row',
@@ -689,12 +770,12 @@ const styles = StyleSheet.create({
   },
   qualityButtonSelected: {
     borderWidth: 2,
-    borderColor: COLORS.black,
+    borderColor: colors.black,
   },
   qualityText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: COLORS.white,
+    color: colors.white,
   },
   qualityTextSelected: {
     // No specific styles needed, the border makes it clear
@@ -706,7 +787,7 @@ const styles = StyleSheet.create({
   },
   privacyText: {
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -716,28 +797,28 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     marginHorizontal: 6,
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: colors.lightGray,
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelButtonText: {
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     fontSize: 16,
     fontWeight: 'bold',
   },
   saveButton: {
     flex: 1,
     marginHorizontal: 6,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   saveButtonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -747,7 +828,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContent: {
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -762,45 +843,105 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   searchInput: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
   },
   spotList: {
     maxHeight: 400,
   },
   spotItem: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 8,
     padding: 16,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
   },
   spotItemName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   spotItemLocation: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginTop: 4,
   },
   spotSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
+  },
+  feedbackOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  feedbackCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    alignItems: 'center',
+  },
+  feedbackTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text.primary,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  feedbackSubtitle: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  feedbackButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 20,
+  },
+  feedbackButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: colors.lightGray,
+  },
+  feedbackEmoji: {
+    fontSize: 28,
+    marginBottom: 6,
+  },
+  feedbackButtonLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  feedbackSkip: {
+    paddingVertical: 8,
+  },
+  feedbackSkipText: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    textDecorationLine: 'underline',
   },
 });
 

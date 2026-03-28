@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackScreenProps } from '../navigation/types';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { useAuthStore } from '../services/auth';
 import { Ionicons } from '@expo/vector-icons';
 
 const AuthScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const navigation = useNavigation<RootStackScreenProps<'AuthScreen'>['navigation']>();
   const { login, register, isLoading, clearError, signInWithApple, signInWithGoogle, loginAttempts, error: authError } = useAuthStore();
   
@@ -132,7 +134,7 @@ const AuthScreen: React.FC = () => {
               disabled={isLoading || isRateLimited}
             >
               {isLoading ? (
-                <ActivityIndicator color={COLORS.white} />
+                <ActivityIndicator color={colors.white} />
               ) : (
                 <Text style={styles.buttonText}>
                   {isLogin ? 'Sign In' : 'Sign Up'}
@@ -160,7 +162,7 @@ const AuthScreen: React.FC = () => {
                 style={[styles.socialButton, styles.googleButton]}
                 onPress={() => handleSocialLogin('Google')}
               >
-                <Ionicons name="logo-google" size={24} color={COLORS.white} />
+                <Ionicons name="logo-google" size={24} color={colors.white} />
                 <Text style={styles.socialButtonText}>Google</Text>
               </TouchableOpacity>
 
@@ -168,7 +170,7 @@ const AuthScreen: React.FC = () => {
                 style={[styles.socialButton, styles.appleButton]}
                 onPress={() => handleSocialLogin('Apple')}
               >
-                <Ionicons name="logo-apple" size={24} color={COLORS.white} />
+                <Ionicons name="logo-apple" size={24} color={colors.white} />
                 <Text style={styles.socialButtonText}>Apple</Text>
               </TouchableOpacity>
             </View>
@@ -188,10 +190,10 @@ const AuthScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -205,12 +207,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: colors.primary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 18,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginBottom: 48,
   },
   form: {
@@ -218,45 +220,45 @@ const styles = StyleSheet.create({
     maxWidth: 300,
   },
   input: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     padding: 16,
     borderRadius: 8,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
   },
   button: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 8,
     alignItems: 'center',
     marginBottom: 16,
   },
   buttonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 16,
     fontWeight: 'bold',
   },
   errorText: {
-    color: COLORS.error,
+    color: colors.error,
     marginBottom: 16,
     textAlign: 'center',
   },
   warningText: {
-    color: COLORS.warning,
+    color: colors.warning,
     marginBottom: 12,
     textAlign: 'center',
     fontSize: 13,
   },
   buttonDisabled: {
-    backgroundColor: COLORS.gray,
+    backgroundColor: colors.gray,
   },
   forgotPassword: {
     alignItems: 'center',
     marginBottom: 24,
   },
   forgotPasswordText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontSize: 14,
   },
   divider: {
@@ -267,11 +269,11 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: colors.lightGray,
   },
   dividerText: {
     marginHorizontal: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   socialButtons: {
     flexDirection: 'row',
@@ -294,7 +296,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   socialButtonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
@@ -303,7 +305,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   switchModeText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontSize: 14,
   },
 });

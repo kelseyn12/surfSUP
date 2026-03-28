@@ -12,13 +12,15 @@ import {
   BackHandler
 } from 'react-native';
 import { HeaderBar } from '../components';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { useAuthStore } from '../services/auth';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { RootStackScreenProps } from '../navigation/types';
 import type { User } from '../types';
 
 const EditProfileScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const navigation = useNavigation<RootStackScreenProps<'EditProfile'>['navigation']>();
   const { user, updateUserProfile } = useAuthStore();
   
@@ -138,7 +140,7 @@ const EditProfileScreen: React.FC = () => {
             value={name}
             onChangeText={setName}
             placeholder="Enter your name"
-            placeholderTextColor={COLORS.text.secondary}
+            placeholderTextColor={colors.text.secondary}
           />
         </View>
 
@@ -149,7 +151,7 @@ const EditProfileScreen: React.FC = () => {
             value={username}
             onChangeText={setUsername}
             placeholder="Enter username (optional)"
-            placeholderTextColor={COLORS.text.secondary}
+            placeholderTextColor={colors.text.secondary}
           />
         </View>
 
@@ -160,7 +162,7 @@ const EditProfileScreen: React.FC = () => {
             value={profileImageUrl}
             onChangeText={setProfileImageUrl}
             placeholder="Enter image URL (optional)"
-            placeholderTextColor={COLORS.text.secondary}
+            placeholderTextColor={colors.text.secondary}
           />
         </View>
       </View>
@@ -221,7 +223,7 @@ const EditProfileScreen: React.FC = () => {
             value={homeSpot}
             onChangeText={setHomeSpot}
             placeholder="Enter your home surf spot (optional)"
-            placeholderTextColor={COLORS.text.secondary}
+            placeholderTextColor={colors.text.secondary}
           />
         </View>
       </View>
@@ -245,10 +247,10 @@ const EditProfileScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   section: {
     padding: 16,
@@ -258,7 +260,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   profileImageSection: {
     alignItems: 'center',
@@ -271,13 +273,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   changeImageButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 6,
   },
   changeImageText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -287,18 +289,18 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 8,
   },
   textInput: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   optionsContainer: {
     flexDirection: 'row',
@@ -306,9 +308,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   optionButton: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
     borderRadius: 6,
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -316,15 +318,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   optionButtonSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   optionButtonText: {
     fontSize: 14,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   optionButtonTextSelected: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '600',
   },
   infoRow: {
@@ -333,33 +335,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: colors.lightGray,
   },
   infoLabel: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   infoValue: {
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     fontWeight: '500',
   },
   saveButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
   },
   saveButtonDisabled: {
-    backgroundColor: COLORS.gray,
+    backgroundColor: colors.gray,
   },
   saveButtonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 16,
     fontWeight: '600',
   },
   saveButtonTextDisabled: {
-    color: COLORS.lightGray,
+    color: colors.lightGray,
   },
 });
 

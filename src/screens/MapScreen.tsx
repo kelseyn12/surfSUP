@@ -4,7 +4,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { MainTabScreenProps } from '../navigation/types';
 import { useLocation } from '../hooks/useLocation';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { SurfSpot } from '../types';
 import { fetchNearbySurfSpots, getSurferCount } from '../services/api';
 import { eventEmitter, AppEvents } from '../services/events';
@@ -49,6 +49,8 @@ try {
 type Region = { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number };
 
 const MapScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const navigation = useNavigation<MainTabScreenProps<'Map'>['navigation']>();
   const mapRef = useRef<any>(null);
   
@@ -191,10 +193,10 @@ const MapScreen: React.FC = () => {
 
   // Function to get color based on surfer count
   const getSurferCountColor = (count: number): string => {
-    if (count === 0) return COLORS.gray;
-    if (count < 3) return COLORS.success;
-    if (count < 8) return COLORS.warning;
-    return COLORS.error;
+    if (count === 0) return colors.gray;
+    if (count < 3) return colors.success;
+    if (count < 8) return colors.warning;
+    return colors.error;
   };
 
   // Function to get label for surfer activity level
@@ -215,7 +217,7 @@ const MapScreen: React.FC = () => {
     return (
       <View style={styles.container}>
         <View style={styles.fallbackContainer}>
-          <Ionicons name="map-outline" size={64} color={COLORS.gray} />
+          <Ionicons name="map-outline" size={64} color={colors.gray} />
           <Text style={styles.fallbackTitle}>Map requires rebuild</Text>
           <Text style={styles.fallbackText}>
             The map view needs the native maps module (development build only).{'\n\n'}
@@ -233,7 +235,7 @@ const MapScreen: React.FC = () => {
               <Text style={styles.fallbackSpotName}>{spot.name}</Text>
               <View style={[styles.surferCountBadge, { backgroundColor: getSurferCountColor(spot.currentSurferCount || 0) }]}>
                 <Text style={styles.surferCountText}>{spot.currentSurferCount || 0}</Text>
-                <Ionicons name="people" size={12} color={COLORS.white} />
+                <Ionicons name="people" size={12} color={colors.white} />
               </View>
             </TouchableOpacity>
           ))}
@@ -287,7 +289,7 @@ const MapScreen: React.FC = () => {
                       activeOpacity={0.8}
                     >
                       <Text style={styles.calloutButtonText}>Go to details</Text>
-                      <Ionicons name="chevron-forward" size={16} color={COLORS.white} />
+                      <Ionicons name="chevron-forward" size={16} color={colors.white} />
                     </TouchableOpacity>
                   </View>
                 </Callout>
@@ -307,7 +309,7 @@ const MapScreen: React.FC = () => {
           <Ionicons 
             name="locate" 
             size={24} 
-            color={isLoading ? COLORS.gray : COLORS.primary} 
+            color={isLoading ? colors.gray : colors.primary}
           />
         </TouchableOpacity>
 
@@ -316,10 +318,10 @@ const MapScreen: React.FC = () => {
           onPress={centerOnLakeSuperior}
           disabled={isLoading}
         >
-          <Ionicons 
-            name="map" 
-            size={24} 
-            color={COLORS.primary} 
+          <Ionicons
+            name="map"
+            size={24}
+            color={colors.primary}
           />
         </TouchableOpacity>
 
@@ -329,12 +331,12 @@ const MapScreen: React.FC = () => {
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color={COLORS.primary} />
+            <ActivityIndicator size="small" color={colors.primary} />
           ) : (
-            <Ionicons 
-              name="refresh" 
-              size={24} 
-              color={COLORS.primary} 
+            <Ionicons
+              name="refresh"
+              size={24}
+              color={colors.primary}
             />
           )}
         </TouchableOpacity>
@@ -352,10 +354,10 @@ const MapScreen: React.FC = () => {
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color={COLORS.white} />
+            <ActivityIndicator size="small" color={colors.white} />
           ) : (
             <>
-              <Ionicons name="locate-outline" size={20} color={COLORS.white} />
+              <Ionicons name="locate-outline" size={20} color={colors.white} />
               <Text style={styles.controlButtonText}>My Location</Text>
             </>
           )}
@@ -367,10 +369,10 @@ const MapScreen: React.FC = () => {
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color={COLORS.white} />
+            <ActivityIndicator size="small" color={colors.white} />
           ) : (
             <>
-              <Ionicons name="refresh-outline" size={20} color={COLORS.white} />
+              <Ionicons name="refresh-outline" size={20} color={colors.white} />
               <Text style={styles.controlButtonText}>Refresh</Text>
             </>
           )}
@@ -380,10 +382,10 @@ const MapScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   map: {
     flex: 1,
@@ -398,12 +400,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: COLORS.white,
-    shadowColor: COLORS.black,
+    borderColor: colors.white,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -416,20 +418,20 @@ const styles = StyleSheet.create({
     minWidth: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: COLORS.error,
+    backgroundColor: colors.error,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
     borderWidth: 2,
-    borderColor: COLORS.white,
-    shadowColor: COLORS.black,
+    borderColor: colors.white,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
     elevation: 4,
   },
   markerBadgeText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
     fontSize: 12,
   },
@@ -437,10 +439,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 15,
     top: 15,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 8,
     padding: 8,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -450,12 +452,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 8,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: 4,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
   },
   zoomHint: {
     position: 'absolute',
@@ -468,7 +470,7 @@ const styles = StyleSheet.create({
   },
   zoomHintText: {
     fontSize: 12,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   calloutContainer: {
     minWidth: 180,
@@ -479,19 +481,19 @@ const styles = StyleSheet.create({
   calloutTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 4,
   },
   calloutSubtitle: {
     fontSize: 13,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginBottom: 10,
   },
   calloutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 8,
@@ -500,7 +502,7 @@ const styles = StyleSheet.create({
   calloutButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.white,
+    color: colors.white,
   },
   bottomControls: {
     position: 'absolute',
@@ -510,12 +512,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   controlButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
     elevation: 3,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -525,10 +527,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   refreshButton: {
-    backgroundColor: COLORS.secondary,
+    backgroundColor: colors.secondary,
   },
   controlButtonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
     fontSize: 16,
   },
@@ -537,18 +539,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   fallbackTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginTop: 16,
     textAlign: 'center',
   },
   fallbackText: {
     fontSize: 13,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     textAlign: 'center',
     marginTop: 12,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
@@ -556,7 +558,7 @@ const styles = StyleSheet.create({
   fallbackSubtext: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginTop: 24,
     marginBottom: 8,
     alignSelf: 'flex-start',
@@ -568,10 +570,10 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 8,
     marginBottom: 8,
-    shadowColor: COLORS.black,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -580,7 +582,7 @@ const styles = StyleSheet.create({
   fallbackSpotName: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   surferCountBadge: {
     flexDirection: 'row',
@@ -591,7 +593,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   surferCountText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
     fontSize: 12,
   },

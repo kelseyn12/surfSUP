@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { SurfSpot } from '../types';
 import { SurfSpotCard } from '../components';
 import { fetchNearbySurfSpots } from '../services/api';
@@ -26,6 +26,8 @@ interface FilterState {
 }
 
 const SearchScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -167,7 +169,7 @@ const SearchScreen: React.FC = () => {
     label: string,
     value: string,
     filterType: keyof FilterState,
-    color: string = COLORS.primary
+    color: string = colors.primary
   ) => {
     const isSelected = filters[filterType].includes(value);
     return (
@@ -176,8 +178,8 @@ const SearchScreen: React.FC = () => {
         style={[
           styles.filterChip,
           {
-            backgroundColor: isSelected ? color : COLORS.lightGray,
-            borderColor: isSelected ? color : COLORS.lightGray,
+            backgroundColor: isSelected ? color : colors.lightGray,
+            borderColor: isSelected ? color : colors.lightGray,
           },
         ]}
         onPress={() => toggleFilter(filterType, value)}
@@ -185,7 +187,7 @@ const SearchScreen: React.FC = () => {
         <Text
           style={[
             styles.filterChipText,
-            { color: isSelected ? COLORS.white : COLORS.text.primary },
+            { color: isSelected ? colors.white : colors.text.primary },
           ]}
         >
           {label}
@@ -224,7 +226,7 @@ const SearchScreen: React.FC = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="search-outline" size={64} color={COLORS.gray} />
+      <Ionicons name="search-outline" size={64} color={colors.gray} />
       <Text style={styles.emptyText}>
         {searchQuery.trim() || Object.values(filters).some(f => f.length > 0)
           ? 'No spots match your search criteria'
@@ -244,7 +246,7 @@ const SearchScreen: React.FC = () => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Search Spots</Text>
         <TouchableOpacity
@@ -254,7 +256,7 @@ const SearchScreen: React.FC = () => {
           <Ionicons
             name={showFilters ? 'close' : 'filter'}
             size={24}
-            color={COLORS.text.primary}
+            color={colors.text.primary}
           />
         </TouchableOpacity>
       </View>
@@ -262,20 +264,20 @@ const SearchScreen: React.FC = () => {
       {/* Search Input */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color={COLORS.gray || '#666'} />
+          <Ionicons name="search" size={20} color={colors.gray || '#666'} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search spots by name, location, or description..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor={COLORS.gray || '#666'}
+            placeholderTextColor={colors.gray || '#666'}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity
               onPress={() => setSearchQuery('')}
               style={styles.clearButton}
             >
-              <Ionicons name="close-circle" size={20} color={COLORS.gray || '#666'} />
+              <Ionicons name="close-circle" size={20} color={colors.gray || '#666'} />
             </TouchableOpacity>
           )}
         </View>
@@ -294,10 +296,10 @@ const SearchScreen: React.FC = () => {
           {renderFilterSection(
             'Difficulty',
             [
-              { value: 'beginner', label: 'Beginner', color: COLORS.success },
-              { value: 'intermediate', label: 'Intermediate', color: COLORS.warning },
-              { value: 'advanced', label: 'Advanced', color: COLORS.error },
-              { value: 'expert', label: 'Expert', color: COLORS.error },
+              { value: 'beginner', label: 'Beginner', color: colors.success },
+              { value: 'intermediate', label: 'Intermediate', color: colors.warning },
+              { value: 'advanced', label: 'Advanced', color: colors.error },
+              { value: 'expert', label: 'Expert', color: colors.error },
             ],
             'difficulty'
           )}
@@ -335,7 +337,7 @@ const SearchScreen: React.FC = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[COLORS.primary]}
+            colors={[colors.primary]}
           />
         }
         ListEmptyComponent={renderEmptyState}
@@ -353,10 +355,10 @@ const SearchScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -365,7 +367,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: colors.lightGray,
   },
   backButton: {
     padding: 8,
@@ -373,7 +375,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   filterButton: {
     padding: 8,
@@ -385,26 +387,26 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
   },
   searchInput: {
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 8,
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   clearButton: {
     padding: 4,
   },
   filtersContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: colors.lightGray,
   },
   filtersHeader: {
     flexDirection: 'row',
@@ -416,11 +418,11 @@ const styles = StyleSheet.create({
   filtersTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   clearFiltersText: {
     fontSize: 14,
-    color: COLORS.primary,
+    color: colors.primary,
   },
   filterSection: {
     paddingHorizontal: 16,
@@ -429,7 +431,7 @@ const styles = StyleSheet.create({
   filterSectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginBottom: 8,
   },
   filterChips: {
@@ -456,7 +458,7 @@ const styles = StyleSheet.create({
   },
   resultsCount: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   emptyContainer: {
     flex: 1,
@@ -467,13 +469,13 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     textAlign: 'center',
     marginTop: 16,
   },
   emptySubText: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     textAlign: 'center',
     marginTop: 8,
   },

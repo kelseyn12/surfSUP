@@ -25,7 +25,16 @@ function validateSpots(rawSpots: any[]): SurfSpot[] {
   return validSpots;
 }
 
-const spotsData: SurfSpot[] = validateSpots(spotsDataRaw);
+let spotsData: SurfSpot[] = validateSpots(spotsDataRaw);
+
+/**
+ * Replace the in-memory spots list (called by spotService after loading from
+ * Firestore / AsyncStorage cache). Falls back to spots.json data if spots is empty.
+ */
+export const initializeSpots = (spots: SurfSpot[]): void => {
+  if (spots.length === 0) return; // keep JSON fallback
+  spotsData = validateSpots(spots);
+};
 
 /**
  * Get a surf spot by its ID

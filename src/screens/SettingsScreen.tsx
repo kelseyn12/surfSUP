@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { HeaderBar } from '../components';
-import { COLORS } from '../constants/colors';
 import { useAuthStore } from '../services/auth';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { RootStackScreenProps } from '../navigation/types';
@@ -22,7 +21,8 @@ import { useTheme } from '../contexts/ThemeContext';
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<RootStackScreenProps<'Settings'>['navigation']>();
   const { logout } = useAuthStore();
-  const { isDark, toggleDark } = useTheme();
+  const { isDark, toggleDark, colors } = useTheme();
+  const styles = makeStyles(colors);
 
   // Settings state — persisted to AsyncStorage
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
@@ -120,8 +120,8 @@ const SettingsScreen: React.FC = () => {
           <Switch
             value={notificationsEnabled}
             onValueChange={handleNotificationsToggle}
-            trackColor={{ false: COLORS.lightGray, true: COLORS.primary }}
-            thumbColor={COLORS.white}
+            trackColor={{ false: colors.lightGray, true: colors.primary }}
+            thumbColor={colors.white}
           />
         </View>
       </View>
@@ -137,8 +137,8 @@ const SettingsScreen: React.FC = () => {
           <Switch
             value={locationEnabled}
             onValueChange={handleLocationToggle}
-            trackColor={{ false: COLORS.lightGray, true: COLORS.primary }}
-            thumbColor={COLORS.white}
+            trackColor={{ false: colors.lightGray, true: colors.primary }}
+            thumbColor={colors.white}
           />
         </View>
       </View>
@@ -154,8 +154,8 @@ const SettingsScreen: React.FC = () => {
           <Switch
             value={isDark}
             onValueChange={toggleDark}
-            trackColor={{ false: COLORS.lightGray, true: COLORS.primary }}
-            thumbColor={COLORS.white}
+            trackColor={{ false: colors.lightGray, true: colors.primary }}
+            thumbColor={colors.white}
           />
         </View>
       </View>
@@ -171,7 +171,7 @@ const SettingsScreen: React.FC = () => {
             <Ionicons 
               name="people" 
               size={24} 
-              color={privacyMode === 'friends' ? COLORS.primary : COLORS.gray} 
+              color={privacyMode === 'friends' ? colors.primary : colors.gray}
             />
             <View style={styles.privacyOptionTexts}>
               <Text style={styles.privacyOptionTitle}>Friends Only</Text>
@@ -179,19 +179,19 @@ const SettingsScreen: React.FC = () => {
             </View>
           </View>
           {privacyMode === 'friends' && (
-            <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+            <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.privacyOption}
           onPress={() => togglePrivacyMode('public')}
         >
           <View style={styles.privacyOptionContent}>
-            <Ionicons 
-              name="globe" 
-              size={24} 
-              color={privacyMode === 'public' ? COLORS.primary : COLORS.gray} 
+            <Ionicons
+              name="globe"
+              size={24}
+              color={privacyMode === 'public' ? colors.primary : colors.gray}
             />
             <View style={styles.privacyOptionTexts}>
               <Text style={styles.privacyOptionTitle}>Public</Text>
@@ -199,19 +199,19 @@ const SettingsScreen: React.FC = () => {
             </View>
           </View>
           {privacyMode === 'public' && (
-            <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+            <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.privacyOption}
           onPress={() => togglePrivacyMode('private')}
         >
           <View style={styles.privacyOptionContent}>
-            <Ionicons 
-              name="lock-closed" 
-              size={24} 
-              color={privacyMode === 'private' ? COLORS.primary : COLORS.gray} 
+            <Ionicons
+              name="lock-closed"
+              size={24}
+              color={privacyMode === 'private' ? colors.primary : colors.gray}
             />
             <View style={styles.privacyOptionTexts}>
               <Text style={styles.privacyOptionTitle}>Private</Text>
@@ -219,7 +219,7 @@ const SettingsScreen: React.FC = () => {
             </View>
           </View>
           {privacyMode === 'private' && (
-            <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+            <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
           )}
         </TouchableOpacity>
       </View>
@@ -255,20 +255,20 @@ const SettingsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   section: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: colors.lightGray,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 16,
   },
   settingRow: {
@@ -283,12 +283,12 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 4,
   },
   settingDescription: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   privacyOption: {
     flexDirection: 'row',
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: colors.lightGray,
   },
   privacyOptionContent: {
     flexDirection: 'row',
@@ -308,32 +308,32 @@ const styles = StyleSheet.create({
   },
   privacyOptionTitle: {
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 4,
   },
   privacyOptionDescription: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   button: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
     marginVertical: 8,
   },
   buttonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 16,
     fontWeight: 'bold',
   },
   dangerButton: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: COLORS.error,
+    borderColor: colors.error,
   },
   dangerButtonText: {
-    color: COLORS.error,
+    color: colors.error,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -343,12 +343,12 @@ const styles = StyleSheet.create({
   },
   version: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginBottom: 8,
   },
   link: {
     fontSize: 14,
-    color: COLORS.primary,
+    color: colors.primary,
     marginVertical: 4,
   },
 });

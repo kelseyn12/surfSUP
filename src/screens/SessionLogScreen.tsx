@@ -9,7 +9,7 @@ import {
   Alert 
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { MESSAGES } from '../constants';
 import { SurfConditions, SurfSession } from '../types';
 import type { RootStackParamList } from '../navigation/types';
@@ -17,14 +17,18 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 // In a real app, you would use a proper date/time picker
-const TimeInput = ({ 
-  label, 
-  value, 
-  onChangeText 
-}: { 
-  label: string; 
-  value: string; 
-  onChangeText: (text: string) => void; 
+const TimeInput = ({
+  label,
+  value,
+  onChangeText,
+  styles,
+  colors,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  styles: ReturnType<typeof makeStyles>;
+  colors: ReturnType<typeof useTheme>['colors'];
 }) => (
   <View style={styles.inputRow}>
     <Text style={styles.inputLabel}>{label}</Text>
@@ -33,21 +37,25 @@ const TimeInput = ({
       value={value}
       onChangeText={onChangeText}
       placeholder="00:00"
-      placeholderTextColor={COLORS.gray}
+      placeholderTextColor={colors.gray}
       keyboardType="numbers-and-punctuation"
     />
   </View>
 );
 
-const BoardTypeSelector = ({ 
-  selected, 
-  onSelect 
-}: { 
-  selected: NonNullable<SurfSession['board']>['type']; 
-  onSelect: (boardType: NonNullable<SurfSession['board']>['type']) => void; 
+const BoardTypeSelector = ({
+  selected,
+  onSelect,
+  styles,
+  colors,
+}: {
+  selected: NonNullable<SurfSession['board']>['type'];
+  onSelect: (boardType: NonNullable<SurfSession['board']>['type']) => void;
+  styles: ReturnType<typeof makeStyles>;
+  colors: ReturnType<typeof useTheme>['colors'];
 }) => {
   const boardTypes: NonNullable<SurfSession['board']>['type'][] = ['shortboard', 'longboard', 'fish', 'funboard', 'sup', 'other'];
-  
+
   return (
     <View style={styles.boardTypesContainer}>
       {boardTypes.map((type) => (
@@ -55,14 +63,14 @@ const BoardTypeSelector = ({
           key={type}
           style={[
             styles.boardTypeButton,
-            selected === type ? { backgroundColor: COLORS.primary } : {}
+            selected === type ? { backgroundColor: colors.primary } : {}
           ]}
           onPress={() => onSelect(type)}
         >
           <Text
             style={[
               styles.boardTypeText,
-              selected === type ? { color: COLORS.white } : {}
+              selected === type ? { color: colors.white } : {}
             ]}
           >
             {type}
@@ -74,6 +82,8 @@ const BoardTypeSelector = ({
 };
 
 const SessionLogScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const route = useRoute<RouteProp<RootStackParamList, 'SessionLog'>>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   
@@ -192,12 +202,16 @@ const SessionLogScreen: React.FC = () => {
           label="Start Time"
           value={startTime}
           onChangeText={setStartTime}
+          styles={styles}
+          colors={colors}
         />
         
         <TimeInput
           label="End Time"
           value={endTime}
           onChangeText={setEndTime}
+          styles={styles}
+          colors={colors}
         />
 
         <View style={styles.inputRow}>
@@ -213,14 +227,14 @@ const SessionLogScreen: React.FC = () => {
                 key={value}
                 style={[
                   styles.ratingButton,
-                  rating >= value ? { backgroundColor: COLORS.primary } : {}
+                  rating >= value ? { backgroundColor: colors.primary } : {}
                 ]}
                 onPress={() => setRating(value)}
               >
                 <Text
                   style={[
                     styles.ratingText,
-                    rating >= value ? { color: COLORS.white } : {}
+                    rating >= value ? { color: colors.white } : {}
                   ]}
                 >
                   {value}
@@ -236,6 +250,8 @@ const SessionLogScreen: React.FC = () => {
         <BoardTypeSelector
           selected={boardType}
           onSelect={setBoardType}
+          styles={styles}
+          colors={colors}
         />
       </View>
 
@@ -283,7 +299,7 @@ const SessionLogScreen: React.FC = () => {
                 key={direction}
                 style={[
                   styles.selectOption,
-                  conditions.wind.direction === direction ? { backgroundColor: COLORS.primary } : {}
+                  conditions.wind.direction === direction ? { backgroundColor: colors.primary } : {}
                 ]}
                 onPress={() => setConditions({
                   ...conditions,
@@ -296,7 +312,7 @@ const SessionLogScreen: React.FC = () => {
                 <Text
                   style={[
                     styles.selectOptionText,
-                    conditions.wind.direction === direction ? { color: COLORS.white } : {}
+                    conditions.wind.direction === direction ? { color: colors.white } : {}
                   ]}
                 >
                   {direction}
@@ -348,7 +364,7 @@ const SessionLogScreen: React.FC = () => {
                 key={direction}
                 style={[
                   styles.selectOption,
-                  conditions.swell[0].direction === direction ? { backgroundColor: COLORS.primary } : {}
+                  conditions.swell[0].direction === direction ? { backgroundColor: colors.primary } : {}
                 ]}
                 onPress={() => setConditions({
                   ...conditions,
@@ -363,7 +379,7 @@ const SessionLogScreen: React.FC = () => {
                 <Text
                   style={[
                     styles.selectOptionText,
-                    conditions.swell[0].direction === direction ? { color: COLORS.white } : {}
+                    conditions.swell[0].direction === direction ? { color: colors.white } : {}
                   ]}
                 >
                   {direction}
@@ -383,7 +399,7 @@ const SessionLogScreen: React.FC = () => {
           value={notes}
           onChangeText={setNotes}
           placeholder="Add any notes about your session..."
-          placeholderTextColor={COLORS.gray}
+          placeholderTextColor={colors.gray}
           multiline
           numberOfLines={4}
         />
@@ -401,36 +417,36 @@ const SessionLogScreen: React.FC = () => {
 
 
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   header: {
     padding: 20,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: colors.lightGray,
   },
   spotName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   dateTime: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     marginTop: 4,
   },
   section: {
     padding: 20,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     marginTop: 10,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     marginBottom: 15,
   },
   inputRow: {
@@ -441,22 +457,22 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     flex: 1,
   },
   timeInput: {
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
     borderRadius: 8,
     padding: 10,
     width: 100,
     textAlign: 'center',
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   durationText: {
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     fontWeight: '500',
   },
   ratingContainer: {
@@ -468,13 +484,13 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
     alignItems: 'center',
     justifyContent: 'center',
   },
   ratingText: {
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   boardTypesContainer: {
     flexDirection: 'row',
@@ -486,21 +502,21 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
   },
   boardTypeText: {
     fontSize: 14,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   conditionInput: {
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
     borderRadius: 8,
     padding: 10,
     width: 80,
     textAlign: 'center',
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   selectContainer: {
     flexDirection: 'row',
@@ -513,31 +529,31 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
   },
   selectOptionText: {
     fontSize: 14,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   notesInput: {
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: colors.lightGray,
     borderRadius: 8,
     padding: 10,
     height: 100,
     textAlignVertical: 'top',
     fontSize: 16,
-    color: COLORS.text.primary,
+    color: colors.text.primary,
   },
   submitButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     margin: 20,
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
   },
   submitButtonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 18,
     fontWeight: '600',
   },

@@ -10,10 +10,12 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackScreenProps } from '../navigation/types';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { setOnboardingComplete } from '../services/storage';
 
 const OnBoardingScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const navigation = useNavigation<RootStackScreenProps<'OnBoarding'>['navigation']>();
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -47,7 +49,7 @@ const OnBoardingScreen: React.FC = () => {
   const renderItem = ({ item }: { item: typeof onboardingData[0] }) => (
     <View style={styles.slideContainer}>
       <View style={styles.iconContainer}>
-        <Ionicons name={item.icon as any} size={80} color={COLORS.primary} />
+        <Ionicons name={item.icon as any} size={80} color={colors.primary} />
       </View>
       <Text style={styles.slideTitle}>{item.title}</Text>
       <Text style={styles.slideDescription}>{item.description}</Text>
@@ -108,17 +110,17 @@ const OnBoardingScreen: React.FC = () => {
           <Text style={styles.nextButtonText}>
             {currentIndex === onboardingData.length - 1 ? 'Get Started' : 'Next'}
           </Text>
-          <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
+          <Ionicons name="arrow-forward" size={20} color={colors.white} />
         </TouchableOpacity>
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   slide: {
     flex: 1,
@@ -136,13 +138,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     textAlign: 'center',
     marginBottom: 16,
   },
   description: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -155,12 +157,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: colors.lightGray,
     marginHorizontal: 4,
   },
   activeIndicator: {
     width: 20,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -174,18 +176,18 @@ const styles = StyleSheet.create({
   },
   skipButtonText: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
   },
   nextButton: {
     flexDirection: 'row',
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
     alignItems: 'center',
   },
   nextButtonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 16,
     fontWeight: 'bold',
     marginRight: 8,
@@ -203,13 +205,13 @@ const styles = StyleSheet.create({
   slideTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text.primary,
+    color: colors.text.primary,
     textAlign: 'center',
     marginBottom: 16,
   },
   slideDescription: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
   },
