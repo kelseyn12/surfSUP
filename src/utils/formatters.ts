@@ -115,9 +115,10 @@ export const formatTideHeight = (
  * @returns Formatted temperature string
  */
 export const formatTemperature = (
-  temp: number, 
+  temp: number | null | undefined,
   unit: 'F' | 'C' = 'F'
 ): string => {
+  if (temp == null || temp === 0) return 'N/A';
   return `${Math.round(temp)}°${unit}`;
 };
 

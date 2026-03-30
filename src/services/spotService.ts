@@ -34,7 +34,8 @@ export const initializeSpotService = async (): Promise<void> => {
   try {
     const spots = await loadSpots();
     initializeSpots(spots);
-    if (__DEV__) console.log(`[SpotService] Loaded ${spots.length} spots`);
+    const total = getAllSpots().length;
+    if (__DEV__) console.log(`[SpotService] Ready — ${spots.length > 0 ? spots.length + ' spots from Firestore/cache' : total + ' spots from bundled JSON'}`);
   } catch (error) {
     console.error('[SpotService] Failed to initialize, using bundled spots.json:', error);
   }
@@ -72,7 +73,9 @@ const loadSpots = async (): Promise<SurfSpot[]> => {
     console.error('[SpotService] Firestore fetch failed, falling back to JSON:', error);
   }
 
-  // 3. Bundled JSON (already loaded into spotHelpers at module init)
+  // 3. Bundled JSON fallback — spotHelpers already loaded it at module init,
+  //    returning [] here causes initializeSpots to keep the JSON data.
+  if (__DEV__) console.log('[SpotService] Using bundled spots.json fallback');
   return [];
 };
 

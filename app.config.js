@@ -2,6 +2,7 @@ export default {
   expo: {
     name: 'surfSUP',
     slug: 'surfSUP',
+    scheme: 'com.kelseyn12.surfsupnative',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',

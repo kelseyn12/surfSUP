@@ -67,7 +67,7 @@ export const createSurfConditions = (
     wind: aggregated.wind,
     swell: aggregated.swell,
     weather: {
-      temperature: aggregated.waterTemp?.value || 0,
+      temperature: aggregated.waterTemp?.value ?? null,
       condition: 'partly-cloudy',
       unit: 'F'
     },
@@ -82,28 +82,32 @@ export const createSurfConditions = (
 };
 
 /**
- * Find nearby surf spots based on location
+ * Find nearby surf spots based on location, sorted closest-first.
  */
 export const findNearbySpots = (
   latitude: number,
   longitude: number,
-  radius = 50 // radius in km
+  radius = 150 // radius in km
 ): SurfSpot[] => {
   const toRad = (value: number) => (value * Math.PI) / 180;
   const earthRadius = 6371; // km
-  
-  const isWithinRadius = (lat1: number, lon1: number, lat2: number, lon2: number, r: number) => {
+
+  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return earthRadius * c <= r;
+    return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
 
-  return spotsData.filter((spot) =>
-    isWithinRadius(latitude, longitude, spot.location.latitude, spot.location.longitude, radius)
-  );
+  return spotsData
+    .map((spot) => ({
+      spot,
+      distance: getDistance(latitude, longitude, spot.location.latitude, spot.location.longitude),
+    }))
+    .filter(({ distance }) => distance <= radius)
+    .sort((a, b) => a.distance - b.distance)
+    .map(({ spot }) => spot);
 }; 

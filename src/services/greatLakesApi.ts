@@ -1,15 +1,11 @@
 /**
  * Great Lakes API — barrel re-export.
  *
- * All implementation has been split into focused modules:
- *   buoyApi.ts           — NDBC buoy fetching & parsing
- *   windApi.ts           — NOAA wind fetching & parsing
- *   waterLevelApi.ts     — NOAA water level / temp
- *   conditionsAggregator.ts — data blending + fetchAllGreatLakesData
- *   forecastApi.ts       — fetchAllGreatLakesForecastData
- *   greatLakesConstants.ts  — shared constants & utilities
+ *   openMeteoCurrentService.ts — current conditions (Open-Meteo model analysis)
+ *   forecastApi.ts             — multi-day forecast (Open-Meteo + NSH parsing)
+ *   conditionsAggregator.ts    — surf rating/likelihood utilities
+ *   greatLakesConstants.ts     — shared helpers
  */
 
-export { fetchAllGreatLakesData } from './conditionsAggregator';
+export { fetchCurrentConditions as fetchAllGreatLakesData } from './openMeteoCurrentService';
 export { fetchAllGreatLakesForecastData } from './forecastApi';
-export { getNearestWaterLevelStation } from './waterLevelApi';

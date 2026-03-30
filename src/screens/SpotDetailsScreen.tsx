@@ -9,8 +9,9 @@ import {
   ActivityIndicator,
   Modal,
   Image,
+  Platform,
 } from 'react-native';
-import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { SurfConditions, CheckIn } from '../types';
@@ -38,6 +39,7 @@ import {
   uploadSpotPhoto,
   isPhotoUploadAvailable,
 } from '../services/photoService';
+import { fetchForecasterNotes, ForecasterNotes } from '../services/afdService';
 import { isUserCheckedInAt, getGlobalSurferCount, updateGlobalSurferCount } from '../services/globalState';
 import webSocketService, { WebSocketMessageType } from '../services/websocket';
 import { HeaderBar } from '../components';
@@ -82,39 +84,40 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
   const [recentCheckIns, setRecentCheckIns] = useState<CheckIn[]>([]);
   const [spotPhotos, setSpotPhotos] = useState<SpotPhoto[]>([]);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [forecasterNotes, setForecasterNotes] = useState<ForecasterNotes | null>(null);
   const { user } = useAuthStore();
 
   // Function to load spot data
   const loadData = React.useCallback(async () => {
     setIsLoading(true);
+    setForecasterNotes(null);
     try {
-      // Fetch current conditions
-      const conditions = await fetchSurfConditions(spotId);
+      const spotLat = spot?.location?.latitude;
+      const spotLon = spot?.location?.longitude;
+
+      const [conditions, forecastData, checkIns, photos, afdNotes] = await Promise.all([
+        fetchSurfConditions(spotId),
+        fetchSurfForecast(spotId, 14),
+        firestoreGetRecentCheckIns(spotId, 8),
+        firestoreGetSpotPhotos(spotId),
+        spotLat && spotLon ? fetchForecasterNotes(spotLat, spotLon, spot) : Promise.resolve(null),
+      ]);
+
       if (conditions) {
         setCurrentConditions(conditions);
         setSurferCount(conditions.surferCount || 0);
       }
-
-      // Fetch forecast
-      const forecastData = await fetchSurfForecast(spotId, 14);
-      if (forecastData) {
-        setForecast(forecastData);
-      }
-
-      // Fetch recent check-ins for conditions history
-      const checkIns = await firestoreGetRecentCheckIns(spotId, 8);
+      if (forecastData) setForecast(forecastData);
       setRecentCheckIns(checkIns.filter((c) => c.conditions));
-
-      // Fetch community photos
-      const photos = await firestoreGetSpotPhotos(spotId);
       setSpotPhotos(photos);
+      setForecasterNotes(afdNotes);
     } catch (error) {
       console.error('Error loading spot data:', error);
       Alert.alert('Error', 'Failed to load spot information. Please try again later.');
     } finally {
       setIsLoading(false);
     }
-  }, [spotId]);
+  }, [spotId, spot]);
 
   // Function to check if the user is already checked in at this spot
   const checkExistingCheckIn = React.useCallback(async () => {
@@ -379,6 +382,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     // Wave buoy IDs contain 'ndbc-45' (e.g. ndbc-ndbc-45027)
     if (source.includes('ndbc-45')) return { label: 'Live buoy data', isMeasured: true };
     // Weather stations provide wind/temp only — no measured waves
+    if (source.includes('open-meteo')) return { label: 'GFS wave model forecast', isMeasured: false };
     if (source.includes('noaa-marine-forecast') || source.includes('weather-')) {
       return { label: 'Forecast only · buoys seasonal', isMeasured: false };
     }
@@ -402,105 +406,75 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     }
   };
 
-  // Create a formatted forecast from the API data
-  if (__DEV__) console.log(`🔍 Forecast data in UI:`, {
-    forecastLength: forecast?.length || 0,
-    forecastSample: forecast?.[0],
-    hasForecast: forecast && forecast.length > 0
+  // Group forecast items by calendar day.
+  // Open-Meteo gives 3-hour ISO timestamps; NOAA fallback uses named periods.
+  const groupedByDay = new Map<string, SurfConditions[]>();
+  const now = new Date();
+  // Use local date strings to match Open-Meteo timestamps (which are in local timezone).
+  // toISOString() returns UTC — wrong when local time > UTC date boundary (e.g. after 7pm CDT).
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const todayStr    = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  const tomorrow    = new Date(now); tomorrow.setDate(now.getDate() + 1);
+  const tomorrowStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth()+1)}-${pad(tomorrow.getDate())}`;
+
+  (forecast || []).forEach((item) => {
+    // Skip timestamps more than 3 hours in the past — no point showing stale data
+    if (!item.periodName && new Date(item.timestamp) < new Date(now.getTime() - 3 * 3600000)) return;
+    const key = item.periodName?.trim()
+      ? item.periodName.trim()
+      : item.timestamp.slice(0, 10); // "YYYY-MM-DD"
+    if (!groupedByDay.has(key)) groupedByDay.set(key, []);
+    groupedByDay.get(key)!.push(item);
   });
-  
-  // For NOAA marine forecasts, preserve individual periods; for others, group by calendar day
-  const groupedByDay = new Map();
-  
-  (forecast || []).forEach((item, index) => {
-    if (item.periodName && item.periodName.trim()) {
-      // NOAA marine forecast - use period name as key to preserve individual periods
-      const periodKey = item.periodName.trim();
-      if (!groupedByDay.has(periodKey)) {
-        groupedByDay.set(periodKey, []);
-      }
-      groupedByDay.get(periodKey).push({ ...item, originalIndex: index });
+
+  const formattedForecast = Array.from(groupedByDay.entries()).slice(0, 7).map(([key, periods]) => {
+    // Use peak wave height as representative — tells you the best the day can offer.
+    // For NOAA named periods just use the first (already one per period).
+    const rep = periods[0].periodName
+      ? periods[0]
+      : periods.reduce((best, item) =>
+          item.waveHeight.max > best.waveHeight.max ? item : best
+        );
+
+    // Day label
+    let day: string;
+    if (rep.periodName?.trim()) {
+      day = rep.periodName.trim()
+        .toLowerCase()
+        .replace(/\b\w/g, c => c.toUpperCase())
+        .replace('Rest Of Today', 'Today');
     } else {
-      // Other forecast types - group by calendar day
-      const date = new Date(item.timestamp);
-      const dayKey = date.toISOString().split('T')[0];
-      
-      if (!groupedByDay.has(dayKey)) {
-        groupedByDay.set(dayKey, []);
-      }
-      groupedByDay.get(dayKey).push({ ...item, originalIndex: index });
+      if (key === todayStr) day = 'Today';
+      else if (key === tomorrowStr) day = 'Tomorrow';
+      else day = new Date(key + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     }
-  });
-  
-  if (__DEV__) console.log(`🔍 Grouped forecast data:`, Array.from(groupedByDay.entries()).map(([day, periods]) =>
-    `${day}: ${periods.length} periods`
-  ));
-  
-  // Convert grouped data to daily forecasts (take afternoon period as representative)
-  const formattedForecast = Array.from(groupedByDay.entries()).slice(0, 7).map(([dayKey, periods]) => {
-    // Use afternoon period (around index 1-2 of the day) as representative
-    const representativeItem = periods[Math.min(1, periods.length - 1)] || periods[0];
-    const date = new Date(dayKey);
-    
-    // Use NOAA period names if available, otherwise fall back to calendar dates
-    let day;
-    if (representativeItem?.periodName && representativeItem.periodName.trim()) {
-      // Format NOAA period names naturally
-      const periodName = representativeItem.periodName.trim();
-      switch (periodName.toUpperCase()) {
-        case 'REST OF TODAY':
-          day = 'Early Evening';
-          break;
-        case 'TONIGHT':
-          day = 'Tonight';
-          break;
-        case 'FRIDAY':
-          day = 'Friday';
-          break;
-        case 'FRIDAY NIGHT':
-          day = 'Friday Night';
-          break;
-        case 'SATURDAY':
-          day = 'Saturday';
-          break;
-        case 'SATURDAY NIGHT':
-          day = 'Saturday Night';
-          break;
-        default:
-          day = periodName;
-      }
-    } else {
-      // Fallback to calendar dates
-      day = `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-    }
-    
-    // Show aggregated data sources
-    const windSources = representativeItem.wind?.sources || [];
-    const waveSources = representativeItem.waveHeight?.sources || [];
-    const allSources = [...new Set([...windSources, ...waveSources])];
-    const sourceInfo = allSources.length > 0 ? `Data: ${allSources.join(', ')}` : '';
-    
-    const formattedItem = {
+
+    // Peak time label (e.g. "peaks ~9pm") — only for Open-Meteo data
+    const peakHour = rep.periodName ? null : new Date(rep.timestamp).getHours();
+    const peakLabel = peakHour != null
+      ? `peaks ~${peakHour === 0 ? '12am' : peakHour < 12 ? `${peakHour}am` : peakHour === 12 ? '12pm' : `${peakHour - 12}pm`}`
+      : null;
+
+    const sourceInfo = rep.source?.includes('open-meteo') ? 'GFS wave model' : rep.source ?? '';
+
+    return {
       day,
-      timestamp: representativeItem.timestamp,
-      waveHeight: `${representativeItem.waveHeight.min}-${representativeItem.waveHeight.max}${representativeItem.waveHeight.unit}`,
-      period: representativeItem.swell && representativeItem.swell.length > 0 && representativeItem.swell[0]?.period ? `${Math.round(representativeItem.swell[0].period || 0)}s` : 'N/A',
-      wind: formatWind(representativeItem.wind.speed, representativeItem.wind.direction, representativeItem.wind.unit as 'mph' | 'kts' | 'kph'),
-      rating: representativeItem.rating,
-      surfLikelihood: representativeItem.surfLikelihood,
-      surfReport: representativeItem.surfReport,
-      notes: representativeItem.notes,
+      peakLabel,
+      timestamp: rep.timestamp,
+      waveHeight: rep.waveHeight.max < 0.5
+        ? 'Flat'
+        : `${rep.waveHeight.min.toFixed(1)}–${rep.waveHeight.max.toFixed(1)}${rep.waveHeight.unit}`,
+      period: rep.swell?.[0]?.period && rep.swell[0].period > 1
+        ? `${Math.round(rep.swell[0].period)}s`
+        : 'N/A',
+      wind: formatWind(rep.wind.speed, rep.wind.direction, rep.wind.unit as 'mph' | 'kts' | 'kph'),
+      rating: rep.rating,
+      surfLikelihood: rep.surfLikelihood,
+      surfReport: rep.surfReport,
+      notes: rep.notes,
       sourceInfo,
     };
-    
-    if (__DEV__) {
-      console.log(`🔍 Daily forecast for ${day} (${dayKey}): ${periods.length} periods available`);
-      console.log(`🔍 Using period ${representativeItem.originalIndex}: ${representativeItem.wind.direction} ${representativeItem.wind.speed}${representativeItem.wind.unit}`);
-      console.log(`🔍 Data sources: ${sourceInfo}`);
-    }
-    
-    return formattedItem;
-  }).filter(Boolean); // Remove null items
+  }).filter(Boolean);
 
   // Simple back button handler
   const handleGoBack = () => {
@@ -551,9 +525,8 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
         <View style={styles.imageContainer}>
           {spot?.location?.latitude && spot?.location?.longitude ? (
             <MapView
-              provider={PROVIDER_GOOGLE}
               style={styles.spotImage}
-              mapType="satellite"
+              mapType={Platform.OS === 'ios' && !__DEV__ ? 'satellite' : 'standard'}
               initialRegion={{
                 latitude: spot.location.latitude,
                 longitude: spot.location.longitude,
@@ -657,7 +630,7 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                   <Text style={styles.conditionLabel}>Period</Text>
                   <Text style={styles.conditionValue}>
                     {currentConditions?.swell && currentConditions.swell.length > 0 && currentConditions.swell[0]?.period && currentConditions.swell[0].period > 0 
-                      ? `${currentConditions.swell[0].period}s` 
+                      ? `${Math.round(currentConditions.swell[0].period)}s`
                       : 'N/A'}
                   </Text>
                 </View>
@@ -674,7 +647,9 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                   <Ionicons name="thermometer-outline" size={24} color={colors.primary} />
                   <Text style={styles.conditionLabel}>Water Temp</Text>
                   <Text style={styles.conditionValue}>
-                    {currentConditions.weather?.temperature ? Number(currentConditions.weather.temperature).toFixed(1) : 'N/A'}°{currentConditions.weather?.unit || 'F'}
+                    {currentConditions.weather?.temperature
+                      ? `${Math.round(currentConditions.weather.temperature)}°${currentConditions.weather?.unit || 'F'}`
+                      : 'N/A'}
                   </Text>
                 </View>
               </View>
@@ -700,6 +675,19 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
           )}
         </View>
 
+        {/* Forecaster Notes */}
+        {forecasterNotes && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{forecasterNotes.regionLabel ?? 'Regional Surf Outlook'}</Text>
+            <View style={styles.infoCard}>
+              <Text style={styles.infoText}>{forecasterNotes.summary}</Text>
+              <Text style={[styles.infoText, { fontSize: 11, marginTop: 6, opacity: 0.5 }]}>
+                AI · NWS {forecasterNotes.office} + GFS model · {new Date(forecasterNotes.issuedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · updates every 6hrs
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Forecast */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Forecast</Text>
@@ -712,7 +700,10 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
               {formattedForecast.map((day, index) => (
                 <View key={index} style={styles.forecastCard}>
                   <Text style={styles.forecastDay}>{day.day}</Text>
-                  
+                  {day.peakLabel && (
+                    <Text style={[styles.forecastDetailText, { fontSize: 10, opacity: 0.5, marginBottom: 4 }]}>{day.peakLabel}</Text>
+                  )}
+
                   {/* Surf Likelihood Badge */}
                   {day.surfLikelihood && (
                     <TouchableOpacity 

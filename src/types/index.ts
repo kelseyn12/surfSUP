@@ -47,6 +47,7 @@ export interface SurfSpot {
   imageUrls?: string[];
   buoyIds?: string[]; // IDs of nearby buoys for data
   region?: string; // 'superior', 'michigan', etc.
+  subregion?: string; // 'superior-north-mn', 'superior-south-wi', 'superior-mi', 'michigan-west', 'ocean-east', etc.
   createdAt: string;
   updatedAt: string;
   // Real-time data
@@ -79,7 +80,7 @@ export interface SurfConditions {
     unit: 'ft';
   };
   weather: {
-    temperature: number;
+    temperature: number | null;
     condition: string; // 'sunny', 'cloudy', 'rainy', etc.
     unit: 'F' | 'C';
   };
@@ -179,37 +180,6 @@ export interface NoaaApiResponse {
       detailedForecast: string;
     }[];
   };
-}
-
-export interface NdbcBuoyResponse {
-  time: string[];
-  wvht: number[]; // significant wave height
-  dpd: number[]; // dominant wave period
-  mwd: number[]; // mean wave direction
-  wspd: number[]; // wind speed
-  wdir: number[]; // wind direction
-  gst: number[]; // gust speed
-  wtemp: number[]; // water temperature
-  steepness: string[]; // wave steepness
-}
-
-// Great Lakes API specific interfaces
-export interface WaterLevelData {
-  date: string;
-  level: number; // in feet above chart datum
-  trend: 'rising' | 'falling' | 'stable';
-}
-
-export interface BuoyData {
-  timestamp: string;
-  waveHeight: number;
-  wavePeriod: number;
-  waveDirection: string;
-  waterTemp: number;
-  windSpeed: number;
-  windDirection: string;
-  source: string;
-  distance?: number; // Distance from user location in miles
 }
 
 export interface WindData {

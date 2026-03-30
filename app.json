@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "com.surfSUP.com",
+    "scheme": "com.kelseyn12.surfsupnative",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
@@ -24,7 +24,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.khdev.surfSUP"
+      "package": "com.kelseyn12.surfsupnative"
     },
     "web": {
       "bundler": "metro",

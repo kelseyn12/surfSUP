@@ -29,6 +29,9 @@ static_frameworks = [
   'FirebaseAuth',
   'FirebaseFirestore',
   'FirebaseFirestoreInternal',
+  'FirebaseStorage',
+  'FirebaseFunctions',
+  'FirebaseMessagingInterop',
   'leveldb-library',
   'abseil',
   'gRPC-Core',
@@ -81,6 +84,8 @@ target 'surfSUP' do
   pod 'RNFBApp', :path => '../node_modules/@react-native-firebase/app'
   pod 'RNFBAuth', :path => '../node_modules/@react-native-firebase/auth'
   pod 'RNFBFirestore', :path => '../node_modules/@react-native-firebase/firestore'
+  pod 'RNFBFunctions', :path => '../node_modules/@react-native-firebase/functions'
+  pod 'FirebaseMessagingInterop', :modular_headers => true
 
   # You can also explicitly add any other Firebase pods you are using:
   pod 'FirebaseAuth'
@@ -95,6 +100,7 @@ target 'surfSUP' do
   pod 'FirebaseABTesting'
   pod 'FirebaseInstallations'
   pod 'GoogleDataTransport'
+  pod 'FirebaseStorage'
 
   post_install do |installer|
     # Apply nil-safe RCTThirdPartyComponentsProvider fix

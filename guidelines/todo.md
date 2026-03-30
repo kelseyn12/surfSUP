@@ -252,6 +252,57 @@ We have successfully implemented a comprehensive, production-ready surf forecast
 - [X] Consolidate all wind logic into single source of truth
 - [X] Complete codebase cleanup (58 linting issues resolved)
 
+## Recently Completed (Data Pipeline + AI Surf Outlook — March 2026)
+
+### Forecast Data
+- [X] Replaced NOAA text-parsing with Open-Meteo Marine API (GFS-Wave model) as primary forecast source
+  - Hourly wave height, period, and direction for 7 days — real numbers, no regex
+  - NOAA text product kept as fallback only
+  - Forecast cards now show Today/Tomorrow/weekday labels grouped by calendar day, noon as representative period
+- [X] Parallelized buoy fetches in buoyApi.ts (was sequential for-loops → Promise.allSettled)
+- [X] Parallelized SpotDetailsScreen loadData (4 sequential awaits → single Promise.all)
+- [X] Expanded nearby spots radius 50km → 150km, sorted closest-first
+
+### AI Regional Surf Outlook (Cloud Function)
+- [X] Built Firebase Cloud Function `getSurfOutlook` (Node 24, us-central1)
+  - Fetches NWS AFD + Open-Meteo 48h wave/wind model data
+  - Calls Claude claude-sonnet-4-6 to generate a Brandon Pham-style surf outlook
+  - 6-hour Firestore cache per subregion — ~3 Claude calls/day total (~$1-2/month)
+  - Anthropic API key stored as Firebase Secret (never in code)
+- [X] Implemented subregion architecture — single config object drives everything:
+  - `superior-north-mn` — NE/ENE winds, 250mi fetch, DLH office, Duluth-area coords
+  - `superior-south-wi` — NW/WNW winds, opposite shore, DLH office, Ashland coords
+  - `superior-mi` — W/WNW winds, MQT office, Marquette coords
+  - `michigan-west` — S/SE winds, GRR office (config ready, no spots yet)
+  - `ocean-east` / `ocean-west` — config skeletons ready for future expansion
+- [X] Added `subregion` field to all spots in spots.json and SurfSpot type
+- [X] Outlook section title shows region label (e.g. "Lake Superior — North Shore (MN)")
+- [X] Fixed stale spot name bug — forecasterNotes cleared on spot navigation
+- [X] Installed @react-native-firebase/functions@22.4.0, added RNFBFunctions + FirebaseFunctions to Podfile
+
+### Infrastructure
+- [X] Upgraded Firebase project (surfsup-8e5ae) to Blaze plan
+- [X] Firebase CLI configured, functions deployed
+- [X] Artifact cleanup policy set (1-day retention)
+
+## Pending / Future Work
+
+### Expanding Regions
+- [ ] Add Lake Michigan spots (subregion: `michigan-west`) — config already exists in Cloud Function
+- [ ] Add ocean spots when Ocean tab is built — config skeletons exist for `ocean-east` / `ocean-west`
+  - Only requires: correct NWS office per coastline, spot lat/lon, `subregion` field in spots.json
+  - Prompt already handles ocean context (groundswell periods 8-18s, tides, offshore wind quality)
+
+### Spot Details Improvements
+- [ ] Community photo upload — Firebase Storage + expo-image-picker (photoService.ts built, needs iOS build with RNFBStorage pod)
+- [ ] Push notifications for surf alerts (surf likelihood hits "Good" or "Firing" at a favorited spot)
+- [ ] Surfer count polling interval: currently 5s — should be 30s to reduce Firestore reads
+
+### Data Quality
+- [ ] Water temp source: currently from buoys/NOAA — consider GLERL CoastWatch for basin-wide temp map
+- [ ] Ice extent: no data source yet — relevant for spring safety warnings (Brandon references National Ice Center)
+- [ ] Flood Bay / Beaver Bay / Grand Marais MN: these spots need ENE or ESE wind logic reviewed — they face differently than Duluth-area breaks
+
 ## Next Priority Tasks
 - [X] Implement password reset functionality
 - [X] Add social media login (Google, Apple)

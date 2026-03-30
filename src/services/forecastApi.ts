@@ -5,10 +5,10 @@
  * Exports: fetchAllGreatLakesForecastData
  */
 
-import { AggregatedConditions, BuoyData, WindData } from '../types';
+import { AggregatedConditions, WindData } from '../types';
 import { generateWindDirectionNotes } from '../config/surfConfig';
 import { dlog, getMostCommonDirection, calculateConfidence } from './greatLakesConstants';
-import { fetchAllBuoyData } from './buoyApi';
+import { fetchOpenMeteoForecast } from './openMeteoService';
 import {
   calculateSurfLikelihood,
   calculateSurfRating,
@@ -26,25 +26,38 @@ export const fetchAllGreatLakesForecastData = async (
   try {
     dlog(`🌊 Fetching forecast for ${spotId} (${hours}h)`);
 
-    const [noaaResult, buoyResult] = await Promise.allSettled([
-      fetchNOAAForecastData(latitude, longitude, hours),
-      fetchAllBuoyData(latitude, longitude),
+    const forecastDays = Math.ceil(hours / 24);
+
+    const [openMeteoResult, nshResult] = await Promise.allSettled([
+      fetchOpenMeteoForecast(latitude, longitude, forecastDays, hours),
+      fetchNSHWaveHeights(latitude, longitude),
     ]);
 
-    const noaaData = noaaResult.status === 'fulfilled' ? noaaResult.value : [];
-    const buoyData = buoyResult.status === 'fulfilled' ? buoyResult.value : [];
+    const openMeteoData = openMeteoResult.status === 'fulfilled' ? openMeteoResult.value : [];
+    const nshPeriods    = nshResult.status      === 'fulfilled' ? nshResult.value      : [];
 
-    if (noaaResult.status === 'rejected') console.error('🌊 NOAA forecast error:', noaaResult.reason);
-    if (buoyResult.status === 'rejected') console.error('🌊 Buoy data error:', buoyResult.reason);
+    if (openMeteoResult.status === 'rejected') dlog('🌊 Open-Meteo forecast error:', openMeteoResult.reason);
+    if (nshResult.status       === 'rejected') dlog('🌊 NSH fetch error:',           nshResult.reason);
 
-    const allForecastData = [...(noaaData || [])];
+    // Open-Meteo provides hourly wind/temp — reliable for atmospheric data.
+    // NSH provides wave heights from NWS forecasters (WAVEWATCH III + human QC) — authoritative for Great Lakes.
+    // We overlay NSH wave heights onto the Open-Meteo time series.
+    // For days 4-7 when NSH expires, Open-Meteo wave estimates fill in.
+    let allForecastData: WindData[] = applyNSHWaveHeights(openMeteoData, nshPeriods);
+
+    // Last resort: if Open-Meteo failed entirely, fall back to full NOAA text parse
+    if (allForecastData.length === 0) {
+      dlog('🌊 Open-Meteo failed — falling back to NOAA text parse');
+      allForecastData = await fetchNOAAForecastData(latitude, longitude, hours);
+    }
+
     if (allForecastData.length === 0) { dlog('❌ No forecast data'); return null; }
 
     const timeGroups = groupForecastDataByTime(allForecastData);
     const aggregatedForecast: AggregatedConditions[] = [];
 
     for (const [, dataGroup] of timeGroups) {
-      const aggregated = aggregateForecastDataWithBuoyContext(dataGroup, spotId, latitude, longitude, buoyData);
+      const aggregated = aggregateForecastData(dataGroup, spotId);
       if (aggregated) aggregatedForecast.push(aggregated);
     }
 
@@ -74,12 +87,9 @@ const groupForecastDataByTime = (forecastData: WindData[]): Map<string, WindData
 
 // ─── Aggregation ──────────────────────────────────────────────────────────────
 
-const aggregateForecastDataWithBuoyContext = (
+const aggregateForecastData = (
   dataGroup: WindData[],
   spotId: string,
-  _latitude: number,
-  _longitude: number,
-  buoyData: BuoyData[]
 ): AggregatedConditions | null => {
   try {
     const windData  = dataGroup.filter(d => d.windSpeed  !== undefined);
@@ -127,6 +137,12 @@ const aggregateForecastDataWithBuoyContext = (
     const waveHeightMin = Math.max(0, Math.round((avgWaveHeight - 0.3) * 10) / 10);
     const waveHeightMax = Math.round((avgWaveHeight + 0.3) * 10) / 10;
 
+    // Round before building strings
+    avgWindSpeed   = Math.round(avgWindSpeed   * 10) / 10;
+    avgWaveHeight  = Math.round(avgWaveHeight  * 10) / 10;
+    avgTemperature = Math.round(avgTemperature * 10) / 10;
+    if (avgWavePeriod !== undefined) avgWavePeriod = Math.round(avgWavePeriod);
+
     const surfReport = generateUserSummary(
       { min: waveHeightMin, max: waveHeightMax, unit: 'ft' },
       avgWavePeriod || 0,
@@ -145,24 +161,6 @@ const aggregateForecastDataWithBuoyContext = (
     if (avgWavePeriod && avgWavePeriod < 4) notes.push('Short period — choppy conditions');
     else if (avgWavePeriod && avgWavePeriod > 8) notes.push('Long period — clean waves');
     if (windDirection) notes.push(...generateWindDirectionNotes(spotId, windDirection, avgWindSpeed));
-
-    if (buoyData.length > 0) {
-      const current = buoyData
-        .filter(b => b.waveHeight > 0 || b.windSpeed > 0)
-        .sort((a, b) => (a.distance || 999) - (b.distance || 999))
-        .slice(0, 2);
-      if (current.length > 0) {
-        const avgBuoyWave = current.reduce((s, b) => s + (b.waveHeight || 0), 0) / current.length;
-        const avgBuoyWind = current.reduce((s, b) => s + (b.windSpeed  || 0), 0) / current.length;
-        notes.push(`Buoy context: ${avgBuoyWave.toFixed(1)}ft waves, ${avgBuoyWind.toFixed(1)}mph wind`);
-      }
-    }
-
-    // Round values
-    avgWindSpeed  = Math.round(avgWindSpeed  * 10) / 10;
-    avgWaveHeight = Math.round(avgWaveHeight * 10) / 10;
-    if (avgWavePeriod !== undefined) avgWavePeriod = Math.round(avgWavePeriod * 10) / 10;
-    avgTemperature = Math.round(avgTemperature * 10) / 10;
 
     const periodNames = dataGroup.map(d => d.periodName).filter(Boolean) as string[];
     const mostCommonPeriodName = periodNames.length > 0
@@ -189,7 +187,144 @@ const aggregateForecastDataWithBuoyContext = (
   }
 };
 
-// ─── NOAA Forecast Fetching ──────────────────────────────────────────────────
+// ─── NSH Wave Height Overlay ─────────────────────────────────────────────────
+
+interface NSHPeriod {
+  waveMin: number;
+  waveMax: number;
+  windDir: string | null;   // forecaster-issued wind direction, null if not parsed
+  windSpeed: number | null; // knots converted to mph, null if not parsed
+  periodStart: Date;
+  periodEnd: Date;
+}
+
+/**
+ * Fetches NWS Nearshore Marine Forecast (NSH) and parses wave heights by period.
+ * NSH is issued by NWS forecasters using WAVEWATCH III Great Lakes model output
+ * with human quality control — the authoritative wave source for Great Lakes surf.
+ * Covers ~4 days ahead; beyond that Open-Meteo wave estimates fill in.
+ */
+const fetchNSHWaveHeights = async (latitude: number, longitude: number): Promise<NSHPeriod[]> => {
+  try {
+    const office = longitude >= -88.0 && latitude <= 47.0 ? 'MQT' : 'DLH';
+    const listRes = await fetch(`https://api.weather.gov/products/types/NSH/locations/${office}`);
+    if (!listRes.ok) return [];
+    const list = await listRes.json();
+    const latest = list?.['@graph']?.[0];
+    if (!latest?.['@id']) return [];
+    const productRes = await fetch(latest['@id']);
+    if (!productRes.ok) return [];
+    const productJson = await productRes.json();
+    const periods = parseNSHWaveHeights(productJson?.productText ?? '', latitude, longitude);
+    dlog(`[NSH] Parsed ${periods.length} wave periods from ${office} NSH`);
+    return periods;
+  } catch (err) {
+    dlog('[NSH] Fetch failed:', err);
+    return [];
+  }
+};
+
+const parseNSHWaveHeights = (
+  text: string,
+  latitude: number,
+  longitude: number
+): NSHPeriod[] => {
+  if (!text) return [];
+
+  // Find the zone section relevant to these coordinates
+  const zone = getMarineForecastZone(latitude, longitude);
+  const sections = text.split(/\nLSZ/);
+  let targetSection = sections.find(s =>
+    s.includes(zone.name.split(',')[0]) || s.includes(zone.id)
+  ) ?? text; // fall back to full text
+
+  const periods: NSHPeriod[] = [];
+  const periodRegex = /\.([A-Z][A-Z\s]+)\.\.\.([\s\S]*?)(?=\n\.[A-Z]|\$\$)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = periodRegex.exec(targetSection)) !== null) {
+    const periodName = match[1].trim();
+    const periodText = match[2];
+    const waveData   = extractWaveHeightFromNOAA(periodText);
+    const window     = nshPeriodToTimeWindow(periodName);
+    if (!window) continue;
+    // Parse wind even when wave height is missing (e.g. calm periods)
+    const windDir   = extractWindDirectionFromNOAA(periodText);
+    const windKts   = extractWindSpeedKtsFromNSH(periodText);
+    const windMph   = windKts != null ? Math.round(windKts * 1.15078) : null;
+    periods.push({
+      waveMin:  waveData.min,
+      waveMax:  waveData.max,
+      windDir:  windDir || null,
+      windSpeed: windMph,
+      ...window,
+    });
+  }
+
+  return periods;
+};
+
+/**
+ * Maps an NSH period name ("TONIGHT", "MONDAY", "MONDAY NIGHT", etc.)
+ * to a wall-clock time window. Handles any day of week dynamically.
+ */
+const nshPeriodToTimeWindow = (name: string): { periodStart: Date; periodEnd: Date } | null => {
+  const now   = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const DAY   = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+  const upper = name.trim().toUpperCase();
+
+  const h = (base: Date, hours: number) => new Date(base.getTime() + hours * 3_600_000);
+
+  if (upper === 'TODAY' || upper === 'REST OF TODAY') {
+    return { periodStart: now, periodEnd: h(today, 18) };
+  }
+  if (upper === 'TONIGHT') {
+    return { periodStart: h(today, 18), periodEnd: h(today, 30) };
+  }
+
+  const isNight  = upper.endsWith(' NIGHT');
+  const dayName  = isNight ? upper.slice(0, -6).trim() : upper;
+  const dayIdx   = DAY.indexOf(dayName);
+  if (dayIdx === -1) return null;
+
+  const todayIdx   = today.getDay();
+  let daysUntil    = (dayIdx - todayIdx + 7) % 7;
+  // If it's the same weekday but daytime has passed, push to next week
+  if (daysUntil === 0 && !isNight && now.getHours() >= 12) daysUntil = 7;
+
+  const targetDay = new Date(today.getTime() + daysUntil * 86_400_000);
+  return isNight
+    ? { periodStart: h(targetDay, 18), periodEnd: h(targetDay, 30) }
+    : { periodStart: h(targetDay,  6), periodEnd: h(targetDay, 18) };
+};
+
+/**
+ * Overlays NSH forecaster values onto the Open-Meteo hourly time series.
+ * - Wave heights: always replaced with NSH when available (forecaster-QC'd WAVEWATCH III)
+ * - Wind direction: replaced with NSH when available (catches shifts GFS misses)
+ * - Wind speed: replaced with NSH when available (knots → mph, averaged range)
+ * Open-Meteo values are kept for days 4-7 when NSH coverage expires.
+ */
+const applyNSHWaveHeights = (openMeteoData: WindData[], nshPeriods: NSHPeriod[]): WindData[] => {
+  if (nshPeriods.length === 0) return openMeteoData;
+  return openMeteoData.map(point => {
+    if (!point.timestamp) return point;
+    const t = new Date(point.timestamp);
+    const period = nshPeriods.find(p => t >= p.periodStart && t < p.periodEnd);
+    if (!period) return point;
+    const avgWave = (period.waveMin + period.waveMax) / 2;
+    return {
+      ...point,
+      waveHeight:    avgWave > 0 ? avgWave : point.waveHeight,
+      windDirection: period.windDir    ?? point.windDirection,
+      windSpeed:     period.windSpeed  ?? point.windSpeed,
+      source:        'open-meteo+nsh',
+    };
+  });
+};
+
+// ─── NOAA Forecast Fetching (last-resort fallback) ───────────────────────────
 
 const fetchNOAAForecastData = async (
   latitude: number,
@@ -318,6 +453,17 @@ const fetchNOAAForecastData = async (
 };
 
 // ─── NOAA Text Parsing ────────────────────────────────────────────────────────
+
+/** Returns wind speed in knots from NSH text, or null if not found. */
+const extractWindSpeedKtsFromNSH = (text: string): number | null => {
+  if (!text) return null;
+  // NSH format: "NE winds 15 to 20 kt" or "winds around 10 kt" or "NE winds 20 kt"
+  const m = text.match(/winds?\s+(?:\w+\s+)?(\d+)(?:\s+to\s+(\d+))?\s*kt/i);
+  if (!m) return null;
+  const lo = parseInt(m[1]);
+  const hi = m[2] ? parseInt(m[2]) : lo;
+  return (lo + hi) / 2;
+};
 
 const extractWindSpeedFromNOAA = (text: string): number => {
   if (!text) return 0;
@@ -450,29 +596,9 @@ const parseNOAAMarineForecastText = (
   return forecastData;
 };
 
+// Uses nshPeriodToTimeWindow (defined above) — returns midpoint of the window
 const createTimestampFromPeriodName = (periodName: string, _baseDate: Date): Date => {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const h = (hours: number, timeOfDay: number) =>
-    new Date(today.getTime() + hours * 3_600_000 + timeOfDay * 3_600_000);
-
-  switch (periodName.toUpperCase()) {
-    case 'REST OF TODAY':  return new Date(Date.now() + 3_600_000);
-    case 'TONIGHT':        return h(0,  20);
-    case 'THURSDAY':       return h(24, 12);
-    case 'THURSDAY NIGHT': return h(24, 20);
-    case 'FRIDAY':         return h(48, 12);
-    case 'FRIDAY NIGHT':   return h(48, 20);
-    case 'SATURDAY':       return h(72, 12);
-    case 'SATURDAY NIGHT': return h(72, 20);
-    case 'SUNDAY':         return h(96, 12);
-    case 'SUNDAY NIGHT':   return h(96, 20);
-    case 'MONDAY':         return h(120, 12);
-    case 'MONDAY NIGHT':   return h(120, 20);
-    case 'TUESDAY':        return h(144, 12);
-    case 'TUESDAY NIGHT':  return h(144, 20);
-    case 'WEDNESDAY':      return h(168, 12);
-    case 'WEDNESDAY NIGHT':return h(168, 20);
-    default:               return now;
-  }
+  const window = nshPeriodToTimeWindow(periodName);
+  if (!window) return new Date();
+  return new Date((window.periodStart.getTime() + window.periodEnd.getTime()) / 2);
 };

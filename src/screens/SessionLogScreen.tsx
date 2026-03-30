@@ -326,7 +326,7 @@ const SessionLogScreen: React.FC = () => {
           <Text style={styles.inputLabel}>Water Temperature (°F)</Text>
           <TextInput
             style={styles.conditionInput}
-            value={conditions.weather.temperature.toString()}
+            value={(conditions.weather.temperature ?? '').toString()}
             onChangeText={(text) => setConditions({
               ...conditions,
               weather: {

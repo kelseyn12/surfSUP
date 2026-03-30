@@ -183,9 +183,9 @@ export const fetchSurfConditions = async (spotId: string): Promise<SurfCondition
 
     // Use the comprehensive ALL sources data aggregation
     const aggregated = await fetchAllGreatLakesData(
-      spotId,
       spot.location.latitude,
-      spot.location.longitude
+      spot.location.longitude,
+      spotId
     );
     
     if (aggregated) {

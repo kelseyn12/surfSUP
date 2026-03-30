@@ -8,6 +8,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import OfflineBanner from './src/components/OfflineBanner';
 import { initializeSpotService } from './src/services/spotService';
+import { firestoreCleanupStaleCheckIns } from './src/services/firestore';
 import { initializeSentry, wrapWithSentry } from './src/services/sentry';
 
 // Initialize Sentry before any rendering
@@ -15,9 +16,8 @@ initializeSentry();
 
 function AppRoot() {
   useEffect(() => {
-    // Fire-and-forget: loads spots from Firestore/cache in the background.
-    // Falls back to bundled spots.json automatically if unavailable.
     initializeSpotService();
+    firestoreCleanupStaleCheckIns();
   }, []);
 
   return (

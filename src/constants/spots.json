@@ -16,7 +16,8 @@
     "imageUrls": ["https://example.com/stonypoint.jpg"],
     "createdAt": "2023-01-15T00:00:00.000Z",
     "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior"
+    "region": "superior",
+    "subregion": "superior-north-mn"
   },
   {
     "id": "parkpoint",
@@ -35,7 +36,8 @@
     "imageUrls": ["https://example.com/parkpoint.jpg"],
     "createdAt": "2023-01-15T00:00:00.000Z",
     "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior"
+    "region": "superior",
+    "subregion": "superior-north-mn"
   },
   {
     "id": "lesterriver",
@@ -54,7 +56,8 @@
     "imageUrls": ["https://example.com/lesterriver.jpg"],
     "createdAt": "2023-01-15T00:00:00.000Z",
     "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior"
+    "region": "superior",
+    "subregion": "superior-north-mn"
   },
   {
     "id": "boulders",
@@ -73,7 +76,8 @@
     "imageUrls": ["https://example.com/boulders.jpg"],
     "createdAt": "2023-01-15T00:00:00.000Z",
     "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior"
+    "region": "superior",
+    "subregion": "superior-north-mn"
   },
   {
     "id": "guardrails",
@@ -92,7 +96,8 @@
     "imageUrls": ["https://example.com/guardrails.jpg"],
     "createdAt": "2023-01-15T00:00:00.000Z",
     "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior"
+    "region": "superior",
+    "subregion": "superior-north-mn"
   },
   {
     "id": "brightonbeach",
@@ -111,7 +116,8 @@
     "imageUrls": ["https://example.com/brightonbeach.jpg"],
     "createdAt": "2023-01-15T00:00:00.000Z",
     "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior"
+    "region": "superior",
+    "subregion": "superior-north-mn"
   },
   {
     "id": "frenchriver",
@@ -130,7 +136,8 @@
     "imageUrls": ["https://example.com/frenchriver.jpg"],
     "createdAt": "2023-01-15T00:00:00.000Z",
     "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior"
+    "region": "superior",
+    "subregion": "superior-north-mn"
   },
   {
     "id": "floodbay",
@@ -149,7 +156,8 @@
     "imageUrls": ["https://example.com/floodbay.jpg"],
     "createdAt": "2023-01-15T00:00:00.000Z",
     "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior"
+    "region": "superior",
+    "subregion": "superior-north-mn"
   },
   {
     "id": "beaverbay",
@@ -168,7 +176,8 @@
     "imageUrls": ["https://example.com/beaverbay.jpg"],
     "createdAt": "2023-01-15T00:00:00.000Z",
     "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior"
+    "region": "superior",
+    "subregion": "superior-north-mn"
   },
   {
     "id": "grandmaraismn",
@@ -187,7 +196,8 @@
     "imageUrls": ["https://example.com/grandmaraismn.jpg"],
     "createdAt": "2023-01-15T00:00:00.000Z",
     "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior"
+    "region": "superior",
+    "subregion": "superior-north-mn"
   },
   {
     "id": "marquette",
@@ -206,7 +216,8 @@
     "imageUrls": ["https://example.com/marquette.jpg"],
     "createdAt": "2023-01-15T00:00:00.000Z",
     "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior"
+    "region": "superior",
+    "subregion": "superior-mi"
   },
   {
     "id": "ashland",
@@ -225,7 +236,8 @@
     "imageUrls": ["https://example.com/ashland.jpg"],
     "createdAt": "2023-01-15T00:00:00.000Z",
     "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior"
+    "region": "superior",
+    "subregion": "superior-south-wi"
   },
   {
     "id": "cornucopia",
@@ -244,7 +256,8 @@
     "imageUrls": ["https://example.com/cornucopia.jpg"],
     "createdAt": "2023-01-15T00:00:00.000Z",
     "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior"
+    "region": "superior",
+    "subregion": "superior-south-wi"
   },
   {
     "id": "grandmaraismi",
@@ -263,6 +276,7 @@
     "imageUrls": ["https://example.com/grandmaraismi.jpg"],
     "createdAt": "2023-01-15T00:00:00.000Z",
     "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior"
+    "region": "superior",
+    "subregion": "superior-mi"
   }
-] 
+]
