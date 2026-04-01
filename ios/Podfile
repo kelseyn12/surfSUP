@@ -36,7 +36,12 @@ static_frameworks = [
   'abseil',
   'gRPC-Core',
   'gRPC-C++',
-  'BoringSSL-GRPC'
+  'BoringSSL-GRPC',
+  'AppAuth',
+  'GTMAppAuth',
+  'GTMSessionFetcher',
+  'GoogleSignIn',
+  'AppCheckCore'
 ]
 
 pre_install do |installer|
@@ -131,6 +136,9 @@ target 'surfSUP' do
       target.build_configurations.each do |config|
         config.build_settings['SWIFT_VERSION'] = '5.0'
         config.build_settings['DEFINES_MODULE'] ||= 'YES'
+        # Disable Xcode 16 explicit modules — causes Clang dependency scanner
+        # failure on AppAuth/GoogleSignIn module maps (xcode 16 regression)
+        config.build_settings['CLANG_ENABLE_EXPLICIT_MODULES'] = 'NO'
       end
     end
 

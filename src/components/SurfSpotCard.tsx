@@ -430,17 +430,6 @@ const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet
     fontWeight: 'bold',
     marginLeft: 2,
   },
-  activityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  activityText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: '500',
-  },
   surferActivity: {
     padding: 8,
     borderRadius: 4,
