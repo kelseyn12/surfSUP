@@ -1,15 +1,22 @@
 /**
  * Sentry crash reporting wrapper.
  *
- * To activate:
- *   1. npx expo install @sentry/react-native
- *   2. Add EXPO_PUBLIC_SENTRY_DSN=https://xxx@yyy.ingest.sentry.io/zzz to .env
- *   3. Set SENTRY_ENABLED = true below
+ * STATUS: Activated 2026-06-23. @sentry/react-native is installed (via
+ * `npx @sentry/wizard@latest -i reactNative`), native iOS/Android setup is
+ * complete, and a real captured error was confirmed in the Sentry dashboard.
  *
- * Until the package is installed keep SENTRY_ENABLED = false — all calls are no-ops.
+ * Setup note for reference: the wizard does more than installing the package —
+ * it also patches app.json (Expo plugin), adds/updates metro.config.js for
+ * source maps, and writes ios/sentry.properties + android/sentry.properties
+ * (auth tokens — must stay gitignored, never commit). A clean rebuild
+ * (`npx expo run:ios` / `run:android`) is required after the native pods
+ * change; a plain Metro reload is not enough.
+ *
+ * EXPO_PUBLIC_SENTRY_DSN must be set in .env for initializeSentry() to do
+ * anything — without it this is a no-op even with SENTRY_ENABLED = true.
  */
 
-const SENTRY_ENABLED = false; // flip to true after installing @sentry/react-native
+const SENTRY_ENABLED = true;
 
 let Sentry: any = null;
 

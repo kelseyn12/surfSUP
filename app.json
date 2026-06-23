@@ -44,6 +44,14 @@
         {
           "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to upload spot pictures."
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "khdev"
+        }
       ]
     ],
     "experiments": {

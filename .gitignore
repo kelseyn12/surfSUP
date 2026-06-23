@@ -18,6 +18,8 @@ build/
 *.p12
 *.key
 *.mobileprovision
+ios/sentry.properties
+android/sentry.properties
 
 # Metro
 .metro-health-check*
@@ -32,6 +34,7 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
