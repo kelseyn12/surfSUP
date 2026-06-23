@@ -8,6 +8,7 @@ import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { User } from '../types';
 import { SocialAuthService } from './socialAuth';
 import { reload, getIdToken, updateProfile, onAuthStateChanged } from '@react-native-firebase/auth';
+import { setUserContext } from './sentry';
 import { firestoreGetActiveCheckInAnywhere, firestoreCheckOutFromSpot } from './firestore';
 
 // Constants
@@ -104,10 +105,12 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: true,
               lastActivity: Date.now(),
             });
+            setUserContext(user.id);
             startRefreshTimer(firebaseUser);
           } else {
             if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
             set(initialState);
+            setUserContext(null);
           }
         });
 
@@ -304,4 +307,4 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => AsyncStorage as any),
     }
   )
-); 
+);
