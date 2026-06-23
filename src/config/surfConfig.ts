@@ -94,23 +94,37 @@ export const surfSpotsConfig: Record<string, SurfSpotConfig> = {
   // South Shore
   marquette: {
     name: 'Marquette',
-    idealWindDirections: ['W', 'WNW'] as WindDirection[],
-    marginalWindDirections: ['NW'] as WindDirection[],
-    blockedWindDirections: ['E', 'NE', 'SE'] as WindDirection[],
-    confidence: 'high',
-  },
-  ashland: {
-    name: 'Ashland',
-    idealWindDirections: ['WNW', 'NW'] as WindDirection[],
-    marginalWindDirections: ['W'] as WindDirection[],
-    blockedWindDirections: ['E', 'NE', 'SE'] as WindDirection[],
+    idealWindDirections: ['N', 'NNE', 'NE'] as WindDirection[],
+    marginalWindDirections: ['NW', 'W'] as WindDirection[],
+    blockedWindDirections: ['S', 'SSW', 'SW'] as WindDirection[],
     confidence: 'medium',
   },
-  cornucopia: {
-    name: 'Cornucopia',
-    idealWindDirections: ['NW', 'WNW'] as WindDirection[],
+  thezoo: {
+    name: 'The Zoo',
+    idealWindDirections: ['N', 'NNE', 'NE'] as WindDirection[],
     marginalWindDirections: ['W'] as WindDirection[],
-    blockedWindDirections: ['E', 'NE', 'SE'] as WindDirection[],
+    blockedWindDirections: ['S', 'SSW', 'SW'] as WindDirection[],
+    confidence: 'medium',
+  },
+  littlepresqueisle: {
+    name: 'Little Presque Isle Beach',
+    idealWindDirections: ['N', 'NNE', 'NE'] as WindDirection[],
+    marginalWindDirections: ['W'] as WindDirection[],
+    blockedWindDirections: ['S', 'SSW', 'SW'] as WindDirection[],
+    confidence: 'medium',
+  },
+  shiraspark: {
+    name: 'Shiras Park',
+    idealWindDirections: ['N', 'NNE', 'NE'] as WindDirection[],
+    marginalWindDirections: ['W'] as WindDirection[],
+    blockedWindDirections: ['S', 'SSW', 'SW'] as WindDirection[],
+    confidence: 'medium',
+  },
+  madelineisland: {
+    name: 'Madeline Island/Big Bay',
+    idealWindDirections: ['N', 'NNE'] as WindDirection[],
+    marginalWindDirections: ['NE', 'NW'] as WindDirection[],
+    blockedWindDirections: ['S', 'SSW', 'SW'] as WindDirection[],
     confidence: 'medium',
   },
   grandmaraismi: {
@@ -165,7 +179,7 @@ const NORTH_SHORE_SPOTS = [
 
 // South Shore WI/MI spots: face N/NNE, need N/NW/W wind for waves
 const SOUTH_SHORE_SPOTS = [
-  'marquette', 'ashland', 'cornucopia', 'grandmaraismi'
+  'marquette', 'thezoo', 'littlepresqueisle', 'shiraspark', 'madelineisland', 'grandmaraismi'
 ];
 
 /**
@@ -378,4 +392,4 @@ export const exportSpotConfigurations = () => {
     };
     return acc;
   }, {} as Record<string, any>);
-}; 
+};

@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "surfsup-8e5ae"
-  }
+  },
+  "targets": {
+    "surfsup-8e5ae": {
+      "storage": {
+        "default": [
+          "surfsup-8e5ae.firebasestorage.app"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

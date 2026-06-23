@@ -3,6 +3,13 @@
     "analytics_auto_collection_enabled": false,
     "crashlytics_auto_collection_enabled": false
   },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "target": "default",
+    "rules": "storage.rules"
+  },
   "functions": [
     {
       "source": "functions",

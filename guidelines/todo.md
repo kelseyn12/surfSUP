@@ -2,13 +2,43 @@
 
 This document maintains a running list of tasks, enhancements, bug fixes, and technical debt items for the SurfSUP application.
 
+---
+
+## Where we are (April 2026)
+
+| Phase | Goal | Status |
+|-------|------|--------|
+| **1 — Demo** | Screens + mock data | Done |
+| **2 — Real MVP** | Auth, map, conditions, check-ins, AI outlook | **~85%** |
+| **3 — Trustworthy** | Photos, stable builds, security, monitoring | **In progress** |
+| **4 — Awesome** | Alerts, community loop, ocean / Lake Michigan | Planned |
+
+**You are here:** finishing **Phase 2** and starting **Phase 3**. The hard surf/weather engine exists; focus is polish, trust, and ship confidence.
+
+### Current focus (do in order)
+
+1. [ ] **Ship confidence** — reliable `expo run:ios` / EAS; see `guidelines/BUILD.md`
+2. [ ] **Trust at a glance** — real spot photos in `spots.json` (Firebase Storage URLs), remove placeholders
+3. [ ] **Trust in data** — validate 3–5 spots vs buoys; tune `surfConfig` when wrong
+4. [ ] **Firestore security rules** — users only read/write their own check-ins
+5. [ ] **Production hygiene** — enable Sentry (`@sentry/react-native` + DSN), minimal GitHub CI (lint + tests)
+
+### Recently done (sync with code)
+
+- [X] Windy API removed (Open-Meteo + NOAA + NDBC only)
+- [X] Check-ins / surfer counts → Firestore (`checkInService.ts`)
+- [X] Home surfer-count poll 5s → 30s (`TIMEOUTS.SURFER_COUNT_POLL`)
+- [X] `mockBackend.ts` removed (unused)
+
+---
+
 ## 🎯 Major Milestone Achieved: Sophisticated Lake Superior Surf Forecasting System
 
 **Status: COMPLETED** ✅
 
-We have successfully implemented a comprehensive, production-ready surf forecasting system specifically designed for Lake Superior conditions. This system includes:
+We have successfully implemented a comprehensive surf forecasting system for Lake Superior conditions. This system includes:
 
-- **Multi-source data aggregation** from NOAA Weather.gov, NOAA Marine Products, NDBC Buoys, and Windy API
+- **Multi-source data aggregation** from NDBC buoys, Open-Meteo Marine, NOAA marine products, and NWS AFD (via Cloud Function)
 - **Lake Superior-specific surf likelihood calculations** with conservative wave height gates
 - **Spot-specific wind direction logic** for North Shore vs South Shore spots (Park Point, Lester, Stoney, Brighton, Marquette, Ashland, etc.)
 - **Sophisticated wind logic** that separates swell-building winds from local grooming winds
@@ -51,14 +81,11 @@ We have successfully implemented a comprehensive, production-ready surf forecast
 - [X] Set up authentication flow
   - X Implemented basic auth state management
   - X Added navigation flow between auth and main app
-- [ ] Implement password reset
-  - [ ] Create forgot password screen
-  - [ ] Implement password reset email flow
-  - [ ] Add success/error handling
+- [X] Implement password reset
+  - [X] ForgotPasswordScreen + Firebase email flow
+  - [X] PasswordResetSuccessScreen
 - [X] Add social media login options
-  - [X] Add UI for Google and Apple login buttons
-  - [ ] Implement Google OAuth integration
-  - [ ] Implement Apple Sign In integration
+  - [X] Google and Apple sign-in (`socialAuth.ts`, native modules)
 - [ ] Add biometric authentication for app access
   - [ ] Add biometric login option
   - [ ] Implement secure storage for biometric credentials
@@ -78,7 +105,7 @@ We have successfully implemented a comprehensive, production-ready surf forecast
   - X Integrated search functionality into navigation and HomeScreen
 - [X] Add favorites functionality
 - [X] Create check-in feature for spots
-- [ ] Implement surf session logging
+- [X] Implement surf session logging (`LogSessionScreen`, `SessionLogScreen`, `sessions.ts`)
 
 ### Surf Reports & Forecasts
 
@@ -114,11 +141,11 @@ We have successfully implemented a comprehensive, production-ready surf forecast
 
 ### User Profile
 
-- [ ] Create user profile screen
-- [ ] Implement profile editing
-- [ ] Add user preferences settings
-- [ ] Create session history view
-- [ ] Add achievements/statistics
+- [X] Create user profile screen (`ProfileScreen`)
+- [X] Implement profile editing (`EditProfileScreen`)
+- [X] Add user preferences settings (board type, units, home spot)
+- [X] Create session history view (`StatsDashboardScreen`, session list)
+- [ ] Add achievements/statistics (beyond basic stats dashboard)
 
 ## UI/UX Components
 
@@ -296,7 +323,7 @@ We have successfully implemented a comprehensive, production-ready surf forecast
 ### Spot Details Improvements
 - [ ] Community photo upload — Firebase Storage + expo-image-picker (photoService.ts built, needs iOS build with RNFBStorage pod)
 - [ ] Push notifications for surf alerts (surf likelihood hits "Good" or "Firing" at a favorited spot)
-- [ ] Surfer count polling interval: currently 5s — should be 30s to reduce Firestore reads
+- [X] Surfer count polling interval: 30s on Home (`TIMEOUTS.SURFER_COUNT_POLL`)
 
 ### Data Quality
 - [ ] Water temp source: currently from buoys/NOAA — consider GLERL CoastWatch for basin-wide temp map
@@ -325,12 +352,11 @@ We have successfully implemented a comprehensive, production-ready surf forecast
   - X NDBC Buoy Data API integration
   - X Replace mock data with real-time data
   - X Add error handling and fallback to mock data
-- [ ] Replace mock database with Firebase Firestore
-  - [ ] Set up Firestore database structure
-  - [ ] Migrate surfer counts and check-ins to Firestore
-  - [ ] Add real-time listeners for live updates
-  - [ ] Implement offline support with Firestore
-  - [ ] Add security rules for user data
+- [P] Firebase Firestore (check-ins live; rules + offline pending)
+  - [X] Check-ins and surfer counts via `firestore.ts` / `checkInService.ts`
+  - [ ] Firestore security rules (audit + deploy)
+  - [ ] Real-time listeners where polling is still used
+  - [ ] Offline persistence for check-ins
 
 To-Do List: Building SurfSUP
 Phase 1: Planning

@@ -1,0 +1,28 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // spotPhotos/{spotId}/{userId}_{timestamp}.jpg
+    // Uploaded by photoService.ts — userId is baked into the filename, so we
+    // can check ownership without a Firestore lookup.
+    match /spotPhotos/{spotId}/{fileName} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && fileName.matches(request.auth.uid + '_.*')
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+
+      allow delete: if request.auth != null
+        && fileName.matches(request.auth.uid + '_.*');
+
+      // No update — photos are write-once; re-upload as a new file instead.
+      allow update: if false;
+    }
+
+    // Deny everything else by default.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -101,6 +101,8 @@ export const TIMEOUTS = {
   LOCATION: 10000, // 10 seconds
   API_CALL: 15000, // 15 seconds
   REFRESH_INTERVAL: 900000, // 15 minutes
+  /** Home screen surfer-count refresh while focused (reduces Firestore reads) */
+  SURFER_COUNT_POLL: 30000, // 30 seconds
 };
 
 // Define surf condition thresholds

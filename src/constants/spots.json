@@ -3,19 +3,24 @@
     "id": "stoneypoint",
     "name": "Stoney Point",
     "location": {
-      "latitude": 46.9419,
-      "longitude": -91.8061,
+      "latitude": 46.928071,
+      "longitude": -91.811896,
       "city": "Duluth",
       "state": "MN",
       "country": "USA"
     },
     "difficulty": "intermediate",
-    "type": ["beach-break", "point-break"],
-    "amenities": ["parking"],
+    "type": [
+      "beach-break",
+      "point-break"
+    ],
+    "amenities": [
+      "parking"
+    ],
     "description": "Popular spot for Lake Superior surfers with consistent waves during NE winds.",
-    "imageUrls": ["https://example.com/stonypoint.jpg"],
+    "imageUrls": [],
     "createdAt": "2023-01-15T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
     "region": "superior",
     "subregion": "superior-north-mn"
   },
@@ -30,12 +35,17 @@
       "country": "USA"
     },
     "difficulty": "beginner",
-    "type": ["beach-break"],
-    "amenities": ["parking", "restrooms"],
+    "type": [
+      "beach-break"
+    ],
+    "amenities": [
+      "parking",
+      "restrooms"
+    ],
     "description": "Long sandy beach with gentle waves, perfect for beginners during calm conditions.",
-    "imageUrls": ["https://example.com/parkpoint.jpg"],
+    "imageUrls": [],
     "createdAt": "2023-01-15T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
     "region": "superior",
     "subregion": "superior-north-mn"
   },
@@ -43,19 +53,24 @@
     "id": "lesterriver",
     "name": "Lester River",
     "location": {
-      "latitude": 46.8331,
-      "longitude": -92.0217,
+      "latitude": 46.836016,
+      "longitude": -92.00554,
       "city": "Duluth",
       "state": "MN",
       "country": "USA"
     },
     "difficulty": "advanced",
-    "type": ["river-mouth", "reef"],
-    "amenities": ["parking"],
+    "type": [
+      "river-mouth",
+      "reef"
+    ],
+    "amenities": [
+      "parking"
+    ],
     "description": "River mouth break that works well during strong winds and storms.",
-    "imageUrls": ["https://example.com/lesterriver.jpg"],
+    "imageUrls": [],
     "createdAt": "2023-01-15T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
     "region": "superior",
     "subregion": "superior-north-mn"
   },
@@ -70,12 +85,17 @@
       "country": "USA"
     },
     "difficulty": "advanced",
-    "type": ["reef", "point-break"],
-    "amenities": ["parking"],
+    "type": [
+      "reef",
+      "point-break"
+    ],
+    "amenities": [
+      "parking"
+    ],
     "description": "Rocky point break that works best during strong NE winds.",
-    "imageUrls": ["https://example.com/boulders.jpg"],
+    "imageUrls": [],
     "createdAt": "2023-01-15T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
     "region": "superior",
     "subregion": "superior-north-mn"
   },
@@ -90,12 +110,17 @@
       "country": "USA"
     },
     "difficulty": "intermediate",
-    "type": ["reef", "point-break"],
-    "amenities": ["parking"],
+    "type": [
+      "reef",
+      "point-break"
+    ],
+    "amenities": [
+      "parking"
+    ],
     "description": "Consistent reef break with good wave shape during ENE winds.",
-    "imageUrls": ["https://example.com/guardrails.jpg"],
+    "imageUrls": [],
     "createdAt": "2023-01-15T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
     "region": "superior",
     "subregion": "superior-north-mn"
   },
@@ -103,19 +128,23 @@
     "id": "brightonbeach",
     "name": "Brighton Beach",
     "location": {
-      "latitude": 46.836789,
-      "longitude": -92.003819,
+      "latitude": 46.838083,
+      "longitude": -92.001781,
       "city": "Duluth",
       "state": "MN",
       "country": "USA"
     },
     "difficulty": "beginner",
-    "type": ["beach-break"],
-    "amenities": ["parking"],
+    "type": [
+      "beach-break"
+    ],
+    "amenities": [
+      "parking"
+    ],
     "description": "Gentle beach break perfect for beginners during NE winds.",
-    "imageUrls": ["https://example.com/brightonbeach.jpg"],
+    "imageUrls": [],
     "createdAt": "2023-01-15T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
     "region": "superior",
     "subregion": "superior-north-mn"
   },
@@ -123,19 +152,24 @@
     "id": "frenchriver",
     "name": "French River",
     "location": {
-      "latitude": 46.899342,
-      "longitude": -91.891327,
+      "latitude": 46.896247,
+      "longitude": -91.89418,
       "city": "Two Harbors",
       "state": "MN",
       "country": "USA"
     },
     "difficulty": "intermediate",
-    "type": ["river-mouth", "beach-break"],
-    "amenities": ["parking"],
+    "type": [
+      "river-mouth",
+      "beach-break"
+    ],
+    "amenities": [
+      "parking"
+    ],
     "description": "River mouth break that works well during NE winds.",
-    "imageUrls": ["https://example.com/frenchriver.jpg"],
+    "imageUrls": [],
     "createdAt": "2023-01-15T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
     "region": "superior",
     "subregion": "superior-north-mn"
   },
@@ -150,12 +184,16 @@
       "country": "USA"
     },
     "difficulty": "intermediate",
-    "type": ["beach-break"],
-    "amenities": ["parking"],
+    "type": [
+      "beach-break"
+    ],
+    "amenities": [
+      "parking"
+    ],
     "description": "Protected bay with consistent waves during ESE winds.",
-    "imageUrls": ["https://example.com/floodbay.jpg"],
+    "imageUrls": [],
     "createdAt": "2023-01-15T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
     "region": "superior",
     "subregion": "superior-north-mn"
   },
@@ -163,19 +201,24 @@
     "id": "beaverbay",
     "name": "Beaver Bay",
     "location": {
-      "latitude": 47.263578,
-      "longitude": -91.288471,
+      "latitude": 47.26027,
+      "longitude": -91.288639,
       "city": "Beaver Bay",
       "state": "MN",
       "country": "USA"
     },
     "difficulty": "intermediate",
-    "type": ["beach-break", "point-break"],
-    "amenities": ["parking"],
+    "type": [
+      "beach-break",
+      "point-break"
+    ],
+    "amenities": [
+      "parking"
+    ],
     "description": "Mixed break with both beach and point sections during SE winds.",
-    "imageUrls": ["https://example.com/beaverbay.jpg"],
+    "imageUrls": [],
     "createdAt": "2023-01-15T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
     "region": "superior",
     "subregion": "superior-north-mn"
   },
@@ -183,19 +226,25 @@
     "id": "grandmaraismn",
     "name": "Grand Marais, MN",
     "location": {
-      "latitude": 47.7500,
-      "longitude": -90.3300,
+      "latitude": 47.74897,
+      "longitude": -90.331016,
       "city": "Grand Marais",
       "state": "MN",
       "country": "USA"
     },
     "difficulty": "intermediate",
-    "type": ["beach-break", "point-break"],
-    "amenities": ["parking", "restrooms"],
+    "type": [
+      "beach-break",
+      "point-break"
+    ],
+    "amenities": [
+      "parking",
+      "restrooms"
+    ],
     "description": "Northern Minnesota surf spot that works during SE winds.",
-    "imageUrls": ["https://example.com/grandmaraismn.jpg"],
+    "imageUrls": [],
     "createdAt": "2023-01-15T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
     "region": "superior",
     "subregion": "superior-north-mn"
   },
@@ -203,59 +252,48 @@
     "id": "marquette",
     "name": "Marquette",
     "location": {
-      "latitude": 46.5400,
-      "longitude": -87.4000,
+      "latitude": 46.54,
+      "longitude": -87.4,
       "city": "Marquette",
       "state": "MI",
       "country": "USA"
     },
     "difficulty": "intermediate",
-    "type": ["beach-break", "point-break"],
-    "amenities": ["parking"],
+    "type": [
+      "beach-break",
+      "point-break"
+    ],
+    "amenities": [
+      "parking"
+    ],
     "description": "Michigan's premier surf spot that works during W/WNW winds.",
-    "imageUrls": ["https://example.com/marquette.jpg"],
+    "imageUrls": [],
     "createdAt": "2023-01-15T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
     "region": "superior",
     "subregion": "superior-mi"
   },
   {
-    "id": "ashland",
-    "name": "Ashland",
+    "id": "madelineisland",
+    "name": "Madeline Island/Big Bay",
     "location": {
-      "latitude": 46.5900,
-      "longitude": -90.8800,
-      "city": "Ashland",
+      "latitude": 46.810422,
+      "longitude": -90.671978,
+      "city": "Washburn",
       "state": "WI",
       "country": "USA"
     },
     "difficulty": "intermediate",
-    "type": ["beach-break"],
-    "amenities": ["parking"],
-    "description": "Wisconsin surf spot that works during WNW/NW winds.",
-    "imageUrls": ["https://example.com/ashland.jpg"],
+    "type": [
+      "beach-break"
+    ],
+    "amenities": [
+      "parking"
+    ],
+    "description": "Surf spot near Big Bay State Park on Madeline Island, in the Apostle Islands. Works during NW/WNW/SW winds depending on exposure.",
+    "imageUrls": [],
     "createdAt": "2023-01-15T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z",
-    "region": "superior",
-    "subregion": "superior-south-wi"
-  },
-  {
-    "id": "cornucopia",
-    "name": "Cornucopia",
-    "location": {
-      "latitude": 46.8500,
-      "longitude": -91.1000,
-      "city": "Cornucopia",
-      "state": "WI",
-      "country": "USA"
-    },
-    "difficulty": "intermediate",
-    "type": ["beach-break"],
-    "amenities": ["parking"],
-    "description": "Wisconsin surf spot that works during NW/WNW winds.",
-    "imageUrls": ["https://example.com/cornucopia.jpg"],
-    "createdAt": "2023-01-15T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
     "region": "superior",
     "subregion": "superior-south-wi"
   },
@@ -263,19 +301,97 @@
     "id": "grandmaraismi",
     "name": "Grand Marais, MI",
     "location": {
-      "latitude": 46.6700,
-      "longitude": -85.9800,
+      "latitude": 46.681809,
+      "longitude": -85.973937,
       "city": "Grand Marais",
       "state": "MI",
       "country": "USA"
     },
     "difficulty": "intermediate",
-    "type": ["beach-break", "point-break"],
-    "amenities": ["parking"],
+    "type": [
+      "beach-break",
+      "point-break"
+    ],
+    "amenities": [
+      "parking"
+    ],
     "description": "Michigan surf spot that works during W/WNW winds.",
-    "imageUrls": ["https://example.com/grandmaraismi.jpg"],
+    "imageUrls": [],
     "createdAt": "2023-01-15T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
+    "region": "superior",
+    "subregion": "superior-mi"
+  },
+  {
+    "id": "thezoo",
+    "name": "The Zoo",
+    "location": {
+      "latitude": 46.5861,
+      "longitude": -87.4023,
+      "city": "Marquette",
+      "state": "MI",
+      "country": "USA"
+    },
+    "difficulty": "intermediate",
+    "type": [
+      "reef",
+      "point-break"
+    ],
+    "amenities": [
+      "parking"
+    ],
+    "description": "The most popular and consistent surf spot in Marquette, located at Presque Isle Park. Works best with north and northeast winds.",
+    "imageUrls": [],
+    "createdAt": "2026-06-23T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
+    "region": "superior",
+    "subregion": "superior-mi"
+  },
+  {
+    "id": "littlepresqueisle",
+    "name": "Little Presque Isle Beach",
+    "location": {
+      "latitude": 46.640818,
+      "longitude": -87.480239,
+      "city": "Marquette",
+      "state": "MI",
+      "country": "USA"
+    },
+    "difficulty": "intermediate",
+    "type": [
+      "beach-break"
+    ],
+    "amenities": [
+      "parking"
+    ],
+    "description": "Beach break north of Marquette. Works best with north-facing wind/swell.",
+    "imageUrls": [],
+    "createdAt": "2026-06-23T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
+    "region": "superior",
+    "subregion": "superior-mi"
+  },
+  {
+    "id": "shiraspark",
+    "name": "Shiras Park",
+    "location": {
+      "latitude": 46.557578,
+      "longitude": -87.379746,
+      "city": "Marquette",
+      "state": "MI",
+      "country": "USA"
+    },
+    "difficulty": "intermediate",
+    "type": [
+      "beach-break"
+    ],
+    "amenities": [
+      "parking"
+    ],
+    "description": "Marquette-area surf spot. Works best with north-facing wind/swell.",
+    "imageUrls": [],
+    "createdAt": "2026-06-23T00:00:00.000Z",
+    "updatedAt": "2026-06-23T00:00:00.000Z",
     "region": "superior",
     "subregion": "superior-mi"
   }

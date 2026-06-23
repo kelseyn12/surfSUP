@@ -9,6 +9,7 @@ import { fetchNearbySurfSpots, resetAllCheckInsAndCounts } from '../services/api
 import { getGlobalSurferCount } from '../services/globalState';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocation } from '../hooks/useLocation';
+import { TIMEOUTS } from '../constants';
 
 // Duluth, MN — fallback when device location is unavailable
 const DULUTH_LAT = 46.7825;
@@ -81,7 +82,7 @@ const HomeScreen: React.FC = () => {
       const intervalId = setInterval(() => {
         // Just re-fetch surfer counts without loading all spots
         refreshSurferCounts();
-      }, 5000); // Check every 5 seconds
+      }, TIMEOUTS.SURFER_COUNT_POLL);
       return () => {
         // Clear interval when screen loses focus
         clearInterval(intervalId);

@@ -7,8 +7,8 @@
  *
  *   Subregions defined:
  *     superior-north-mn  — North Shore MN (NE/ENE winds, DLH office)
- *     superior-south-wi  — South Shore WI (NW/WNW winds, DLH office)
- *     superior-mi        — Michigan UP Lake Superior (W/WNW winds, MQT office)
+ *     superior-south-wi  — South Shore WI / Madeline Island (N/NNE winds, DLH office)
+ *     superior-mi        — Michigan UP Lake Superior / Marquette area (N/NNE/NE winds, MQT office)
  *     michigan-west      — West Michigan / Lake Michigan (S/SE winds, GRR office)
  *     ocean-east         — future: East Coast ocean spots
  *     ocean-west         — future: West Coast ocean spots
@@ -66,8 +66,8 @@ const SUBREGION_CONFIG: Record<string, SubregionConfig> = {
     product: "AFD",
     forecastLat: 46.72,
     forecastLon: -91.00,
-    favorableWinds: "NW, WNW, W (onshore to south shore). NE winds are offshore here — opposite of North Shore.",
-    fetchGeometry: "NW winds fetch across the width of Lake Superior (~150 miles). Swell arrives quickly — within 4-6 hours of sustained NW winds. Wave periods typically 3-6 seconds.",
+    favorableWinds: "N, NNE (onshore to this shore — south side of the lake faces north). S/SSW/SW winds are offshore here.",
+    fetchGeometry: "N/NNE winds fetch across the width of Lake Superior. Wave periods typically 3-6 seconds. NOTE: confidence on this is medium — based on regional surf-forecast.com data for the Apostle Islands area, not spot-verified buoy data.",
     waterTemp: "32-42°F in spring, up to 60°F late summer.",
     periodRange: "3-6 seconds",
   },
@@ -77,8 +77,8 @@ const SUBREGION_CONFIG: Record<string, SubregionConfig> = {
     product: "AFD",
     forecastLat: 46.54,
     forecastLon: -87.40,
-    favorableWinds: "W, WNW, SW (onshore to south-facing MI shore). NE winds are offshore.",
-    fetchGeometry: "W/WNW winds fetch across the full width of Lake Superior (250+ miles). Wave periods typically 5-9 seconds in strong W wind events.",
+    favorableWinds: "N, NNE, NE primarily (Marquette/Presque Isle faces north). Occasional NW/W also reported favorable. S/SSW/SW winds are offshore.",
+    fetchGeometry: "N/NE winds generate the most consistent swell at Marquette-area breaks (The Zoo, Picnic Rocks). Wave periods typically 5-9 seconds in strong wind events. NOTE: medium confidence — based on local surf shop guidance, not spot-verified buoy data.",
     waterTemp: "32-45°F spring, up to 60°F late summer.",
     periodRange: "5-9 seconds",
   },
@@ -146,6 +146,8 @@ interface SurfOutlookResponse {
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 // ─── Main Function ────────────────────────────────────────────────────────────
+
+export { billingKillSwitch } from "./billingKillSwitch";
 
 export const getSurfOutlook = onCall(
   { secrets: [ANTHROPIC_API_KEY] },
