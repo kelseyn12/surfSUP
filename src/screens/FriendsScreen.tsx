@@ -93,8 +93,11 @@ const FriendsScreen: React.FC = () => {
 
       setIncomingRequests(requestsWithNames);
       setFriends(friendsWithNames);
-    } catch {
-      // Leave lists as-is; the screen still works, just possibly stale.
+    } catch (err) {
+      // Leave lists as-is; the screen still works, just possibly stale —
+      // but never hide the real error, since a permission/index problem
+      // here looks identical to "you just have no friends yet."
+      console.error('[Friends] Failed to load lists:', err);
     } finally {
       setIsLoadingLists(false);
     }
@@ -113,8 +116,12 @@ const FriendsScreen: React.FC = () => {
     try {
       const userId = await firestoreFindUserIdByUsername(query);
       setSearchResult(userId ? { userId, username: query } : 'not_found');
-    } catch {
-      setSearchResult('not_found');
+    } catch (err) {
+      // IMPORTANT: a real error here (permissions, missing index, network)
+      // must not be silently presented as "no such user" — that's
+      // misleading and indistinguishable from a genuine miss.
+      console.error('[Friends] Username lookup failed:', err);
+      Alert.alert('Error', 'Something went wrong searching for that username. Please try again.');
     } finally {
       setIsSearching(false);
     }
@@ -137,7 +144,8 @@ const FriendsScreen: React.FC = () => {
       } else {
         Alert.alert('Already pending', `You and @${toUsername} already have a pending or accepted request.`);
       }
-    } catch {
+    } catch (err) {
+      console.error('[Friends] Failed to send request:', err);
       Alert.alert('Error', 'Could not send the friend request. Please try again.');
     } finally {
       setIsSendingRequest(false);
@@ -148,7 +156,8 @@ const FriendsScreen: React.FC = () => {
     try {
       await firestoreAcceptFriendRequest(requestId);
       await loadLists();
-    } catch {
+    } catch (err) {
+      console.error('[Friends] Failed to accept request:', err);
       Alert.alert('Error', 'Could not accept the request. Please try again.');
     }
   }, [loadLists]);
@@ -157,7 +166,8 @@ const FriendsScreen: React.FC = () => {
     try {
       await firestoreDeclineFriendRequest(requestId);
       await loadLists();
-    } catch {
+    } catch (err) {
+      console.error('[Friends] Failed to decline request:', err);
       Alert.alert('Error', 'Could not decline the request. Please try again.');
     }
   }, [loadLists]);
@@ -176,7 +186,8 @@ const FriendsScreen: React.FC = () => {
             try {
               await firestoreRemoveFriend(user.id, friendId);
               await loadLists();
-            } catch {
+            } catch (err) {
+              console.error('[Friends] Failed to remove friend:', err);
               Alert.alert('Error', 'Could not remove this friend. Please try again.');
             }
           },

@@ -94,8 +94,12 @@ const FriendsFeedScreen: React.FC = () => {
         });
       }
       setFeedItems(items);
-    } catch {
-      // Leave feed empty/stale rather than crash the screen.
+    } catch (err) {
+      // Leave feed empty/stale rather than crash the screen, but never
+      // hide the real error — a silently-swallowed index/permission error
+      // here looks identical to "no friends posted anything," which is
+      // actively misleading.
+      console.error('[FriendsFeed] Failed to load feed:', err);
     } finally {
       setIsLoading(false);
     }

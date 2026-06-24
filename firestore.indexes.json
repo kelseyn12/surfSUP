@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "checkIns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "checkIns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "spotId", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

@@ -70,6 +70,12 @@ export const checkOutFromSpot = async (checkInId: string): Promise<boolean> => {
   try {
     const { db } = await import('../config/firebase');
     const doc = await db.collection('checkIns').doc(checkInId).get();
+    // NOTE: this uses the namespaced/compat Firestore API (db.collection().doc()),
+    // where .exists is documented as a boolean PROPERTY, not a function — unlike
+    // the modular API used in firestore.ts (getDoc(doc(db,...))), where .exists
+    // was confirmed via live debugging to be a FUNCTION on this Firebase version.
+    // Left as a property here deliberately; verify with a real device log before
+    // changing, since getting this wrong silently breaks the early-return below.
     if (!doc.exists) return false;
     const { spotId } = doc.data()!;
 

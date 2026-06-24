@@ -106,9 +106,10 @@ export const useAuthStore = create<AuthState>()(
               lastActivity: Date.now(),
             });
             setUserContext(user.id);
-            firestoreEnsureUserDoc(user.id).catch(() => {
-              // Non-fatal — favorites/friend-accept will retry creating it
-              // implicitly via merge:true writes if this somehow fails.
+            firestoreEnsureUserDoc(user.id).catch((err) => {
+              // Non-fatal to sign-in, but should never be silent — this is
+              // the doc that friends/favorites/username all depend on.
+              console.error('[Auth] firestoreEnsureUserDoc failed:', err);
             });
             // convertFirebaseUser's `username` is only a displayName-derived
             // fallback for brand-new users. The real, user-chosen username
@@ -154,6 +155,10 @@ export const useAuthStore = create<AuthState>()(
             lastActivity: Date.now(),
             loginAttempts: 0,
           });
+          setUserContext(user.id);
+          firestoreEnsureUserDoc(user.id).catch((err) => {
+            console.error('[Auth] firestoreEnsureUserDoc failed (login):', err);
+          });
         } catch (error: any) {
           set({
             isLoading: false,
@@ -184,6 +189,10 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: true,
             isLoading: false,
             lastActivity: Date.now(),
+          });
+          setUserContext(user.id);
+          firestoreEnsureUserDoc(user.id).catch((err) => {
+            console.error('[Auth] firestoreEnsureUserDoc failed (register):', err);
           });
         } catch (error: any) {
           set({
@@ -290,6 +299,10 @@ export const useAuthStore = create<AuthState>()(
               lastActivity: Date.now(),
               isLoading: false,
             });
+            setUserContext(user.id);
+            firestoreEnsureUserDoc(user.id).catch((err) => {
+              console.error('[Auth] firestoreEnsureUserDoc failed (Apple sign-in):', err);
+            });
           } else {
             set({ error: result.error || 'Apple sign-in failed', isLoading: false });
           }
@@ -312,6 +325,10 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: true,
               lastActivity: Date.now(),
               isLoading: false,
+            });
+            setUserContext(user.id);
+            firestoreEnsureUserDoc(user.id).catch((err) => {
+              console.error('[Auth] firestoreEnsureUserDoc failed (Google sign-in):', err);
             });
         } else {
             set({ error: result.error || 'Google sign-in failed', isLoading: false });

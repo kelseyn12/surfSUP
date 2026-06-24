@@ -73,8 +73,12 @@ const EditProfileScreen: React.FC = () => {
         try {
           await firestoreSetUsername(user.id, trimmedUsername, previousUsername);
         } catch (err: any) {
-          // Rare race: someone else claimed it between the availability
-          // check above and this write.
+          // IMPORTANT: this catch fires for ANY failure, not just a genuine
+          // username collision (e.g. permissions or missing-doc errors look
+          // identical to the user otherwise). Always log the real error so
+          // "every username says taken" doesn't get misdiagnosed as a name
+          // collision when it's actually something else entirely.
+          console.error('[EditProfile] firestoreSetUsername failed:', err);
           Alert.alert('Username taken', err.message || `@${trimmedUsername} was just claimed by someone else. Try another.`);
           setIsLoading(false);
           return;
@@ -390,4 +394,4 @@ const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet
   },
 });
 
-export default EditProfileScreen; 
+export default EditProfileScreen;

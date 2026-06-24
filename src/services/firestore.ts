@@ -233,7 +233,7 @@ export const firestoreRemoveFavoriteSpot = async (userId: string, spotId: string
 
 export const firestoreGetFavoriteSpots = async (userId: string): Promise<SurfSpot[]> => {
   const snap = await getDoc(doc(db, 'users', userId));
-  if (!snap.exists) return [];
+  if (!snap.exists()) return [];
   const ids: string[] = snap.data()?.favoriteSpotIds ?? [];
   return ids.map((id) => getSpotById(id)).filter((s): s is SurfSpot => s !== undefined);
 };
@@ -281,7 +281,7 @@ export const firestoreUpsertSpot = async (spot: SurfSpot): Promise<void> => {
 export const firestoreEnsureUserDoc = async (userId: string): Promise<void> => {
   const ref = doc(db, 'users', userId);
   const snap = await getDoc(ref);
-  if (snap.exists) return;
+  if (snap.exists()) return;
   await setDoc(ref, { friendIds: [] });
 };
 
@@ -295,7 +295,7 @@ export const firestoreGetUserProfile = async (
   userId: string
 ): Promise<{ username?: string }> => {
   const snap = await getDoc(doc(db, 'users', userId));
-  if (!snap.exists) return {};
+  if (!snap.exists()) return {};
   return { username: snap.data()?.username };
 };
 
@@ -306,7 +306,10 @@ export const firestoreIsUsernameAvailable = async (username: string): Promise<bo
   const key = username.trim().toLowerCase();
   if (!key) return false;
   const snap = await getDoc(doc(db, 'usernames', key));
-  return !snap.exists;
+  if (__DEV__) {
+    console.log(`[Username check] key="${key}" exists=${snap.exists()} data=`, snap.exists() ? snap.data() : null);
+  }
+  return !snap.exists();
 };
 
 /**
@@ -324,7 +327,7 @@ export const firestoreSetUsername = async (
   await runTransaction(db, async (tx) => {
     const newRef = doc(db, 'usernames', newKey);
     const existing = await tx.get(newRef);
-    if (existing.exists && existing.data()?.userId !== userId) {
+    if (existing.exists() && existing.data()?.userId !== userId) {
       throw new Error('Username is already taken');
     }
     tx.set(newRef, { userId });
@@ -345,7 +348,7 @@ export const firestoreFindUserIdByUsername = async (username: string): Promise<s
   const key = username.trim().toLowerCase();
   if (!key) return null;
   const snap = await getDoc(doc(db, 'usernames', key));
-  return snap.exists ? (snap.data()?.userId ?? null) : null;
+  return snap.exists() ? (snap.data()?.userId ?? null) : null;
 };
 
 /**
@@ -416,7 +419,7 @@ export const firestoreGetIncomingFriendRequests = async (
 export const firestoreAcceptFriendRequest = async (requestId: string): Promise<void> => {
   const reqRef = doc(db, 'friendRequests', requestId);
   const reqSnap = await getDoc(reqRef);
-  if (!reqSnap.exists) return;
+  if (!reqSnap.exists()) return;
   const { fromUserId, toUserId } = reqSnap.data() as { fromUserId: string; toUserId: string };
 
   const batch = writeBatch(db);
@@ -450,7 +453,7 @@ export const firestoreRemoveFriend = async (userId: string, friendId: string): P
  */
 export const firestoreGetFriendIds = async (userId: string): Promise<string[]> => {
   const snap = await getDoc(doc(db, 'users', userId));
-  return snap.exists ? (snap.data()?.friendIds ?? []) : [];
+  return snap.exists() ? (snap.data()?.friendIds ?? []) : [];
 };
 
 /**
