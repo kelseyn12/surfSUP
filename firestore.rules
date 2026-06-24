@@ -18,6 +18,19 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
 
+      // Friend requests/lists/search all need to display OTHER users'
+      // usernames (e.g. "who sent this request", "what's my friend's
+      // handle") — firestoreGetUserProfile reads an arbitrary userId for
+      // exactly this. A single-document get (not a query/list) of someone
+      // else's doc, scoped to any signed-in user.
+      // NOTE: this currently exposes the WHOLE users doc (friendIds +
+      // username) to any signed-in user, not just username. friendIds
+      // being visible isn't a meaningful leak in this app today, but if
+      // more sensitive fields are ever added to this doc, split username
+      // into its own public sub-document/collection instead of widening
+      // this further.
+      allow get: if request.auth != null;
+
       // Friend accept/decline/remove needs to write `friendIds` into the
       // OTHER user's doc (not just your own). This narrow exception allows
       // that single field to change on someone else's doc, but nothing else:
@@ -64,9 +77,23 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid;
     }
     match /friendRequests/{requestId} {
-      // Either party in the request can read it.
-      allow read: if request.auth != null
+      // Single-document fetch by ID: either party can read it directly.
+      // (get operations check actual resource.data, so the OR is fine here.)
+      allow get: if request.auth != null
         && (resource.data.fromUserId == request.auth.uid || resource.data.toUserId == request.auth.uid);
+
+      // Queries (list): Firestore verifies list rules against the query's
+      // potential result set, not actual document data. An OR across two
+      // different fields can't be proven unless the query itself constrains
+      // both — so each real query needs its own rule matching what it
+      // actually filters on, not a combined OR.
+      //   - firestoreGetIncomingFriendRequests filters where('toUserId','==',self)
+      //   - firestoreGetFriendRequestBetween runs two queries, one filtering
+      //     where('fromUserId','==',self), one filtering where('toUserId','==',self)
+      allow list: if request.auth != null
+        && resource.data.toUserId == request.auth.uid;
+      allow list: if request.auth != null
+        && resource.data.fromUserId == request.auth.uid;
 
       // Only the sender can create a request, and only as themself.
       allow create: if request.auth != null

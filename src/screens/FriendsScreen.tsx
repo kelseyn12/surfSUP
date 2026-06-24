@@ -108,7 +108,9 @@ const FriendsScreen: React.FC = () => {
   }, [loadLists]);
 
   const handleSearch = useCallback(async () => {
-    const query = searchText.trim();
+    // Accept either "kelseynocek2" or "@kelseynocek2" — the stored key
+    // never includes the @, so strip it if someone types it naturally.
+    const query = searchText.trim().replace(/^@/, '');
     if (!query) return;
 
     setIsSearching(true);
