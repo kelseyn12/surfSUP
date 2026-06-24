@@ -330,7 +330,8 @@ We have successfully implemented a comprehensive surf forecasting system for Lak
 ### Data Quality
 - [ ] Water temp source: currently from buoys/NOAA — consider GLERL CoastWatch for basin-wide temp map
 - [ ] Ice extent: no data source yet — relevant for spring safety warnings (Brandon references National Ice Center)
-- [ ] Flood Bay / Beaver Bay / Grand Marais MN: these spots need ENE or ESE wind logic reviewed — they face differently than Duluth-area breaks
+- [X] ~~Flood Bay / Beaver Bay / Grand Marais MN: these spots need ENE or ESE wind logic reviewed~~
+  - **2026-06-24 review:** Beaver Bay — confirmed via Surf Captain (offshore NW-N) and fixed a gap (N was missing from `blockedWindDirections`). Grand Marais MN — checked 3 sources; 2 of 3 (Surf Captain + live Surfline reading) support the existing E/SE config, so left unchanged. Flood Bay — no spot-specific source found (no Surf Captain or surf-forecast.com page exists for it); config left as-is, genuinely unverified rather than confirmed correct. If anyone surfs Flood Bay regularly, their on-the-ground read of which wind direction works would settle this faster than more web searching.
 
 ## Next Priority Tasks
 - [X] Implement password reset functionality

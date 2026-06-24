@@ -81,7 +81,7 @@ export const surfSpotsConfig: Record<string, SurfSpotConfig> = {
     name: 'Beaver Bay',
     idealWindDirections: ['E', 'NE', 'ENE'] as WindDirection[],
     marginalWindDirections: ['NNE'] as WindDirection[],
-    blockedWindDirections: ['SW', 'W', 'NW'] as WindDirection[],
+    blockedWindDirections: ['SW', 'W', 'NW', 'N'] as WindDirection[],
     confidence: 'medium',
   },
   grandmaraismn: {
