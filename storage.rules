@@ -20,6 +20,33 @@ service firebase.storage {
       allow update: if false;
     }
 
+    // checkInPhotos/{checkInId}/{userId}_{timestamp}.jpg
+    // Photos a user attaches to their own check-in (see CheckInScreen.tsx).
+    //
+    // NOTE on read access: this currently allows any signed-in user to read,
+    // same as spotPhotos — NOT actually scoped to friends-only, even though
+    // the app's privacy setting implies it should be eventually. Storage
+    // rules can do a Firestore lookup via firestore.get() to check the
+    // friendIds list, but that adds real latency/complexity, and right now
+    // checkIns documents themselves are also readable by any signed-in user
+    // (see firestore.rules) — so this matches the app's actual current
+    // privacy level rather than pretending photos are more private than the
+    // check-in data they're attached to. Revisit both together if/when the
+    // privacy toggle becomes real.
+    match /checkInPhotos/{checkInId}/{fileName} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && fileName.matches(request.auth.uid + '_.*')
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+
+      allow delete: if request.auth != null
+        && fileName.matches(request.auth.uid + '_.*');
+
+      allow update: if false;
+    }
+
     // Deny everything else by default.
     match /{allPaths=**} {
       allow read, write: if false;

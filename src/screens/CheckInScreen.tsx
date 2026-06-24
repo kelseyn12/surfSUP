@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  Image,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -17,6 +18,8 @@ import { MESSAGES } from '../constants';
 import { CheckIn } from '../types';
 import { checkInToSpot } from '../services/checkInService';
 import { useAuthStore } from '../services/auth';
+import { pickSpotPhoto, uploadCheckInPhoto, isPhotoUploadAvailable } from '../services/photoService';
+import { firestoreAddCheckInPhoto } from '../services/firestore';
 
 type CrowdLevel = NonNullable<CheckIn['conditions']>['crowdLevel'];
 type WindQuality = NonNullable<CheckIn['conditions']>['windQuality'];
@@ -75,6 +78,18 @@ const CheckInScreen: React.FC = () => {
   const [waterTemp, setWaterTemp] = useState<number>(routeConditions?.waterTemp?.value ?? 38);
   const [crowdLevel, setCrowdLevel] = useState<CrowdLevel>('uncrowded');
   const [windQuality, setWindQuality] = useState<WindQuality>('fair');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [isPickingPhoto, setIsPickingPhoto] = useState(false);
+
+  const handlePickPhoto = async () => {
+    setIsPickingPhoto(true);
+    try {
+      const uri = await pickSpotPhoto();
+      if (uri) setPhotoUri(uri);
+    } finally {
+      setIsPickingPhoto(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!user?.id) {
@@ -97,6 +112,19 @@ const CheckInScreen: React.FC = () => {
       const result = await checkInToSpot(user.id, spotId, checkInData);
 
       if (result) {
+        if (photoUri) {
+          try {
+            const photoUrl = await uploadCheckInPhoto(result.id, user.id, photoUri);
+            if (photoUrl) {
+              await firestoreAddCheckInPhoto(result.id, photoUrl);
+            }
+          } catch (photoError) {
+            // Don't fail the whole check-in over a photo upload hiccup —
+            // the check-in itself already succeeded.
+            console.error('Check-in photo upload error:', photoError);
+          }
+        }
+
         Alert.alert('Success', MESSAGES.SUCCESS.CHECK_IN, [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
@@ -304,6 +332,36 @@ const CheckInScreen: React.FC = () => {
         />
       </View>
 
+      {/* Photo */}
+      {isPhotoUploadAvailable() && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Photo</Text>
+          {photoUri ? (
+            <View style={styles.photoPreviewContainer}>
+              <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+              <TouchableOpacity style={styles.removePhotoButton} onPress={() => setPhotoUri(null)}>
+                <Ionicons name="close-circle" size={28} color={colors.white} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.addPhotoButton}
+              onPress={handlePickPhoto}
+              disabled={isPickingPhoto}
+            >
+              {isPickingPhoto ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <>
+                  <Ionicons name="camera-outline" size={24} color={colors.primary} />
+                  <Text style={styles.addPhotoButtonText}>Add a Photo</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       <View style={styles.actionContainer}>
         <TouchableOpacity
           style={[styles.submitButton, isSubmitting && { opacity: 0.6 }]}
@@ -456,6 +514,37 @@ const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet
     textAlignVertical: 'top',
     minHeight: 100,
     color: colors.text.primary,
+  },
+  addPhotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.lightGray,
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    paddingVertical: 16,
+  },
+  addPhotoButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  photoPreviewContainer: {
+    position: 'relative',
+  },
+  photoPreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 14,
   },
   actionContainer: {
     padding: 16,

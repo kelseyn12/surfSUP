@@ -17,6 +17,7 @@ import { useAuthStore } from '../services/auth';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { RootStackScreenProps } from '../navigation/types';
 import type { User } from '../types';
+import { firestoreIsUsernameAvailable, firestoreSetUsername } from '../services/firestore';
 
 const EditProfileScreen: React.FC = () => {
   const { colors } = useTheme();
@@ -54,11 +55,35 @@ const EditProfileScreen: React.FC = () => {
       return;
     }
 
+    const trimmedUsername = username.trim();
+    const previousUsername = user?.username;
+
     setIsLoading(true);
     try {
+      // Claim the username first (if it changed) — this is the operation
+      // most likely to fail (taken by someone else), and we don't want to
+      // leave other profile fields half-saved if it does.
+      if (trimmedUsername && trimmedUsername !== previousUsername && user?.id) {
+        const available = await firestoreIsUsernameAvailable(trimmedUsername);
+        if (!available) {
+          Alert.alert('Username taken', `@${trimmedUsername} is already in use. Try another.`);
+          setIsLoading(false);
+          return;
+        }
+        try {
+          await firestoreSetUsername(user.id, trimmedUsername, previousUsername);
+        } catch (err: any) {
+          // Rare race: someone else claimed it between the availability
+          // check above and this write.
+          Alert.alert('Username taken', err.message || `@${trimmedUsername} was just claimed by someone else. Try another.`);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const updates: Partial<User> = {
         name: name.trim(),
-        username: username.trim() || undefined,
+        username: trimmedUsername || undefined,
         profileImageUrl: profileImageUrl.trim() || undefined,
         preferences: {
           favoriteSpots: user?.preferences?.favoriteSpots ?? [],
@@ -79,7 +104,7 @@ const EditProfileScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [name, username, profileImageUrl, preferredBoard, units, homeSpot, user?.preferences, updateUserProfile, navigation]);
+  }, [name, username, profileImageUrl, preferredBoard, units, homeSpot, user?.preferences, user?.username, user?.id, updateUserProfile, navigation]);
 
   const handleBack = useCallback(() => {
     navigation.goBack();

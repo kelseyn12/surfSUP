@@ -54,6 +54,7 @@ export const firestoreCheckInToSpot = async (
   };
   if (data?.conditions) checkInData.conditions = data.conditions;
   if (data?.comment) checkInData.comment = data.comment;
+  if (data?.imageUrls?.length) checkInData.imageUrls = data.imageUrls;
 
   const docRef = await addDoc(collection(db, 'checkIns'), checkInData);
 
@@ -64,6 +65,16 @@ export const firestoreCheckInToSpot = async (
   );
 
   return { id: docRef.id, ...checkInData } as CheckIn;
+};
+
+/**
+ * Attaches a photo URL to an existing check-in. Called after
+ * checkInToSpot has already created the document and returned its real
+ * ID — uploads need that ID for the storage path, so this is necessarily
+ * a separate step rather than part of the initial create.
+ */
+export const firestoreAddCheckInPhoto = async (checkInId: string, photoUrl: string): Promise<void> => {
+  await updateDoc(doc(db, 'checkIns', checkInId), { imageUrls: arrayUnion(photoUrl) });
 };
 
 export const firestoreCheckOutFromSpot = async (checkInId: string): Promise<boolean> => {
@@ -237,6 +248,230 @@ export const firestoreGetSpots = async (): Promise<SurfSpot[]> => {
 
 export const firestoreUpsertSpot = async (spot: SurfSpot): Promise<void> => {
   await setDoc(doc(db, 'spots', spot.id), spot);
+};
+
+// ─── FRIENDS ─────────────────────────────────────────────────────────────────
+//
+// Data model:
+//   usernames/{usernameLowercase}      → { userId }   (uniqueness + lookup index)
+//   friendRequests/{requestId}         → { fromUserId, toUserId, status, createdAt }
+//   users/{userId}.friendIds: string[] → mutual friends, written to BOTH users'
+//                                        docs only after a request is accepted
+//
+// Friend requests need their own collection (not just a field on the request-
+// recipient's user doc) because Firestore rules only let a user write their
+// OWN /users/{userId} document — person A can't write into person B's doc to
+// send a request. A separate collection lets A create a doc that B can read
+// and update, without either needing write access to the other's profile.
+//
+// IMPORTANT: firestoreAcceptFriendRequest below writes into BOTH users' docs,
+// including a doc that may belong to someone other than the caller. Firestore
+// treats a write to a non-existent doc as a CREATE, and the security rules
+// only grant that cross-user exception for UPDATEs — so the target user's
+// /users/{userId} doc must already exist before they can be friended. That's
+// why firestoreEnsureUserDoc exists and is called on every sign-in (see
+// auth.ts) — it guarantees the doc exists as early as possible, using a
+// same-user write that's always safe under the normal owner rule.
+
+/**
+ * Creates a users/{userId} doc with safe defaults if it doesn't already
+ * exist. Idempotent and non-destructive — never overwrites existing fields.
+ * Call this on every successful sign-in.
+ */
+export const firestoreEnsureUserDoc = async (userId: string): Promise<void> => {
+  const ref = doc(db, 'users', userId);
+  const snap = await getDoc(ref);
+  if (snap.exists) return;
+  await setDoc(ref, { friendIds: [] });
+};
+
+/**
+ * Reads the durable profile fields stored on a user's Firestore doc.
+ * Currently just `username` — this is the source of truth for username,
+ * NOT Firebase Auth's displayName. (displayName is derived FROM username
+ * when set, for backward display purposes only; see auth.ts.)
+ */
+export const firestoreGetUserProfile = async (
+  userId: string
+): Promise<{ username?: string }> => {
+  const snap = await getDoc(doc(db, 'users', userId));
+  if (!snap.exists) return {};
+  return { username: snap.data()?.username };
+};
+
+/**
+ * Checks whether a username is available, case-insensitively.
+ */
+export const firestoreIsUsernameAvailable = async (username: string): Promise<boolean> => {
+  const key = username.trim().toLowerCase();
+  if (!key) return false;
+  const snap = await getDoc(doc(db, 'usernames', key));
+  return !snap.exists;
+};
+
+/**
+ * Claims a username for a user, releasing any previous username they held.
+ * Throws if the username is already taken by someone else.
+ */
+export const firestoreSetUsername = async (
+  userId: string,
+  newUsername: string,
+  previousUsername?: string
+): Promise<void> => {
+  const newKey = newUsername.trim().toLowerCase();
+  if (!newKey) throw new Error('Username cannot be empty');
+
+  await runTransaction(db, async (tx) => {
+    const newRef = doc(db, 'usernames', newKey);
+    const existing = await tx.get(newRef);
+    if (existing.exists && existing.data()?.userId !== userId) {
+      throw new Error('Username is already taken');
+    }
+    tx.set(newRef, { userId });
+    tx.set(doc(db, 'users', userId), { username: newUsername.trim() }, { merge: true });
+
+    const prevKey = previousUsername?.trim().toLowerCase();
+    if (prevKey && prevKey !== newKey) {
+      tx.delete(doc(db, 'usernames', prevKey));
+    }
+  });
+};
+
+/**
+ * Looks up a userId by exact username (case-insensitive). Returns null if
+ * no user has claimed that username.
+ */
+export const firestoreFindUserIdByUsername = async (username: string): Promise<string | null> => {
+  const key = username.trim().toLowerCase();
+  if (!key) return null;
+  const snap = await getDoc(doc(db, 'usernames', key));
+  return snap.exists ? (snap.data()?.userId ?? null) : null;
+};
+
+/**
+ * Sends a friend request. Returns the new request's ID, or null if a
+ * pending or accepted request already exists between these two users.
+ */
+export const firestoreSendFriendRequest = async (
+  fromUserId: string,
+  toUserId: string
+): Promise<string | null> => {
+  if (fromUserId === toUserId) return null;
+
+  const existing = await firestoreGetFriendRequestBetween(fromUserId, toUserId);
+  if (existing && existing.status !== 'declined') return null;
+
+  const docRef = await addDoc(collection(db, 'friendRequests'), {
+    fromUserId,
+    toUserId,
+    status: 'pending',
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
+
+/**
+ * Finds any existing friend request (in either direction) between two users.
+ */
+export const firestoreGetFriendRequestBetween = async (
+  userA: string,
+  userB: string
+): Promise<{ id: string; fromUserId: string; toUserId: string; status: string } | null> => {
+  const q1 = query(
+    collection(db, 'friendRequests'),
+    where('fromUserId', '==', userA),
+    where('toUserId', '==', userB)
+  );
+  const q2 = query(
+    collection(db, 'friendRequests'),
+    where('fromUserId', '==', userB),
+    where('toUserId', '==', userA)
+  );
+  const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+  const d = snap1.docs[0] ?? snap2.docs[0];
+  if (!d) return null;
+  return { id: d.id, ...d.data() } as any;
+};
+
+/**
+ * Lists incoming pending friend requests for a user (people who want to add them).
+ */
+export const firestoreGetIncomingFriendRequests = async (
+  userId: string
+): Promise<{ id: string; fromUserId: string; createdAt: any }[]> => {
+  const q = query(
+    collection(db, 'friendRequests'),
+    where('toUserId', '==', userId),
+    where('status', '==', 'pending')
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as any));
+};
+
+/**
+ * Accepts a friend request: marks it accepted and adds each user to the
+ * other's friendIds array. Both writes happen in a batch so they can't
+ * partially succeed.
+ */
+export const firestoreAcceptFriendRequest = async (requestId: string): Promise<void> => {
+  const reqRef = doc(db, 'friendRequests', requestId);
+  const reqSnap = await getDoc(reqRef);
+  if (!reqSnap.exists) return;
+  const { fromUserId, toUserId } = reqSnap.data() as { fromUserId: string; toUserId: string };
+
+  const batch = writeBatch(db);
+  batch.update(reqRef, { status: 'accepted' });
+  batch.set(doc(db, 'users', fromUserId), { friendIds: arrayUnion(toUserId) }, { merge: true });
+  batch.set(doc(db, 'users', toUserId), { friendIds: arrayUnion(fromUserId) }, { merge: true });
+  await batch.commit();
+};
+
+/**
+ * Declines a friend request. Left in the collection (status updated, not
+ * deleted) so the requester isn't silently blocked from ever trying again
+ * — firestoreSendFriendRequest only re-checks status, not history.
+ */
+export const firestoreDeclineFriendRequest = async (requestId: string): Promise<void> => {
+  await updateDoc(doc(db, 'friendRequests', requestId), { status: 'declined' });
+};
+
+/**
+ * Removes a mutual friendship from both users' friendIds arrays.
+ */
+export const firestoreRemoveFriend = async (userId: string, friendId: string): Promise<void> => {
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'users', userId), { friendIds: arrayRemove(friendId) }, { merge: true });
+  batch.set(doc(db, 'users', friendId), { friendIds: arrayRemove(userId) }, { merge: true });
+  await batch.commit();
+};
+
+/**
+ * Returns the list of friend userIds for a user.
+ */
+export const firestoreGetFriendIds = async (userId: string): Promise<string[]> => {
+  const snap = await getDoc(doc(db, 'users', userId));
+  return snap.exists ? (snap.data()?.friendIds ?? []) : [];
+};
+
+/**
+ * Recent check-ins from a user's friends, across all spots, for a feed view.
+ * Firestore's `in` operator supports up to 30 values — fine at this app's
+ * scale; if the friends list ever needs to exceed that, this will need to
+ * be split into batched queries.
+ */
+export const firestoreGetFriendsFeed = async (
+  friendIds: string[],
+  limitCount = 30
+): Promise<CheckIn[]> => {
+  if (friendIds.length === 0) return [];
+  const q = query(
+    collection(db, 'checkIns'),
+    where('userId', 'in', friendIds.slice(0, 30)),
+    orderBy('timestamp', 'desc'),
+    limit(limitCount)
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as CheckIn));
 };
 
 // ─── STALE CHECK-IN CLEANUP ──────────────────────────────────────────────────

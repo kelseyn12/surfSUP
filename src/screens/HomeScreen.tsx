@@ -112,6 +112,9 @@ const HomeScreen: React.FC = () => {
           <TouchableOpacity onPress={handleSearch} style={styles.iconButton}>
             <Ionicons name="search" size={24} color={colors.text.primary} />
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('FriendsFeed')} style={styles.iconButton}>
+            <Ionicons name="people-outline" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
           
           {__DEV__ && (
             <TouchableOpacity

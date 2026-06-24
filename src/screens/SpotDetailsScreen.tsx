@@ -108,6 +108,10 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
         setSurferCount(conditions.surferCount || 0);
       }
       if (forecastData) setForecast(forecastData);
+      // NOTE: this filters out any check-in without `conditions` populated.
+      // CheckInScreen always sets conditions, so this is currently a no-op
+      // in practice — but if a check-in is ever created through a different
+      // path without conditions, its comment/photo also wouldn't show here.
       setRecentCheckIns(checkIns.filter((c) => c.conditions));
       setSpotPhotos(photos);
       setForecasterNotes(afdNotes);
@@ -794,6 +798,17 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
                     <Text style={styles.checkInHistoryItem}>
                       {windEmoji[c.windQuality] ?? ''} wind {c.windQuality}
                     </Text>
+                    {checkIn.comment && (
+                      <Text style={styles.checkInHistoryComment} numberOfLines={2}>
+                        "{checkIn.comment}"
+                      </Text>
+                    )}
+                    {checkIn.imageUrls && checkIn.imageUrls.length > 0 && (
+                      <Image
+                        source={{ uri: checkIn.imageUrls[0] }}
+                        style={styles.checkInHistoryPhoto}
+                      />
+                    )}
                   </View>
                   <View style={styles.checkInHistoryStars}>
                     {[1,2,3,4,5].map((s) => (
@@ -1318,6 +1333,19 @@ const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet
     color: colors.text.primary,
     marginBottom: 2,
     textTransform: 'capitalize',
+  },
+  checkInHistoryComment: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    fontStyle: 'italic',
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  checkInHistoryPhoto: {
+    width: 60,
+    height: 60,
+    borderRadius: 6,
+    marginTop: 4,
   },
   checkInHistoryStars: {
     flexDirection: 'row',

@@ -9,7 +9,7 @@ import { User } from '../types';
 import { SocialAuthService } from './socialAuth';
 import { reload, getIdToken, updateProfile, onAuthStateChanged } from '@react-native-firebase/auth';
 import { setUserContext } from './sentry';
-import { firestoreGetActiveCheckInAnywhere, firestoreCheckOutFromSpot } from './firestore';
+import { firestoreGetActiveCheckInAnywhere, firestoreCheckOutFromSpot, firestoreEnsureUserDoc, firestoreGetUserProfile } from './firestore';
 
 // Constants
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -106,6 +106,25 @@ export const useAuthStore = create<AuthState>()(
               lastActivity: Date.now(),
             });
             setUserContext(user.id);
+            firestoreEnsureUserDoc(user.id).catch(() => {
+              // Non-fatal — favorites/friend-accept will retry creating it
+              // implicitly via merge:true writes if this somehow fails.
+            });
+            // convertFirebaseUser's `username` is only a displayName-derived
+            // fallback for brand-new users. The real, user-chosen username
+            // (if any) lives on the Firestore doc — patch it in once loaded
+            // so it doesn't get silently overwritten on every sign-in.
+            firestoreGetUserProfile(user.id)
+              .then((profile) => {
+                if (profile.username) {
+                  set((state) => ({
+                    user: state.user ? { ...state.user, username: profile.username } : state.user,
+                  }));
+                }
+              })
+              .catch(() => {
+                // Non-fatal — falls back to the displayName-derived username.
+              });
             startRefreshTimer(firebaseUser);
           } else {
             if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }

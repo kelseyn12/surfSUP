@@ -211,6 +211,13 @@ const ProfileScreen: React.FC = () => {
           <Ionicons name="stats-chart-outline" size={20} color={colors.white} />
           <Text style={styles.actionButtonText}>View Stats</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.secondaryButton]}
+          onPress={() => navigation.navigate('Friends')}
+        >
+          <Ionicons name="people-outline" size={20} color={colors.primary} />
+          <Text style={[styles.actionButtonText, styles.secondaryButtonText]}>Friends</Text>
+        </TouchableOpacity>
       </View>
       
       {/* Debug Button - only visible in development */}

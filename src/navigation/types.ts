@@ -15,6 +15,8 @@ export type RootStackParamList = {
   SessionDetails: { sessionId: string };
   Settings: undefined;
   EditProfile: undefined;
+  Friends: undefined;
+  FriendsFeed: undefined;
   OnBoarding: undefined;
 
   ForgotPassword: undefined;

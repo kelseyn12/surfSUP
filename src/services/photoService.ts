@@ -1,5 +1,11 @@
 /**
- * Spot photo service — image picker + Firebase Storage upload.
+ * Photo service — image picker + Firebase Storage upload.
+ *
+ * Covers two separate upload paths with separate ownership/visibility:
+ *   - Spot photos: public gallery per spot     → spotPhotos/{spotId}/...
+ *   - Check-in photos: attached to a check-in  → checkInPhotos/{checkInId}/...
+ * Both share the same picker (pickSpotPhoto) since the picking step doesn't
+ * care what the photo will be attached to — only the upload path differs.
  *
  * To activate:
  *   1. npx expo install expo-image-picker @react-native-firebase/storage
@@ -81,3 +87,30 @@ export const uploadSpotPhoto = async (
 /** Returns true when both packages are installed and the feature is active. */
 export const isPhotoUploadAvailable = (): boolean =>
   PHOTO_UPLOAD_ENABLED && ImagePicker !== null && storage !== null;
+
+/**
+ * Uploads a local image URI as a check-in photo and returns the public
+ * download URL, or null if upload fails or the feature is disabled.
+ *
+ * Storage path: checkInPhotos/{checkInId}/{userId}_{timestamp}.jpg
+ */
+export const uploadCheckInPhoto = async (
+  checkInId: string,
+  userId: string,
+  localUri: string
+): Promise<string | null> => {
+  if (!storage) return null;
+
+  const timestamp = Date.now();
+  const path = `checkInPhotos/${checkInId}/${userId}_${timestamp}.jpg`;
+
+  try {
+    const ref = storage().ref(path);
+    await ref.putFile(localUri);
+    const url: string = await ref.getDownloadURL();
+    return url;
+  } catch (error) {
+    console.error('[PhotoService] Check-in photo upload failed:', error);
+    return null;
+  }
+};
