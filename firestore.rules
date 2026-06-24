@@ -47,9 +47,14 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.resource.data.userId == request.auth.uid;
 
-      // Releasing your own old username when you change it.
+      // Releasing your own old username when you change it. Must tolerate
+      // deleting a username doc that was never actually created — the app
+      // may pass a "previous username" derived from a displayName fallback
+      // that was never claimed via firestoreSetUsername. Accessing
+      // resource.data on a nonexistent doc errors (which Firestore treats
+      // as a denial), so check existence first via resource != null.
       allow delete: if request.auth != null
-        && resource.data.userId == request.auth.uid;
+        && (resource == null || resource.data.userId == request.auth.uid);
 
       // Re-setting a username you already own (e.g. re-saving the same
       // profile) is an update, not a create — allow it only if the doc

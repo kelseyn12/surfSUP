@@ -326,17 +326,39 @@ export const firestoreSetUsername = async (
 
   await runTransaction(db, async (tx) => {
     const newRef = doc(db, 'usernames', newKey);
+    const usersRef = doc(db, 'users', userId);
+
+    const prevKey = previousUsername?.trim().toLowerCase();
+    const prevRef = (prevKey && prevKey !== newKey) ? doc(db, 'usernames', prevKey) : null;
+
+    // All reads first, per Firestore's requirement that every read in a
+    // transaction happens before any write.
+    if (__DEV__) console.log('[SetUsername] reading', newRef.path);
     const existing = await tx.get(newRef);
+    const prevSnap = prevRef ? await tx.get(prevRef) : null;
+
     if (existing.exists() && existing.data()?.userId !== userId) {
       throw new Error('Username is already taken');
     }
-    tx.set(newRef, { userId });
-    tx.set(doc(db, 'users', userId), { username: newUsername.trim() }, { merge: true });
 
-    const prevKey = previousUsername?.trim().toLowerCase();
-    if (prevKey && prevKey !== newKey) {
-      tx.delete(doc(db, 'usernames', prevKey));
+    if (__DEV__) console.log('[SetUsername] writing usernames doc', newRef.path, { userId });
+    tx.set(newRef, { userId });
+
+    if (__DEV__) console.log('[SetUsername] writing users doc', usersRef.path, { username: newUsername.trim() });
+    tx.set(usersRef, { username: newUsername.trim() }, { merge: true });
+
+    // previousUsername may be a displayName-derived fallback that was
+    // never actually claimed via this function — only delete if a real
+    // doc exists there, otherwise this would be a meaningless delete of
+    // a nonexistent doc (also now safe at the rules level, but cleaner
+    // to just skip it client-side).
+    if (prevRef && prevSnap?.exists()) {
+      if (__DEV__) console.log('[SetUsername] deleting old usernames doc', prevRef.path);
+      tx.delete(prevRef);
+    } else if (prevRef && __DEV__) {
+      console.log('[SetUsername] previous username doc does not exist, skipping delete', prevRef.path);
     }
+    if (__DEV__) console.log('[SetUsername] all writes queued successfully');
   });
 };
 
