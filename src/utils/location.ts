@@ -214,20 +214,23 @@ export const getDirectionBetweenPoints = (
   lat2: number,
   lon2: number
 ): string => {
-  const dLon = lon2 - lon1;
-  const y = Math.sin(dLon) * Math.cos(lat2);
+  const lat1Rad = degreesToRadians(lat1);
+  const lat2Rad = degreesToRadians(lat2);
+  const dLon = degreesToRadians(lon2 - lon1);
+
+  const y = Math.sin(dLon) * Math.cos(lat2Rad);
   const x =
-    Math.cos(lat1) * Math.sin(lat2) -
-    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-  
+    Math.cos(lat1Rad) * Math.sin(lat2Rad) -
+    Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+
   let bearing = Math.atan2(y, x);
   bearing = bearing * (180 / Math.PI);
   bearing = (bearing + 360) % 360;
-  
+
   // Convert bearing to compass direction
   const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'N'];
   const index = Math.round(bearing / 45);
-  
+
   return directions[index];
 };
 
@@ -286,4 +289,4 @@ export const getRegionForCoordinates = (
     latitudeDelta: latDelta,
     longitudeDelta: lngDelta,
   };
-}; 
+};

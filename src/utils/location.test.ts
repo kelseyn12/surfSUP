@@ -3,7 +3,11 @@ import {
   degreesToRadians,
   formatDistance,
   getDirectionBetweenPoints,
-  getRegionForCoordinates
+  getRegionForCoordinates,
+  getNearbySpots,
+  createMapRegion,
+  createRegionForSpots,
+  formatCoordinates,
 } from './location';
 import type { SurfSpot } from '../types';
 
@@ -56,19 +60,17 @@ describe('Location Utilities', () => {
 
   describe('getDirectionBetweenPoints', () => {
     it('should return cardinal directions between points', () => {
-      // North
+      // North: latitude increases, longitude unchanged
       expect(getDirectionBetweenPoints(34, -118, 35, -118)).toBe('N');
-      
-      // East - Fix: In the Haversine formula, going from -118 to -117 is actually east
-      // But our implementation seems to return W, so let's adjust the test
-      expect(getDirectionBetweenPoints(34, -118, 34, -117)).toBe('W');
-      
-      // South
+
+      // East: longitude increases (less negative = further east)
+      expect(getDirectionBetweenPoints(34, -118, 34, -117)).toBe('E');
+
+      // South: latitude decreases, longitude unchanged
       expect(getDirectionBetweenPoints(35, -118, 34, -118)).toBe('S');
-      
-      // West - Fix: In the Haversine formula, going from -117 to -118 is actually west
-      // But our implementation seems to return E, so let's adjust the test
-      expect(getDirectionBetweenPoints(34, -117, 34, -118)).toBe('E');
+
+      // West: longitude decreases (more negative = further west)
+      expect(getDirectionBetweenPoints(34, -117, 34, -118)).toBe('W');
     });
   });
 
@@ -106,4 +108,121 @@ describe('Location Utilities', () => {
       expect(region?.longitudeDelta).toBeGreaterThan(-118.2437 - -122.4194);
     });
   });
-}); 
+
+  describe('formatCoordinates', () => {
+    it('should format positive lat/lon as N/E', () => {
+      expect(formatCoordinates(46.7825, 92.0856)).toBe('46.7825° N, 92.0856° E');
+    });
+
+    it('should format negative lat/lon as S/W', () => {
+      expect(formatCoordinates(-46.7825, -92.0856)).toBe('46.7825° S, 92.0856° W');
+    });
+
+    it('should format real Stoney Point coordinates (N lat, W lon)', () => {
+      // Real spot: latitude is positive (N), longitude is negative (W of prime meridian)
+      expect(formatCoordinates(46.928071, -91.811896)).toBe('46.9281° N, 91.8119° W');
+    });
+  });
+
+  describe('createMapRegion', () => {
+    it('should use default deltas when none are provided', () => {
+      expect(createMapRegion(46.7825, -92.0856)).toEqual({
+        latitude: 46.7825,
+        longitude: -92.0856,
+        latitudeDelta: 0.1,
+        longitudeDelta: 0.1,
+      });
+    });
+
+    it('should use custom deltas when provided', () => {
+      expect(createMapRegion(46.7825, -92.0856, 0.5, 0.3)).toEqual({
+        latitude: 46.7825,
+        longitude: -92.0856,
+        latitudeDelta: 0.5,
+        longitudeDelta: 0.3,
+      });
+    });
+  });
+
+  // Minimal fixture covering only the fields location.ts actually reads.
+  const makeSpot = (id: string, latitude: number, longitude: number): SurfSpot =>
+    ({
+      id,
+      name: id,
+      location: { latitude, longitude },
+      difficulty: 'beginner',
+      type: ['beach-break'],
+      createdAt: '',
+      updatedAt: '',
+    } as SurfSpot);
+
+  describe('getNearbySpots', () => {
+    // Real North Shore MN spots: Stoney Point, Park Point, Lester River
+    const stoneyPoint = makeSpot('stoneypoint', 46.928071, -91.811896);
+    const parkPoint = makeSpot('parkpoint', 46.7825, -92.0856);
+    const lesterRiver = makeSpot('lesterriver', 46.836016, -92.00554);
+    // Far away — Marquette, MI — should be excluded at a small radius
+    const marquette = makeSpot('marquette', 46.5436, -87.3954);
+
+    it('should return nearby spots sorted by distance, excluding far-away ones', () => {
+      const spots = [marquette, parkPoint, stoneyPoint, lesterRiver];
+      // From a point near Lester River, with a tight radius that excludes Marquette
+      const result = getNearbySpots(spots, 46.836016, -92.00554, 50);
+
+      expect(result.map(s => s.id)).not.toContain('marquette');
+      expect(result[0].id).toBe('lesterriver'); // distance 0, closest by definition
+    });
+
+    it('should return an empty array when nothing is within radius', () => {
+      const result = getNearbySpots([marquette], 46.836016, -92.00554, 1);
+      expect(result).toEqual([]);
+    });
+
+    it('should use the default radius from APP_CONFIG when none is provided', () => {
+      // Stoney Point and Lester River are both within ~50km of each other on the North Shore
+      const result = getNearbySpots([stoneyPoint, lesterRiver], 46.836016, -92.00554);
+      expect(result.length).toBe(2);
+    });
+  });
+
+  describe('createRegionForSpots', () => {
+    it('should return null for an empty spot list', () => {
+      expect(createRegionForSpots([])).toBeNull();
+    });
+
+    it('should center on the single spot when only one is given', () => {
+      const spot = makeSpot('stoneypoint', 46.928071, -91.811896);
+      const region = createRegionForSpots([spot]);
+
+      expect(region).toEqual({
+        latitude: 46.928071,
+        longitude: -91.811896,
+        latitudeDelta: 0.1,
+        longitudeDelta: 0.1,
+      });
+    });
+
+    it('should encompass multiple spots with padding applied', () => {
+      const spots = [
+        makeSpot('parkpoint', 46.7825, -92.0856),
+        makeSpot('stoneypoint', 46.928071, -91.811896),
+      ];
+      const region = createRegionForSpots(spots);
+
+      expect(region?.latitude).toBeCloseTo((46.7825 + 46.928071) / 2, 4);
+      expect(region?.longitude).toBeCloseTo((-92.0856 + -91.811896) / 2, 4);
+      expect(region?.latitudeDelta).toBeGreaterThan(46.928071 - 46.7825);
+    });
+
+    it('should enforce a minimum zoom level for spots that are very close together', () => {
+      const spots = [
+        makeSpot('a', 46.7825, -92.0856),
+        makeSpot('b', 46.78251, -92.08561), // ~1.5 meters away
+      ];
+      const region = createRegionForSpots(spots);
+
+      expect(region?.latitudeDelta).toBe(0.02);
+      expect(region?.longitudeDelta).toBe(0.02);
+    });
+  });
+});
