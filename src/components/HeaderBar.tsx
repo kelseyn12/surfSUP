@@ -8,15 +8,12 @@ import {
 } from 'react-native';
 import { COLORS } from '../constants/colors';
 import BackButton from './BackButton';
-import { useWebSocketStatus } from '../services/WebSocketStatusContext';
 
 interface HeaderBarProps {
   title: string;
   onBackPress?: () => void;
   rightComponent?: React.ReactNode;
 }
-
-const MAX_RECONNECT_ATTEMPTS = 5;
 
 /**
  * A standardized header component for screens with optional back button
@@ -26,45 +23,25 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   onBackPress, 
   rightComponent 
 }) => {
-  const { connected, error, reconnectAttempt, reconnectCountdown } = useWebSocketStatus();
-  let statusColor = COLORS.success;
-  if (error) statusColor = COLORS.error;
-  else if (!connected) statusColor = COLORS.warning;
-
-  let errorMessage = 'Real-time connection lost. Some features may be unavailable.';
-  if (error && reconnectAttempt > 0 && reconnectAttempt < MAX_RECONNECT_ATTEMPTS) {
-    errorMessage += ` Retrying (attempt ${reconnectAttempt} of ${MAX_RECONNECT_ATTEMPTS}) in ${reconnectCountdown}s...`;
-  } else if (error && reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
-    errorMessage = 'Unable to reconnect to real-time service. Please check your connection or reload the app.';
-  }
-
   return (
-    <>
-      <View style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-        <View style={styles.header}>
-          {onBackPress ? (
-            <BackButton onPress={onBackPress} />
-          ) : (
-            <View style={styles.placeholderButton} />
-          )}
-          <View style={styles.titleContainer}>
-            <Text style={styles.title} numberOfLines={1}>
-              {title}
-            </Text>
-            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-          </View>
-          <View style={styles.rightComponentContainer}>
-            {rightComponent || <View style={styles.placeholderButton} />}
-          </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <View style={styles.header}>
+        {onBackPress ? (
+          <BackButton onPress={onBackPress} />
+        ) : (
+          <View style={styles.placeholderButton} />
+        )}
+        <View style={styles.titleContainer}>
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
+          </Text>
+        </View>
+        <View style={styles.rightComponentContainer}>
+          {rightComponent || <View style={styles.placeholderButton} />}
         </View>
       </View>
-      {error && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorBannerText}>{errorMessage}</Text>
-        </View>
-      )}
-    </>
+    </View>
   );
 };
 
@@ -98,31 +75,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginRight: 8,
   },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginLeft: 2,
-    borderWidth: 1,
-    borderColor: COLORS.lightGray,
-  },
   rightComponentContainer: {
     width: 44,
     height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  errorBanner: {
-    backgroundColor: COLORS.error,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  errorBannerText: {
-    color: COLORS.white,
-    fontSize: 13,
-    textAlign: 'center',
-  },
 });
 
-export default HeaderBar; 
+export default HeaderBar;

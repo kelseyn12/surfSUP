@@ -41,7 +41,7 @@ import {
 } from '../services/photoService';
 import { fetchForecasterNotes, ForecasterNotes } from '../services/afdService';
 import { isUserCheckedInAt, getGlobalSurferCount, updateGlobalSurferCount } from '../services/globalState';
-import webSocketService, { WebSocketMessageType } from '../services/websocket';
+import { onCheckInStatusChanged } from '../services/events';
 import { HeaderBar } from '../components';
 import { addFavoriteSpot, removeFavoriteSpot } from '../services/storage';
 import { useAuthStore } from '../services/auth';
@@ -154,28 +154,23 @@ const SpotDetailsScreen: React.FC<any> = (props) => {
     return unsubscribe;
   }, [spotId]);
 
-  // Listen for WebSocket updates about check-in status
+  // Listen for check-in status changes for this spot
   useEffect(() => {
-    // Subscribe to check-in status changes
-    const unsubscribe = webSocketService.subscribe(
-      WebSocketMessageType.CHECK_IN_STATUS_CHANGE,
-      (message) => {
-        if (typeof message.payload === 'object' && message.payload && 'userId' in message.payload && 'spotId' in message.payload && (message.payload as any).userId === user?.id && (message.payload as any).spotId === spotId) {
-          const payload = message.payload as { userId: string; spotId: string; isCheckedIn: boolean };
-          if (__DEV__) console.log(`[WebSocket] Received check-in status update for current spot: ${payload.isCheckedIn}`);
-          setIsCheckedIn(payload.isCheckedIn);
-          // If checked out, also clear the check-in ID
-          if (!payload.isCheckedIn) {
-            setCheckInId(null);
-          }
+    const unsubscribe = onCheckInStatusChanged((payload) => {
+      if (payload.spotId === spotId) {
+        if (__DEV__) console.log(`[Events] Received check-in status update for current spot: ${payload.isCheckedIn}`);
+        setIsCheckedIn(payload.isCheckedIn);
+        // If checked out, also clear the check-in ID
+        if (!payload.isCheckedIn) {
+          setCheckInId(null);
         }
       }
-    );
+    });
 
     return () => {
       unsubscribe();
     };
-  }, [spotId, user?.id]);
+  }, [spotId]);
 
   // Toggle favorite status
   const toggleFavorite = async () => {
@@ -1363,4 +1358,4 @@ const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet
   },
 });
 
-export default SpotDetailsScreen; 
+export default SpotDetailsScreen;

@@ -8,7 +8,7 @@ import { SPACING } from '../constants';
 import { formatWaveHeight, formatWind, formatTemperature } from '../utils/formatters';
 import { fetchSurfConditions } from '../services/api';
 import { getGlobalSurferCount } from '../services/globalState';
-import webSocketService, { WebSocketMessageType, WebSocketMessage } from '../services/websocket';
+import { onSurferCountUpdated } from '../services/events';
 
 interface SurfSpotCardProps {
   spot: SurfSpot;
@@ -50,22 +50,13 @@ const SurfSpotCard: React.FC<SurfSpotCardProps> = ({
       updateSurferCount();
     }
     
-    // Subscribe to WebSocket updates for this spot
-    const unsubscribe = webSocketService.subscribe(
-      WebSocketMessageType.SURFER_COUNT_UPDATE,
-      (message: WebSocketMessage) => {
-        if (typeof message.payload === 'object' && message.payload && 'spotId' in message.payload && (message.payload as any).spotId === spot.id) {
-          const payload = message.payload as { spotId: string; count: number };
-          setCurrentSurferCount(payload.count);
-        }
+    // Subscribe to surfer count updates for this spot
+    const unsubscribe = onSurferCountUpdated((payload) => {
+      if (payload.spotId === spot.id) {
+        setCurrentSurferCount(payload.count);
       }
-    );
-    
-    // Make sure WebSocket is connected
-    if (!webSocketService.isConnected) {
-      webSocketService.connect();
-    }
-    
+    });
+
     // Clean up
     return () => {
       unsubscribe();
@@ -443,4 +434,4 @@ const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet
   }
 });
 
-export default SurfSpotCard; 
+export default SurfSpotCard;

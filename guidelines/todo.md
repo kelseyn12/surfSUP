@@ -227,6 +227,8 @@ We have successfully implemented a comprehensive surf forecasting system for Lak
 - [H] Integrate with real backend WebSocket server
   - Deferred until after Firebase authentication and user flows are complete. Will revisit real-time backend after core auth is in place.
 
+**2026-06-23 update:** The mock WebSocket service above was removed entirely (`src/services/websocket.ts`, `src/services/WebSocketStatusContext.tsx`). Firestore's `onSnapshot` real-time listeners already cover live surfer-count sync, and the existing event emitter (`src/services/events.ts`) now covers in-app check-in-status notifications directly — no pub/sub layer was actually needed once Firestore was wired in. The "real backend WebSocket server" item above is obsolete; no further real-time backend work is planned.
+
 ## Recently Completed (Sophisticated Surf Forecasting System)
 - [X] Implement multi-source data aggregation (NOAA, buoys, Windy API)
 - [X] Create Lake Superior-specific surf likelihood calculations
@@ -456,4 +458,4 @@ Goal: Iterate and scale beyond Lake Superior.
 □ Expand to more locations.
 
 - [X] jsEngine was set back to Hermes in app.json after switching to mock authentication. Revisit this if real Firebase Auth is reintroduced or if native module compatibility issues arise.
-- [X] Hermes was disabled in app.json (set jsEngine to 'jsc') to allow Firebase Auth to work in Expo Go. If you need Hermes or native Firebase features in the future, revisit this decision and consider migrating to a custom dev client or bare workflow. 
+- [X] Hermes was disabled in app.json (set jsEngine to 'jsc') to allow Firebase Auth to work in Expo Go. If you need Hermes or native Firebase features in the future, revisit this decision and consider migrating to a custom dev client or bare workflow.

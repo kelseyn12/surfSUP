@@ -52,4 +52,20 @@ export const emitSurferCountUpdated = (spotId: string, count: number): void => {
   eventEmitter.emit(AppEvents.SURFER_COUNT_UPDATED, { spotId, count });
 };
 
-export default eventEmitter; 
+/** Subscribe to surfer count updates for any spot. Returns an unsubscribe function. */
+export const onSurferCountUpdated = (
+  callback: (payload: { spotId: string; count: number }) => void
+): (() => void) => {
+  eventEmitter.on(AppEvents.SURFER_COUNT_UPDATED, callback);
+  return () => eventEmitter.off(AppEvents.SURFER_COUNT_UPDATED, callback);
+};
+
+/** Subscribe to check-in status changes for any spot. Returns an unsubscribe function. */
+export const onCheckInStatusChanged = (
+  callback: (payload: { spotId: string; isCheckedIn: boolean }) => void
+): (() => void) => {
+  eventEmitter.on(AppEvents.CHECK_IN_STATUS_CHANGED, callback);
+  return () => eventEmitter.off(AppEvents.CHECK_IN_STATUS_CHANGED, callback);
+};
+
+export default eventEmitter;

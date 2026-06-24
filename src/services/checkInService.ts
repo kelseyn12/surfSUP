@@ -14,11 +14,6 @@ import {
   firestoreGetSurferCount,
 } from './firestore';
 import { updateGlobalSurferCount, updateUserCheckedInStatus } from './globalState';
-import webSocketService, {
-  WebSocketMessageType,
-  SurferCountUpdateMessage,
-  CheckInStatusMessage,
-} from './websocket';
 import { emitSurferCountUpdated, emitCheckInStatusChanged } from './events';
 
 // ─── Initialization ──────────────────────────────────────────────────────────
@@ -59,12 +54,6 @@ export const checkInToSpot = async (
     updateGlobalSurferCount(spotId, count);
     updateUserCheckedInStatus(spotId, true);
 
-    const now = new Date().toISOString();
-    const surferCountMsg: SurferCountUpdateMessage = { spotId, count, lastUpdated: now };
-    const checkInStatusMsg: CheckInStatusMessage = { userId, spotId, isCheckedIn: true, timestamp: now };
-
-    webSocketService.send({ type: WebSocketMessageType.SURFER_COUNT_UPDATE, payload: surferCountMsg });
-    webSocketService.send({ type: WebSocketMessageType.CHECK_IN_STATUS_CHANGE, payload: checkInStatusMsg });
     emitCheckInStatusChanged(spotId, true);
     emitSurferCountUpdated(spotId, count);
 
@@ -82,7 +71,7 @@ export const checkOutFromSpot = async (checkInId: string): Promise<boolean> => {
     const { db } = await import('../config/firebase');
     const doc = await db.collection('checkIns').doc(checkInId).get();
     if (!doc.exists) return false;
-    const { spotId, userId } = doc.data()!;
+    const { spotId } = doc.data()!;
 
     const success = await firestoreCheckOutFromSpot(checkInId);
     if (!success) return false;
@@ -91,12 +80,6 @@ export const checkOutFromSpot = async (checkInId: string): Promise<boolean> => {
     updateGlobalSurferCount(spotId, count);
     updateUserCheckedInStatus(spotId, false);
 
-    const now = new Date().toISOString();
-    const surferCountMsg: SurferCountUpdateMessage = { spotId, count, lastUpdated: now };
-    const checkInStatusMsg: CheckInStatusMessage = { userId, spotId, isCheckedIn: false, timestamp: now };
-
-    webSocketService.send({ type: WebSocketMessageType.SURFER_COUNT_UPDATE, payload: surferCountMsg });
-    webSocketService.send({ type: WebSocketMessageType.CHECK_IN_STATUS_CHANGE, payload: checkInStatusMsg });
     emitCheckInStatusChanged(spotId, false);
     emitSurferCountUpdated(spotId, count);
 
